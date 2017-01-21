@@ -11,20 +11,18 @@
 
 function cleanUp() {
     #suRemoveFile "$ui/arduino.h"
-    #suRemoveFile "$ui/serialport.h"
-    #suRemoveFile "$ui/tstream.h"
     echo "All cleaned up"
 }
 
 ui="/usr/include"
 ul="/usr/lib"
-olt="/opt/LibraryBuilds/tjlarduino"
-sourceDir="/opt/GitHub/tjlarduino"
-buildDir="/opt/LibraryBuilds/tjlarduino"
+olt="/opt/LibraryBuilds/arduinopc"
+sourceDir="/opt/GitHub/arduinopc"
+buildDir="/opt/LibraryBuilds/arduinopc"
 ub="/usr/bin"
 
 function displayHelp() {
-    echo "Usage: install-tjlarduino.sh [--install/--uninstall]"
+    echo "Usage: install-arduinopc.sh [--install/--uninstall]"
 }
 
 cygwinCheck=$(uname -a | grep -i 'cygwin')
