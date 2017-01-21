@@ -1,0 +1,4 @@
+/opt/GitHub/arduinopc/build/CMakeFiles/edit_cache.dir
+/opt/GitHub/arduinopc/build/CMakeFiles/rebuild_cache.dir
+/opt/GitHub/arduinopc/build/CMakeFiles/arduinopcstatic.dir
+/opt/GitHub/arduinopc/build/CMakeFiles/arduinopc.dir

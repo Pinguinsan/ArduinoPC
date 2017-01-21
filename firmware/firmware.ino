@@ -1,6 +1,5 @@
 #include <Arduino.h>
 #include <SoftwareSerial.h>
-#include <MemoryFree.h>
 #include <avr/pgmspace.h>
 #include "include/arduinoinit.h"
 #include "include/gpio.h"
@@ -55,6 +54,9 @@ namespace std { ohserialstream cout{Serial}; }
 #define OPERATION_PIN_USED_BY_SERIAL_PORT 3
 #define PIN_PLACEHOLDER 1
 #define SOFT 1
+
+static const char CLOSING_CHARACTER{'}'};
+static const char LINE_ENDING{"\r"};
 
 void broadcastString(const std::string &str);
 #if defined(__HAVE_CAN_BUS__)
@@ -233,10 +235,10 @@ using SWSerial = SoftwareSerialPortInfo;
     #define SOFTWARE_SERIAL_ENUM_OFFSET 4
 
     static std::vector<HWSerial *> hardwareSerialPorts {
-        new HWSerial{&Serial,   0,   1,  SERIAL_BAUD, SERIAL_TIMEOUT, true},
-        new HWSerial{&Serial1,  19,  18, SERIAL_BAUD, SERIAL_TIMEOUT, true},
-        new HWSerial{&Serial2,  17,  16, SERIAL_BAUD, SERIAL_TIMEOUT, true},
-        new HWSerial{&Serial3,  15,  14, SERIAL_BAUD, SERIAL_TIMEOUT, true}
+        new HWSerial{&Serial,   0,   1,  SERIAL_BAUD, SERIAL_TIMEOUT, true, LINE_ENDING},
+        new HWSerial{&Serial1,  19,  18, SERIAL_BAUD, SERIAL_TIMEOUT, true, LINE_ENDING},
+        new HWSerial{&Serial2,  17,  16, SERIAL_BAUD, SERIAL_TIMEOUT, true, LINE_ENDING},
+        new HWSerial{&Serial3,  15,  14, SERIAL_BAUD, SERIAL_TIMEOUT, true, LINE_ENDING}
     };
 
 #else
@@ -252,7 +254,7 @@ using SWSerial = SoftwareSerialPortInfo;
     };
     #define SOFTWARE_SERIAL_ENUM_OFFSET 1
     static std::vector<HWSerial *> hardwareSerialPorts {
-        new HWSerial{&Serial, 0,  1, SERIAL_BAUD, SERIAL_TIMEOUT, true},
+        new HWSerial{&Serial, 0,  1, SERIAL_BAUD, SERIAL_TIMEOUT, true, LINE_ENDING},
     };
 
 #endif
@@ -267,27 +269,26 @@ bool isSoftwareCoutStream(int coutIndex);
 SerialPortInfo *getHardwareCout(int coutIndex);
 SerialPortInfo *getSoftwareCout(int coutIndex);
 static SerialPortInfo *currentSerialStream{hardwareSerialPorts.at(0)};
-
 SerialPortInfo *defaultNativePort{hardwareSerialPorts.at(0)};
 
 template <typename Header, typename PinNumber, typename State, typename ResultCode> inline void printResult(const Header &header, PinNumber pinNumber, State state, ResultCode resultCode)
 {    
-    *getCurrentValidOutputStream() << header << ':' << pinNumber << ':' << state << ':' << resultCode << '}'; 
+    *getCurrentValidOutputStream() << header << ':' << pinNumber << ':' << state << ':' << resultCode << CLOSING_CHARACTER << LINE_ENDING;
 }
 
 template <typename Header, typename ResultCode> inline void printSingleResult(const Header &header, ResultCode resultCode)
 {
-    *getCurrentValidOutputStream() << header << ':' << resultCode << '}'; 
+    *getCurrentValidOutputStream() << header << ':' << resultCode << CLOSING_CHARACTER << LINE_ENDING;
 }
 
 template <typename Header, typename Type, typename ResultCode> inline void printTypeResult(const Header &header, Type type, ResultCode resultCode)
 {
-    *getCurrentValidOutputStream() << header << ':' << type << ':' << resultCode << '}'; 
+    *getCurrentValidOutputStream() << header << ':' << type << ':' << resultCode << CLOSING_CHARACTER << LINE_ENDING; 
 }
 
 template <typename Parameter> inline void printString(const Parameter &parameter)
 {
-    *getCurrentValidOutputStream() << parameter;
+    *getCurrentValidOutputStream() << parameter << LINE_ENDING;
 }
 
 int main()
@@ -300,7 +301,7 @@ int main()
     while (true) {
         for (auto &it : hardwareSerialPorts) {
             if ((it->isEnabled()) && (it->available())) {
-                String serialRead{it->readStringUntil('}')};
+                String serialRead{it->readStringUntil(CLOSING_CHARACTER)};
                 currentSerialStream = it;
                 if (serialRead.length() > MAXIMUM_SERIAL_READ_SIZE) {
                     printString(INVALID_HEADER);
@@ -311,7 +312,7 @@ int main()
         }
         for (auto &it : softwareSerialPorts) {
             if ((it->isEnabled()) && (it->available())) {
-                String serialRead{it->readStringUntil('}')};
+                String serialRead{it->readStringUntil(CLOSING_CHARACTER)};
                 if (serialRead.length() > MAXIMUM_SERIAL_READ_SIZE) {
                     printString(INVALID_HEADER);
                 } else {
@@ -342,7 +343,6 @@ int main()
                 }
             }
         #endif
-        delay(500);
         if (serialEventRun) serialEventRun();
     }
     for (auto &it : gpioPins) {
@@ -561,7 +561,7 @@ void addSoftwareSerialRequest(const std::string &str)
         }
     }
     if (isValidSoftwareSerialAddition(rxPinNumber, txPinNumber)) {
-        SWSerial *swSerialTemp{ new SWSerial{rxPinNumber, txPinNumber, SERIAL_BAUD, SERIAL_TIMEOUT, true} };
+        SWSerial *swSerialTemp{ new SWSerial{rxPinNumber, txPinNumber, SERIAL_BAUD, SERIAL_TIMEOUT, true, LINE_ENDING} };
         softwareSerialPorts.push_back(swSerialTemp);
         swSerialTemp->initialize();
         printResult(ADD_SOFTWARE_SERIAL_HEADER, maybeRxPin, maybeTxPin, OPERATION_SUCCESS);
@@ -739,7 +739,7 @@ void currentAToDThresholdRequest()
 
 void ioReportRequest()
 {
-    *getCurrentValidOutputStream() << IO_REPORT_HEADER << '}';
+    *getCurrentValidOutputStream() << IO_REPORT_HEADER << CLOSING_CHARACTER;
     for (auto &it : gpioPins) {
         GPIO *gpioPin{it.second};
         int state{0};
@@ -758,7 +758,7 @@ void ioReportRequest()
             *getCurrentValidOutputStream() << '{' << gpioPin->pinNumber() << ':' << getIOTypeString(gpioPin->ioType()) << ':' << state << "};";
         }
     }
-    *getCurrentValidOutputStream() << IO_REPORT_END_HEADER << '}';
+    *getCurrentValidOutputStream() << IO_REPORT_END_HEADER << CLOSING_CHARACTER << LINE_ENDING;
 }
 
 void digitalReadRequest(const std::string &str, bool soft)
@@ -841,7 +841,7 @@ void digitalWriteAllRequest(const std::string &str)
             }
         }
     }
-    *getCurrentValidOutputStream() << ':' << state << ':' << OPERATION_SUCCESS << '}';
+    *getCurrentValidOutputStream() << ':' << state << ':' << OPERATION_SUCCESS << CLOSING_CHARACTER << LINE_ENDING;
 }
 
 void analogReadRequest(const std::string &str)
@@ -1189,13 +1189,13 @@ int parseToAnalogState(const std::string &str)
 bool isValidPinIdentifier(const std::string &str)
 {
     for (auto &it : gpioPins) {
-        if (atoi(str.c_str()) == it.first) {
+        if (atoi(str.c_str()) == static_cast<int>(it.first)) {
             return true;
         }
     }
     for (unsigned int i =  0; i < ARRAY_SIZE(AVAILABLE_ANALOG_PINS)-1; i++) {
         if (str.find("A") != std::string::npos) {
-            if (atoi(str.substr(1).c_str()) == i) {
+            if (atoi(str.substr(1).c_str()) == static_cast<int>(i)) {
                 return true;
             }
         }
@@ -1232,7 +1232,7 @@ bool isValidAnalogPinIdentifier(const std::string &str)
 
     for (unsigned int j =  0; j < ARRAY_SIZE(AVAILABLE_ANALOG_PINS)-1; j++) {
         if (str.find("A") != std::string::npos) {
-            if (atoi(str.substr(1).c_str()) == j) {
+            if (atoi(str.substr(1).c_str()) == static_cast<int>(j)) {
                 return true;
             }
         }
@@ -1291,7 +1291,7 @@ int parseAnalogPin(const std::string &pinAlias)
 {
     for (unsigned int i =  0; i < ARRAY_SIZE(AVAILABLE_ANALOG_PINS)-1; i++) {
         if (pinAlias.find("A") != std::string::npos) {
-            if (atoi(pinAlias.substr(1).c_str()) == i) {
+            if (atoi(pinAlias.substr(1).c_str()) == static_cast<int>(i)) {
                 return ANALOG_PIN_OFFSET + i + 1;
             }
         }
@@ -1427,17 +1427,17 @@ bool isSoftwareCoutStream(int coutIndex)
 #if defined(__HAVE_CAN_BUS__)
     void printCanResult(const std::string &header, const std::string &str, int resultCode) 
     { 
-        *getCurrentValidOutputStream() << header << ':' << str << ':' << resultCode << '}'; 
+        *getCurrentValidOutputStream() << header << ':' << str << ':' << resultCode << CLOSING_CHARACTER << LINE_ENDING;
     }
     
     void printCanResult(const std::string &header, const CanMessage &msg, int resultCode) 
     { 
-        *getCurrentValidOutputStream() << header << ':' << msg.toString() << ':' << resultCode << '}'; 
+        *getCurrentValidOutputStream() << header << ':' << msg.toString() << ':' << resultCode << CLOSING_CHARACTER << LINE_ENDING;
     }
     
     void printBlankCanResult(const std::string &header, int resultCode) 
     { 
-        *getCurrentValidOutputStream() << header << ':' << resultCode << '}'; 
+        *getCurrentValidOutputStream() << header << ':' << resultCode << CLOSING_CHARACTER; 
     } 
 
     void canInit()

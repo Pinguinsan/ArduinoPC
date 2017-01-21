@@ -18,17 +18,16 @@ else()
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${GCC_ADDITIONAL_COMPILE_FLAGS}")
 endif()
 
-include_directories("${CMAKE_CURRENT_SOURCE_DIR}/src/C++/arduino/include/"
-                    "${CMAKE_CURRENT_SOURCE_DIR}/src/C++/tstream/include/")
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}/src/C++/arduino/include/")
 
 set(SOURCE_BASE /opt/GitHub/arduinopc/)
 
-set (ARDUINO_SOURCES "${SOURCE_BASE}/arduino/src/arduino.cpp")
+set (ARDUINO_SOURCES "${SOURCE_BASE}/src/C++/arduino/src/arduino.cpp")
 
-target_link_libraries(arduinopc tjlutils pthread)
 
 add_library(arduinopc SHARED "${ARDUINO_SOURCES}")
 
 add_library(arduinopcstatic STATIC "${ARDUINO_SOURCES}")
+target_link_libraries(arduinopc tjlutils pthread)
                         
 set_target_properties(arduinopcstatic PROPERTIES OUTPUT_NAME arduinopc)

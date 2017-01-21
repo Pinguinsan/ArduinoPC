@@ -1,0 +1,2 @@
+/usr/bin/ar qc libarduinopc.a  CMakeFiles/arduinopcstatic.dir/src/C++/arduino/src/arduino.cpp.o
+/usr/bin/ranlib libarduinopc.a

@@ -1,0 +1,38 @@
+#IncludeRegexLine: ^[ 	]*#[ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+../src/C++/arduino/include/arduino.h
+string
+-
+utility
+-
+memory
+-
+future
+-
+algorithm
+-
+mutex
+-
+set
+-
+vector
+-
+serialport.h
+../src/C++/arduino/include/serialport.h
+generalutilities.h
+../src/C++/arduino/include/generalutilities.h
+eventtimer.h
+../src/C++/arduino/include/eventtimer.h
+tstream.h
+../src/C++/arduino/include/tstream.h
+
+/opt/GitHub/arduinopc/src/C++/arduino/src/arduino.cpp
+arduino.h
+/opt/GitHub/arduinopc/src/C++/arduino/src/arduino.h
+

@@ -33,7 +33,6 @@ enum ADThresholdReq { AD_RETURN_STATE, AD_OPERATION_RESULT };
     #define LOW 0x0
 #endif
 
-
 class ArduinoUno;
 class ArduinoNano;
 class ArduinoMega;
@@ -235,6 +234,7 @@ const std::vector<const char *> VALID_DIGITAL_STATE_IDENTIFIERS{"1", "0", "HIGH"
 const std::vector<char> VALID_ANALOG_STATE_IDENTIFIERS{'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.'};
 const std::vector<const char *> DIGITAL_STATE_HIGH_IDENTIFIERS{"1", "high", "true", "on"};
 const std::vector<const char *> DIGITAL_STATE_LOW_IDENTIFIERS{"0", "low", "false", "off"};
+const char LINE_ENDING{'\r'};
 const char * const INVALID_HEADER{"{invalid"};
 const char * const DIGITAL_READ_HEADER{"{dread"};
 const char * const ANALOG_READ_HEADER{"{aread"};

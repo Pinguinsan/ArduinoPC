@@ -201,16 +201,12 @@ namespace FirmwareUtilities
         return startsWith(str, std::string{1, compare});
     }
 
-    bool endsWith(const std::string &str, const std::string &compare)
+    bool endsWith(const std::string &stringToCheck, const std::string &matchString)
     {
-        if (str.length() < compare.length()) {
+        if (matchString.size() > stringToCheck.size()) {
             return false;
         }
-        size_t foundPosition{str.find(compare)};
-        if (foundPosition == std::string::npos) {
-            return false;
-        }
-        return ((str.substr(foundPosition) == compare) && (str.substr(foundPosition).length() == compare.length()));
+        return std::equal(matchString.rbegin(), matchString.rend(), stringToCheck.rbegin());
     }
 
     bool endsWith(const std::string &str, char compare)
@@ -218,26 +214,20 @@ namespace FirmwareUtilities
         return endsWith(str, std::string{1,compare});
     }
 
-    std::vector<std::string> parseToVector(const std::string &thingToParse, char delimiter)
+    std::vector<std::string> parseToVector(std::string::iterator first, std::string::iterator last, char delimiter)
     {
-        std::vector<std::string> returnVector;
-        std::string copyThing{thingToParse};
-        if (copyThing.length() > 0) {
-            if (copyThing[0] == delimiter) {
-                copyThing = copyThing.substr(1);
+        std::vector<std::string> returnContainer;
+        std::string::iterator it;
+        do {
+            it = std::find(first, last, delimiter);
+            std::string tempContainer{""};
+            std::copy(first, it, std::inserter(tempContainer, tempContainer.end()));
+            if (!tempContainer.empty()) {
+                returnContainer.insert(returnContainer.end(), tempContainer);
             }
-        }
-        while (copyThing.length() > 0) {
-            size_t foundPosition{copyThing.find(delimiter)};
-            if (foundPosition != std::string::npos) {
-                returnVector.push_back(copyThing.substr(0, foundPosition));
-                copyThing = copyThing.substr(foundPosition+1);
-            } else {
-                returnVector.push_back(copyThing);
-                copyThing = "";
-            }
-        }           
-        return returnVector;
+            first = it+1;
+        } while (it != last);
+        return returnContainer;
     }
 
     bool isWhitespace(const std::string &stringToCheck)

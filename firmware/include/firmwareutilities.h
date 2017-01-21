@@ -13,6 +13,7 @@
 #include <utility.h>
 #include <iostream>
 #include <string>
+#include <iterator>
 #include <vector>
 #include <sstream>
 #include <algorithm>

@@ -37,6 +37,7 @@ public:
     virtual bool serialPortIsNull() const = 0;
     virtual bool isEnabled() const = 0;
     virtual bool initialize() = 0;
+    virtual char lineEnding() const = 0;
 
     virtual void print(const std::string &stringToPrint) = 0;
     virtual void print(const char *stringToPrint) = 0;
@@ -51,6 +52,8 @@ public:
     virtual SerialPortInfo &operator<<(short rhs) = 0;
     virtual SerialPortInfo &operator<<(int rhs) = 0;
     virtual SerialPortInfo &operator<<(bool rhs) = 0;
+
+    static const int MAX_READ_BUFFER{8192};
 };
 
 class HardwareSerialPortInfo : public SerialPortInfo
@@ -61,13 +64,15 @@ public:
                             short txPin, 
                             long long baudRate, 
                             long long timeout,
-                            bool enabled) :
+                            bool enabled,
+                            char lineEnding) :
         m_serialPort{serialPort},
         m_rxPin{rxPin},
         m_txPin{txPin},
         m_baudRate{baudRate},
         m_timeout{timeout},
-        m_isEnabled{enabled}
+        m_isEnabled{enabled},
+        m_lineEnding{lineEnding}
     {
 
     }
@@ -84,7 +89,7 @@ public:
 
     String readString()
     {
-        return this->m_serialPort->readString();
+        return this->readStringUntil(this->m_lineEnding);
     }
 
     String readStringUntil(char until)
@@ -137,6 +142,11 @@ public:
         } else {
             return false;
         }
+    }
+
+    char lineEnding() const
+    {
+        return this->m_lineEnding;
     }
 
     void print(const std::string &stringToPrint)
@@ -213,7 +223,7 @@ private:
     long long m_baudRate;
     long long m_timeout;
     bool m_isEnabled;
-
+    char m_lineEnding;
 };
 
 
@@ -225,13 +235,15 @@ public:
                                short txPin, 
                                long long baudRate, 
                                long long timeout,
-                               bool enabled) :
+                               bool enabled,
+                               char lineEnding) :
         m_serialPort{new SoftwareSerial{static_cast<uint8_t>(rxPin), static_cast<uint8_t>(txPin)}},
         m_rxPin{rxPin},
         m_txPin{txPin},
         m_baudRate{baudRate},
         m_timeout{timeout},
-        m_isEnabled{enabled}
+        m_isEnabled{enabled},
+        m_lineEnding{lineEnding}
     {
         this->m_serialPort->begin(baudRate);
     }
@@ -259,6 +271,9 @@ public:
                 if (isPrintable(readChar)) {
                     returnString += readChar;
                 }
+                if (readChar == this->m_lineEnding) {
+                    break;
+                }
             }
             endTime = millis();
             elapsedTime = endTime - startTime;
@@ -279,10 +294,13 @@ public:
                 if (isPrintable(readChar)) {
                     returnString += readChar;
                 }
+                if (readChar == until) {
+                    break;
+                }
             }
             endTime = millis();
             elapsedTime = endTime - startTime;
-        } while ((elapsedTime <= static_cast<unsigned long long>(this->m_timeout)) && (readChar != until));
+        } while (elapsedTime <= static_cast<unsigned long long>(this->m_timeout));
         return returnString;
     }
 
@@ -330,6 +348,11 @@ public:
         } else {
             return false;
         }
+    }
+
+    char lineEnding() const
+    {
+        return this->m_lineEnding;
     }
 
     void print(const std::string &stringToPrint)
@@ -405,6 +428,7 @@ private:
     long long m_baudRate;
     long long m_timeout;
     bool m_isEnabled;
+    char m_lineEnding;
 
 };
 
