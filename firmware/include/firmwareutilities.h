@@ -57,7 +57,7 @@ namespace FirmwareUtilities
     bool startsWith(const std::string &str, const char *compare);
     bool endsWith(const std::string &str, const std::string &compare);
     bool endsWith(const std::string &str, char compare);
-    std::vector<std::string> parseToVector(const std::string &thingToParse, char delimiter);
+    std::vector<std::string> parseToVector(std::string::iterator first, std::string::iterator last, char delimiter);
     bool isWhitespace(const std::string &stringToCheck);
     bool isWhitespace(char charToCheck);
     std::string stripFromString(const std::string &stringToStrip, const std::string &whatToStrip);

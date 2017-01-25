@@ -23,7 +23,7 @@ namespace ArduinoPCStrings
     const char *CLEAR_CAN_MESSAGES_HEADER{"{clearcanmsgs"};
     const char *CLEAR_CAN_MESSAGE_BY_ID_HEADER{"{clearcanmsgid"};
     const char *CURRENT_CAN_MESSAGES_HEADER{"{curcanmsgs"};
-    const char *CURRENT_CAN_MESSAGE_BY_ID_HEADER{"{curcanmsgid}"};
+    const char *CURRENT_CAN_MESSAGE_BY_ID_HEADER{"{curcanmsgid"};
     const char *CLEAR_POSITIVE_CAN_MASKS_HEADER{"{clearpcanmasks"};
     
     const char *ADD_POSITIVE_CAN_MASK_HEADER{"{addpcanmask"};

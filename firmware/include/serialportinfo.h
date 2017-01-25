@@ -51,6 +51,7 @@ public:
     virtual SerialPortInfo &operator<<(char rhs) = 0;
     virtual SerialPortInfo &operator<<(short rhs) = 0;
     virtual SerialPortInfo &operator<<(int rhs) = 0;
+    virtual SerialPortInfo &operator<<(unsigned long rhs) = 0;
     virtual SerialPortInfo &operator<<(bool rhs) = 0;
 
     static const int MAX_READ_BUFFER{8192};
@@ -204,6 +205,12 @@ public:
     }
 
     SerialPortInfo &operator<<(int rhs)
+    {
+        this->m_serialPort->print(rhs);
+        return *this;
+    }
+
+    SerialPortInfo &operator<<(unsigned long rhs)
     {
         this->m_serialPort->print(rhs);
         return *this;
@@ -414,6 +421,14 @@ public:
         this->m_serialPort->print(rhs);
         return *this;
     }
+
+
+    SerialPortInfo &operator<<(unsigned long rhs)
+    {
+        this->m_serialPort->print(rhs);
+        return *this;
+    }
+
 
     SerialPortInfo &operator<<(bool rhs)
     {

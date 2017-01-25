@@ -1,12 +1,12 @@
 #include "arduino.h"
 
-const BaudRate Arduino::FIRMWARE_BAUD_RATE{BaudRate::BAUD115200};
-const DataBits Arduino::FIRMWARE_DATA_BITS{DataBits::EIGHT};
-const StopBits Arduino::FIRMWARE_STOP_BITS{StopBits::ONE};
-const Parity Arduino::FIRMWARE_PARITY{Parity::NONE};
-const int Arduino::ANALOG_MAX{1023};
-const double Arduino::VOLTAGE_MAX{5.0};
-const unsigned int Arduino::DEFAULT_IO_TRY_COUNT{3};
+const BaudRate FIRMWARE_BAUD_RATE{BaudRate::BAUD115200};
+const DataBits FIRMWARE_DATA_BITS{DataBits::EIGHT};
+const StopBits FIRMWARE_STOP_BITS{StopBits::ONE};
+const Parity FIRMWARE_PARITY{Parity::NONE};
+const int ANALOG_MAX{1023};
+const double VOLTAGE_MAX{5.0};
+const unsigned int DEFAULT_IO_TRY_COUNT{3};
 
 Arduino::Arduino(ArduinoType arduinoType, std::shared_ptr<TStream> tStream) :
     m_arduinoType{arduinoType},
@@ -131,13 +131,13 @@ std::vector<std::string> Arduino::genericIOTask(const std::string &stringToSend,
     if (GeneralUtilities::endsWith(*returnString, LINE_ENDING)) {
         *returnString = returnString->substr(0, returnString->length()-1); 
     }
-    if (GeneralUtilities::startsWith(*returnString, header) && GeneralUtilities::endsWith(*returnString, '}')) {
+    if (GeneralUtilities::startsWith(*returnString, header) && GeneralUtilities::endsWith(*returnString, TERMINATING_CHARACTER)) {
         *returnString = returnString->substr(static_cast<std::string>(header).length() + 1);
         *returnString = returnString->substr(0, returnString->length()-1);
     } else {
         return std::vector<std::string>{};
     }
-    return GeneralUtilities::parseToContainer<std::vector<std::string>, std::string::iterator>(returnString->begin(), returnString->end(), ':');
+    return GeneralUtilities::parseToContainer<std::vector<std::string>>(returnString->begin(), returnString->end(), ':');
 }
 
 std::vector<std::string> Arduino::genericIOReportTask(const std::string &stringToSend, const std::string &header, const std::string &endHeader, double delay)
@@ -169,7 +169,7 @@ std::vector<std::string> Arduino::genericIOReportTask(const std::string &stringT
     } else {
         return std::vector<std::string>{};
     }
-    return GeneralUtilities::parseToContainer<std::vector<std::string>, std::string::iterator>(returnString->begin(), returnString->end(), ';');
+    return GeneralUtilities::parseToContainer<std::vector<std::string>>(returnString->begin(), returnString->end(), ';');
 }
 
 std::pair<IOStatus, std::string> Arduino::arduinoTypeString()
@@ -292,11 +292,11 @@ IOReport Arduino::ioReportRequest()
                                                                100)};
         IOReport ioReport;
         for (auto &it : allStates) {
-            it = GeneralUtilities::stripAllFromString(it, '}');
+            it = GeneralUtilities::stripAllFromString(it, TERMINATING_CHARACTER);
             it = GeneralUtilities::stripAllFromString(it, '{');
-            std::vector<std::string> states{GeneralUtilities::parseToContainer<std::vector<std::string>, std::string::iterator>(it.begin(), it.end(), ':')};
+            std::vector<std::string> states{GeneralUtilities::parseToContainer<std::vector<std::string>>(it.begin(), it.end(), ':')};
             std::string endCheck{GeneralUtilities::stripAllFromString(IO_REPORT_END_HEADER, '{')};
-            endCheck = GeneralUtilities::stripAllFromString(endCheck, '}');
+            endCheck = GeneralUtilities::stripAllFromString(endCheck, TERMINATING_CHARACTER);
             if (it.find(endCheck) != std::string::npos) {
                 continue;
             }
@@ -918,6 +918,430 @@ std::pair<IOStatus, int> Arduino::analogWriteRaw(int pinNumber, int state)
         }
     }
     return std::make_pair(IOStatus::OPERATION_FAILURE, 0);
+}
+
+std::pair<IOStatus, CanMessage> Arduino::canRead()
+{
+    using namespace GeneralUtilities;
+    std::string stringToSend{static_cast<std::string>(CAN_READ_HEADER) + TERMINATING_CHARACTER};
+    CanMessage emptyMessage{0, 0, 0, CanDataPacket()};
+    for (int i = 0; i < IO_TRY_COUNT; i++) {
+        std::vector<std::string> states{genericIOTask(stringToSend, CAN_READ_HEADER, this->m_streamSendDelay)};
+        if ((states.size() == CAN_READ_RETURN_SIZE) && (states.size() != CAN_READ_BLANK_RETURN_SIZE)){
+            if (i+1 == IO_TRY_COUNT) {
+                return std::make_pair(IOStatus::OPERATION_FAILURE, emptyMessage);
+            } else {
+                continue;
+            }
+        }
+        if (states.size() == CAN_READ_BLANK_RETURN_SIZE) {
+            if (states.at(0) == OPERATION_FAILURE_STRING) {
+                if (i+1 == IO_TRY_COUNT) {
+                    return std::make_pair(IOStatus::OPERATION_FAILURE, emptyMessage);
+                } else {
+                    continue;
+                }
+            } else {
+                return std::make_pair(IOStatus::OPERATION_SUCCESS, emptyMessage);
+            }
+        }
+        if (states.at(CanIOStatus::CAN_IO_OPERATION_RESULT) == OPERATION_FAILURE_STRING) {
+            if (i+1 == IO_TRY_COUNT) {
+                return std::make_pair(IOStatus::OPERATION_FAILURE, emptyMessage);
+            } else {
+                continue;
+            }
+        }
+        std::string message{states.at(CanIOStatus::MESSAGE_ID)};
+        for (unsigned int i = CanIOStatus::BYTE_0; i < CanIOStatus::CAN_IO_OPERATION_RESULT; i++) {
+            message += ":" + states.at(i);
+        }
+        return std::make_pair(IOStatus::OPERATION_SUCCESS, CanMessage::parseCanMessage(message));
+    }
+    return std::make_pair(IOStatus::OPERATION_FAILURE, emptyMessage);
+}
+
+std::pair<IOStatus, CanMessage> Arduino::canWrite(const CanMessage &message)
+{
+    using namespace GeneralUtilities;
+    CanMessage emptyMessage{0, 0, 0, CanDataPacket()};
+    std::string stringToSend{static_cast<std::string>(CAN_WRITE_HEADER) + ":" + message.toString() + TERMINATING_CHARACTER };
+    for (int i = 0; i < IO_TRY_COUNT; i++) {
+        std::vector<std::string> states{genericIOTask(stringToSend, CAN_WRITE_HEADER, this->m_streamSendDelay)};
+        if ((states.size() == CAN_READ_RETURN_SIZE) && (states.size() != CAN_READ_BLANK_RETURN_SIZE)){
+            if (i+1 == IO_TRY_COUNT) {
+                return std::make_pair(IOStatus::OPERATION_FAILURE, emptyMessage);
+            } else {
+                continue;
+            }
+        }
+        if (states.size() != CAN_WRITE_RETURN_SIZE) {
+            if (i+1 == IO_TRY_COUNT) {
+                return std::make_pair(IOStatus::OPERATION_FAILURE, emptyMessage);
+            } else {
+                continue;
+            }
+        }
+        if (states.at(CanIOStatus::CAN_IO_OPERATION_RESULT) == OPERATION_FAILURE_STRING) {
+            if (i+1 == IO_TRY_COUNT) {
+                return std::make_pair(IOStatus::OPERATION_FAILURE, emptyMessage);
+            } else {
+                continue;
+            }
+        }
+        std::string returnMessage{states.at(CanIOStatus::MESSAGE_ID) + ":"};
+        for (unsigned int i = CanIOStatus::BYTE_0; i < CanIOStatus::CAN_IO_OPERATION_RESULT; i++) {
+            returnMessage += ":" + states.at(i);
+        }
+        return std::make_pair(IOStatus::OPERATION_SUCCESS, CanMessage::parseCanMessage(returnMessage));
+    }
+    return std::make_pair(IOStatus::OPERATION_FAILURE, emptyMessage);
+}
+
+CanReport Arduino::canReportRequest()
+{
+    using namespace GeneralUtilities;
+    for (int i = 0; i < IO_TRY_COUNT; i++) {
+        CanReport canReport;
+        std::pair<IOStatus, CanMessage> result{canListen(DEFAULT_IO_STREAM_SEND_DELAY)};
+        if (result.first == IOStatus::OPERATION_FAILURE) {
+            if (i+1 == IO_TRY_COUNT) {
+                throw std::runtime_error(CAN_REPORT_INVALID_DATA_STRING);
+            } else {
+                continue;
+            }
+        } else {
+            canReport.addCanMessageResult(result.second);
+        }
+        return canReport;
+    }
+    return CanReport{};
+}
+
+std::pair<IOStatus, CanMessage> Arduino::canListen(double delay)
+{
+    using namespace GeneralUtilities;
+    std::string stringToSend{static_cast<std::string>(CAN_READ_HEADER) + TERMINATING_CHARACTER};
+    CanMessage emptyMessage{0, 0, 0, CanDataPacket()};
+    this->m_ioStream->writeString(stringToSend);
+    for (int i = 0; i < IO_TRY_COUNT; i++) {
+        std::unique_ptr<std::string> returnString{std::make_unique<std::string>("")};
+        *returnString = this->m_ioStream->readStringUntil(TERMINATING_CHARACTER);
+        bool canRead{false};
+        if ((returnString->find(CAN_EMPTY_READ_SUCCESS_STRING) != std::string::npos) && (returnString->length() > static_cast<std::string>(CAN_EMPTY_READ_SUCCESS_STRING).length() + 10)) {
+            *returnString = returnString->substr(static_cast<std::string>(CAN_EMPTY_READ_SUCCESS_STRING).length());
+        }
+        if (startsWith(*returnString, CAN_READ_HEADER) && endsWith(*returnString, TERMINATING_CHARACTER)) {
+            *returnString = returnString->substr(static_cast<std::string>(CAN_READ_HEADER).length() + 1);
+            *returnString = returnString->substr(0, returnString->length()-1);
+            canRead = true;
+        } else if (startsWith(*returnString, CAN_WRITE_HEADER) && endsWith(*returnString, TERMINATING_CHARACTER)) {
+            *returnString = returnString->substr(static_cast<std::string>(CAN_WRITE_HEADER).length() + 1);
+            *returnString = returnString->substr(0, returnString->find(TERMINATING_CHARACTER)+1);
+        } else {
+            if (i+1 == IO_TRY_COUNT) {
+                return std::make_pair(IOStatus::OPERATION_FAILURE, emptyMessage);
+            } else {
+                continue;
+            }
+        }
+        if (canRead) {
+            std::vector<std::string> states{parseToContainer<std::vector<std::string>>(returnString->begin(), returnString->end(), ':')};
+            if ((states.size() != CAN_READ_RETURN_SIZE) && (states.size() != CAN_READ_BLANK_RETURN_SIZE)){
+                if (i+1 == IO_TRY_COUNT) {
+                    return std::make_pair(IOStatus::OPERATION_FAILURE, emptyMessage);
+                } else {
+                    continue;
+                }
+            }
+            if (states.size() == CAN_READ_BLANK_RETURN_SIZE) {
+                if (states.at(0) == OPERATION_FAILURE_STRING) {
+                    if (i+1 == IO_TRY_COUNT) {
+                        return std::make_pair(IOStatus::OPERATION_FAILURE, emptyMessage);
+                    } else {
+                        continue;
+                    }
+                } else {
+                    return std::make_pair(IOStatus::OPERATION_SUCCESS, emptyMessage);
+                }
+            }
+            if (states.at(CanIOStatus::CAN_IO_OPERATION_RESULT) == OPERATION_FAILURE_STRING) {
+                if (i+1 == IO_TRY_COUNT) {
+                    return std::make_pair(IOStatus::OPERATION_FAILURE, emptyMessage);
+                } else {
+                    continue;
+                }
+            }
+            std::string message{states.at(CanIOStatus::MESSAGE_ID)};
+            for (unsigned int i = CanIOStatus::BYTE_0; i < CanIOStatus::CAN_IO_OPERATION_RESULT; i++) {
+                message += ":" + states.at(i);
+            }
+            return std::make_pair(IOStatus::OPERATION_SUCCESS, CanMessage::parseCanMessage(message));
+        } else {
+            std::vector<std::string> states{parseToContainer<std::vector<std::string>>(returnString->begin(), returnString->end(), ':')};
+            if (states.size() != CAN_WRITE_RETURN_SIZE) {
+                if (i+1 == IO_TRY_COUNT) {
+                    return std::make_pair(IOStatus::OPERATION_FAILURE, emptyMessage);
+                } else {
+                    continue;
+                }
+            }
+            if (states.at(CanIOStatus::CAN_IO_OPERATION_RESULT) == OPERATION_FAILURE_STRING) {
+                if (i+1 == IO_TRY_COUNT) {
+                    return std::make_pair(IOStatus::OPERATION_FAILURE, emptyMessage);
+                } else {
+                    continue;
+                }
+            }
+            std::string message{states.at(CanIOStatus::MESSAGE_ID)};
+            for (unsigned int i = CanIOStatus::BYTE_0; i < CanIOStatus::CAN_IO_OPERATION_RESULT; i++) {
+                message += ":" + states.at(i);
+            }
+            return std::make_pair(IOStatus::OPERATION_SUCCESS, CanMessage::parseCanMessage(message));
+        }
+    }
+    return std::make_pair(IOStatus::OPERATION_FAILURE, emptyMessage);
+}
+
+std::pair<IOStatus, uint32_t> Arduino::addCanMask(CanMaskType canMaskType, const std::string &mask)
+{
+    using namespace GeneralUtilities;
+    std::string stringToSend{""};
+    if (canMaskType == CanMaskType::POSITIVE) {
+        stringToSend = static_cast<std::string>(ADD_POSITIVE_CAN_MASK_HEADER) + ':' + mask + TERMINATING_CHARACTER;
+    } else if (canMaskType == CanMaskType::NEGATIVE) {
+        stringToSend = static_cast<std::string>(ADD_NEGATIVE_CAN_MASK_HEADER) + ':' + mask + TERMINATING_CHARACTER;
+    } else {
+        return std::make_pair(IOStatus::OPERATION_FAILURE, 0);
+    }
+    for (int i = 0; i < IO_TRY_COUNT; i++) {
+        if (canMaskType == CanMaskType::POSITIVE) {
+            std::vector<std::string> states{genericIOTask(stringToSend, ADD_POSITIVE_CAN_MASK_HEADER, this->m_streamSendDelay)};
+            if (states.size() != ADD_CAN_MASK_RETURN_SIZE) {
+                if (i+1 == IO_TRY_COUNT) {
+                    return std::make_pair(IOStatus::OPERATION_FAILURE, 0);
+                } else {
+                    continue;
+                }
+            }
+            if (mask != states.at(CanMask::CAN_MASK_RETURN_STATE)) {
+                if (i+1 == IO_TRY_COUNT) {
+                    return std::make_pair(IOStatus::OPERATION_FAILURE, 0);
+                } else {
+                    continue;
+                }
+            }
+            if (states.at(CanMask::CAN_MASK_OPERATION_RESULT) == OPERATION_FAILURE_STRING) {
+                if (i+1 == IO_TRY_COUNT) {
+                    return std::make_pair(IOStatus::OPERATION_FAILURE, 0);
+                } else {
+                    continue;
+                }
+            }
+            try {
+                return std::make_pair(IOStatus::OPERATION_SUCCESS, std::stoi(states.at(CanMask::CAN_MASK_RETURN_STATE)));
+            } catch (std::exception &e) {
+                (void)e;
+                if (i+1 == IO_TRY_COUNT) {
+                    return std::make_pair(IOStatus::OPERATION_FAILURE, 0);
+                } else {
+                    continue;
+                }
+            }
+        } else if (canMaskType == CanMaskType::NEGATIVE) {
+            std::string stringToSend{static_cast<std::string>(ADD_NEGATIVE_CAN_MASK_HEADER) + ':' + mask + TERMINATING_CHARACTER};
+            std::vector<std::string> states{genericIOTask(stringToSend, ADD_NEGATIVE_CAN_MASK_HEADER, this->m_streamSendDelay)};
+            if (states.size() != ADD_CAN_MASK_RETURN_SIZE) {
+                if (i+1 == IO_TRY_COUNT) {
+                    return std::make_pair(IOStatus::OPERATION_FAILURE, 0);
+                } else {
+                    continue;
+                }
+            }
+            if (mask != states.at(CanMask::CAN_MASK_RETURN_STATE)) {
+                if (i+1 == IO_TRY_COUNT) {
+                    return std::make_pair(IOStatus::OPERATION_FAILURE, 0);
+                } else {
+                    continue;
+                }
+            }
+            if (states.at(CanMask::CAN_MASK_OPERATION_RESULT) == OPERATION_FAILURE_STRING) {
+                if (i+1 == IO_TRY_COUNT) {
+                    return std::make_pair(IOStatus::OPERATION_FAILURE, 0);
+                } else {
+                    continue;
+                }
+            }
+            try {
+                return std::make_pair(IOStatus::OPERATION_SUCCESS, std::stoi(states.at(CanMask::CAN_MASK_RETURN_STATE)));
+            } catch (std::exception &e) {
+                (void)e;
+                if (i+1 == IO_TRY_COUNT) {
+                    return std::make_pair(IOStatus::OPERATION_FAILURE, 0);
+                } else {
+                    continue;
+                }
+            }
+        } else {
+            return std::make_pair(IOStatus::OPERATION_FAILURE, 0);
+        }
+    }
+    return std::make_pair(IOStatus::OPERATION_FAILURE, 0);
+}
+
+
+std::pair<IOStatus, uint32_t> Arduino::removeCanMask(CanMaskType canMaskType, const std::string &mask)
+{
+    using namespace GeneralUtilities;
+    std::string stringToSend{""};
+    if (canMaskType == CanMaskType::POSITIVE) {
+        stringToSend = static_cast<std::string>(REMOVE_POSITIVE_CAN_MASK_HEADER) + ':' + mask + TERMINATING_CHARACTER;
+    } else if (canMaskType == CanMaskType::NEGATIVE) {
+        stringToSend = static_cast<std::string>(REMOVE_NEGATIVE_CAN_MASK_HEADER) + ':' + mask + TERMINATING_CHARACTER;
+    } else {
+        return std::make_pair(IOStatus::OPERATION_FAILURE, 0);
+    }
+    for (int i = 0; i < IO_TRY_COUNT; i++) {
+        if (canMaskType == CanMaskType::POSITIVE) {
+            std::vector<std::string> states{genericIOTask(stringToSend, REMOVE_POSITIVE_CAN_MASK_HEADER, this->m_streamSendDelay)};
+            if (states.size() != REMOVE_CAN_MASK_RETURN_SIZE) {
+                if (i+1 == IO_TRY_COUNT) {
+                    return std::make_pair(IOStatus::OPERATION_FAILURE, 0);
+                } else {
+                    continue;
+                }
+            }
+            if (mask != states.at(CanMask::CAN_MASK_RETURN_STATE)) {
+                if (i+1 == IO_TRY_COUNT) {
+                    return std::make_pair(IOStatus::OPERATION_FAILURE, 0);
+                } else {
+                    continue;
+                }
+            }
+            if (states.at(CanMask::CAN_MASK_OPERATION_RESULT) == OPERATION_FAILURE_STRING) {
+                if (i+1 == IO_TRY_COUNT) {
+                    return std::make_pair(IOStatus::OPERATION_FAILURE, 0);
+                } else {
+                    continue;
+                }
+            }
+            try {
+                return std::make_pair(IOStatus::OPERATION_SUCCESS, std::stoi(states.at(CanMask::CAN_MASK_RETURN_STATE)));
+            } catch (std::exception &e) {
+                (void)e;
+                if (i+1 == IO_TRY_COUNT) {
+                    return std::make_pair(IOStatus::OPERATION_FAILURE, 0);
+                } else {
+                    continue;
+                }
+            }
+        } else if (canMaskType == CanMaskType::NEGATIVE) {
+            std::vector<std::string> states{genericIOTask(stringToSend, REMOVE_NEGATIVE_CAN_MASK_HEADER, this->m_streamSendDelay)};
+            if (states.size() != REMOVE_CAN_MASK_RETURN_SIZE) {
+                if (i+1 == IO_TRY_COUNT) {
+                    return std::make_pair(IOStatus::OPERATION_FAILURE, 0);
+                } else {
+                    continue;
+                }
+            }
+            if (mask != states.at(CanMask::CAN_MASK_RETURN_STATE)) {
+                if (i+1 == IO_TRY_COUNT) {
+                    return std::make_pair(IOStatus::OPERATION_FAILURE, 0);
+                } else {
+                    continue;
+                }
+            }
+            if (states.at(CanMask::CAN_MASK_OPERATION_RESULT) == OPERATION_FAILURE_STRING) {
+                if (i+1 == IO_TRY_COUNT) {
+                    return std::make_pair(IOStatus::OPERATION_FAILURE, 0);
+                } else {
+                    continue;
+                }
+            }
+            try {
+                return std::make_pair(IOStatus::OPERATION_SUCCESS, std::stoi(states.at(CanMask::CAN_MASK_RETURN_STATE)));
+            } catch (std::exception &e) {
+                (void)e;
+                if (i+1 == IO_TRY_COUNT) {
+                    return std::make_pair(IOStatus::OPERATION_FAILURE, 0);
+                } else {
+                    continue;
+                }
+            }
+        } else {
+            return std::make_pair(IOStatus::OPERATION_FAILURE, 0);
+        }
+    }
+    return std::make_pair(IOStatus::OPERATION_FAILURE, 0);
+}
+
+std::pair<IOStatus, bool> Arduino::removeAllCanMasks(CanMaskType canMaskType)
+{
+    using namespace GeneralUtilities;
+    std::string stringToSend{""};
+    if (canMaskType == CanMaskType::POSITIVE) {
+        stringToSend = static_cast<std::string>(CLEAR_ALL_POSITIVE_CAN_MASKS_HEADER) + TERMINATING_CHARACTER;
+    } else if (canMaskType == CanMaskType::NEGATIVE) {
+        stringToSend = static_cast<std::string>(CLEAR_ALL_NEGATIVE_CAN_MASKS_HEADER) + TERMINATING_CHARACTER;
+    } else {
+        stringToSend = static_cast<std::string>(CLEAR_ALL_CAN_MASKS_HEADER) + TERMINATING_CHARACTER;
+    }
+
+    for (int i = 0; i < IO_TRY_COUNT; i++) {
+        if (canMaskType == CanMaskType::POSITIVE) {
+            std::vector<std::string> states{genericIOTask(stringToSend, CLEAR_ALL_POSITIVE_CAN_MASKS_HEADER, this->m_streamSendDelay)};
+            if (states.size() != 1) {
+                if (i+1 == IO_TRY_COUNT) {
+                    return std::make_pair(IOStatus::OPERATION_FAILURE, false);
+                } else {
+                    continue;
+                }
+            }
+            if (states.at(0) == OPERATION_FAILURE_STRING) {
+                if (i+1 == IO_TRY_COUNT) {
+                    return std::make_pair(IOStatus::OPERATION_FAILURE, false);
+                } else {
+                    continue;
+                }
+            }
+            return std::make_pair(IOStatus::OPERATION_SUCCESS, true);
+        } else if (canMaskType == CanMaskType::NEGATIVE) {
+            std::vector<std::string> states{genericIOTask(stringToSend, CLEAR_ALL_NEGATIVE_CAN_MASKS_HEADER, this->m_streamSendDelay)};
+            if (states.size() != 1) {
+                if (i+1 == IO_TRY_COUNT) {
+                    return std::make_pair(IOStatus::OPERATION_FAILURE, false);
+                } else {
+                    continue;
+                }
+            }
+            if (states.at(0) == OPERATION_FAILURE_STRING) {
+                if (i+1 == IO_TRY_COUNT) {
+                    return std::make_pair(IOStatus::OPERATION_FAILURE, false);
+                } else {
+                    continue;
+                }
+            }
+            return std::make_pair(IOStatus::OPERATION_SUCCESS, true);
+        } else {
+            std::vector<std::string> states{genericIOTask(stringToSend, CLEAR_ALL_CAN_MASKS_HEADER, this->m_streamSendDelay)};
+            if (states.size() != 1) {
+                if (i+1 == IO_TRY_COUNT) {
+                    return std::make_pair(IOStatus::OPERATION_FAILURE, false);
+                } else {
+                    continue;
+                }
+            }
+            if (states.at(0) == OPERATION_FAILURE_STRING) {
+                if (i+1 == IO_TRY_COUNT) {
+                    return std::make_pair(IOStatus::OPERATION_FAILURE, false);
+                } else {
+                    continue;
+                }
+            }
+            return std::make_pair(IOStatus::OPERATION_SUCCESS, true);
+        }
+    }
+    return std::make_pair(IOStatus::OPERATION_FAILURE, false);
 }
 
 bool Arduino::isValidAnalogPinIdentifier(const std::string &state) const

@@ -55,13 +55,16 @@ namespace std { ohserialstream cout{Serial}; }
 #define PIN_PLACEHOLDER 1
 #define SOFT 1
 
+static const bool NO_BROADCAST{false};
+static const bool BROADCAST{true};
+
 static const char CLOSING_CHARACTER{'}'};
-static const char LINE_ENDING{"\r"};
+static const char LINE_ENDING{'\r'};
 
 void broadcastString(const std::string &str);
 #if defined(__HAVE_CAN_BUS__)
-    void printCanResult(const std::string &header, const std::string &str, int resultCode);
-    void printCanResult(const std::string &header, const CanMessage &msg, int resultCode);
+    void printCanResult(const std::string &header, const std::string &str, int resultCode, bool broadcast = false);
+    void printCanResult(const std::string &header, const CanMessage &msg, int resultCode, bool broadcast = false);
     void printBlankCanResult(const std::string &header, int resultCode); 
 #endif
 
@@ -194,7 +197,6 @@ static std::map<int, GPIO*> gpioPins;
     void clearCanMasksRequest();
     void currentCachedCanMessagesRequest();
     void clearAllCanMasksRequest();
-    std::pair<int, std::string> parseToCanState(const std::string &str);
     void sendCanMessage(const CanMessage &msg);
     #define SPI_CS_PIN 9 
     MCP_CAN *canController{new MCP_CAN(SPI_CS_PIN)};
@@ -209,7 +211,7 @@ static std::map<int, GPIO*> gpioPins;
     void addLastCanMessage(const CanMessage &msg);
     #define CAN_MESSAGE_LENGTH 8
     #define CAN_FRAME 0
-    #define CAN_COMMUNICATION_DOWN_TIME 1000
+    #define CAN_COMMUNICATION_DOWN_TIME 100
     static int canCommunicationStartTime{0};
     static int canCommunicationEndTime{0};
 #endif
@@ -322,11 +324,11 @@ int main()
         }
         #if defined(__HAVE_CAN_BUS__)
             if (canLiveUpdate) {
-                canReadRequest(canLiveUpdate, SerialIndex::ALL_NATIVE_PORTS);
+                canReadRequest(canLiveUpdate);
             }
             bool canSend{false};
             for (auto &it : lastCanMessages) {
-                if (it.second->toString() != "") {
+                if (it.second.toString() != "") {
                     canSend = true;
                 }
             }
@@ -466,7 +468,7 @@ void handleSerialString(const std::string &str)
     } else if (startsWith(str, CAN_INIT_HEADER)) {
         canInitRequest();
     } else if (startsWith(str, CAN_READ_HEADER)) {
-        canReadRequest();
+        canReadRequest(false);
     } else if (startsWith(str, CAN_WRITE_ONCE_HEADER)) {
         if (checkValidRequestString(CAN_WRITE_ONCE_HEADER, str)) {
             canWriteRequest(str.substr(static_cast<std::string>(CAN_WRITE_HEADER).length()+1), true);
@@ -1425,19 +1427,31 @@ bool isSoftwareCoutStream(int coutIndex)
 }
 
 #if defined(__HAVE_CAN_BUS__)
-    void printCanResult(const std::string &header, const std::string &str, int resultCode) 
-    { 
-        *getCurrentValidOutputStream() << header << ':' << str << ':' << resultCode << CLOSING_CHARACTER << LINE_ENDING;
+    void printCanResult(const std::string &header, const std::string &str, int resultCode, bool broadcast)
+    {
+        if (broadcast) {
+            for (auto &it : hardwareSerialPorts) {
+                *it << header << ':' << str << ':' << resultCode << CLOSING_CHARACTER << LINE_ENDING;
+            }            
+        } else {
+            *getCurrentValidOutputStream() << header << ':' << str << ':' << resultCode << CLOSING_CHARACTER << LINE_ENDING;
+        }
     }
     
-    void printCanResult(const std::string &header, const CanMessage &msg, int resultCode) 
+    void printCanResult(const std::string &header, const CanMessage &msg, int resultCode, bool broadcast) 
     { 
-        *getCurrentValidOutputStream() << header << ':' << msg.toString() << ':' << resultCode << CLOSING_CHARACTER << LINE_ENDING;
+        if (broadcast) {
+            for (auto &it : hardwareSerialPorts) {
+                *it << header << ':' << msg.toString() << ':' << resultCode << CLOSING_CHARACTER << LINE_ENDING;
+            }
+        } else {
+            *getCurrentValidOutputStream() << header << ':' << msg.toString() << ':' << resultCode << CLOSING_CHARACTER << LINE_ENDING;
+        }
     }
     
     void printBlankCanResult(const std::string &header, int resultCode) 
     { 
-        *getCurrentValidOutputStream() << header << ':' << resultCode << CLOSING_CHARACTER; 
+        *getCurrentValidOutputStream() << header << ':' << resultCode << CLOSING_CHARACTER << LINE_ENDING;
     } 
 
     void canInit()
@@ -1488,24 +1502,24 @@ bool isSoftwareCoutStream(int coutIndex)
             canID = canController->getCanId();
             if ((positiveCanMasks.size() == 0) && (negativeCanMasks.size() == 0)) {
                 CanMessage msg{canID, CAN_FRAME, receivedPacketLength, CanDataPacket{pack[0], pack[1], pack[2], pack[3], pack[4], pack[5], pack[6], pack[7]}};
-                printCanResult(CAN_READ_HEADER, msg.toString(), OPERATION_SUCCESS);
+                printCanResult(CAN_READ_HEADER, msg.toString(), OPERATION_SUCCESS, (autoUp ? BROADCAST : NO_BROADCAST));
             } else {
                 if (positiveCanMasks.size() == 0) {
                     if (negativeCanMasks.find(canID) == negativeCanMasks.end()) {
                         CanMessage msg{canID, CAN_FRAME, receivedPacketLength, CanDataPacket{pack[0], pack[1], pack[2], pack[3], pack[4], pack[5], pack[6], pack[7]}};
-                        printCanResult(CAN_READ_HEADER, msg.toString(), OPERATION_SUCCESS);
+                        printCanResult(CAN_READ_HEADER, msg.toString(), OPERATION_SUCCESS, (autoUp ? BROADCAST : NO_BROADCAST));
                     }
                 }
                 if (negativeCanMasks.size() == 0) {
                     if (positiveCanMasks.find(canID) != positiveCanMasks.end()) {
                         CanMessage msg{canID, CAN_FRAME, receivedPacketLength, CanDataPacket{pack[0], pack[1], pack[2], pack[3], pack[4], pack[5], pack[6], pack[7]}};
-                        printCanResult(CAN_READ_HEADER, msg.toString(), OPERATION_SUCCESS);
+                        printCanResult(CAN_READ_HEADER, msg.toString(), OPERATION_SUCCESS, (autoUp ? BROADCAST : NO_BROADCAST));
                     }
                 }
                 if (positiveCanMasks.find(canID) != positiveCanMasks.end()) {
                     if (negativeCanMasks.find(canID) == negativeCanMasks.end()) {
                         CanMessage msg{canID, CAN_FRAME, receivedPacketLength, CanDataPacket{pack[0], pack[1], pack[2], pack[3], pack[4], pack[5], pack[6], pack[7]}};
-                        printCanResult(CAN_READ_HEADER, msg.toString(), OPERATION_SUCCESS);
+                        printCanResult(CAN_READ_HEADER, msg.toString(), OPERATION_SUCCESS, (autoUp ? BROADCAST : NO_BROADCAST));
                     }
                 }
             }
@@ -1529,7 +1543,7 @@ bool isSoftwareCoutStream(int coutIndex)
             addLastCanMessage(msg);
         }
         sendCanMessage(msg);
-        printCanResult(CAN_WRITE_HEADER, msg.toString(), OPERATION_SUCCESS);
+        printCanResult(CAN_WRITE_HEADER, msg.toString(), OPERATION_SUCCESS, NO_BROADCAST);
     }
 
     void addPositiveCanMaskRequest(const std::string &str)
@@ -1593,12 +1607,12 @@ bool isSoftwareCoutStream(int coutIndex)
             printTypeResult(CAN_LIVE_UPDATE_HEADER, OPERATION_FAILURE, OPERATION_FAILURE);
             return;
         }
-        std::pair<int, std::string> canState{parseToCanState(str)};
-        if (canState.first == OPERATION_FAILURE) {
-            printTypeResult(CAN_LIVE_UPDATE_HEADER, canState.second, OPERATION_FAILURE);
+        int canState{parseToDigitalState(str)};
+        if (canState == OPERATION_FAILURE) {
+            printTypeResult(CAN_LIVE_UPDATE_HEADER, str, OPERATION_FAILURE);
         } else {
-            canLiveUpdate = canState.first;
-            printTypeResult(CAN_LIVE_UPDATE_HEADER, canState.second, OPERATION_SUCCESS);
+            canLiveUpdate = canState;
+            printTypeResult(CAN_LIVE_UPDATE_HEADER, str, OPERATION_SUCCESS);
         }
     }
 
@@ -1613,7 +1627,7 @@ bool isSoftwareCoutStream(int coutIndex)
         if (lastCanMessages.find(maybeID) == lastCanMessages.end()) {
             printBlankCanResult(CURRENT_CAN_MESSAGE_BY_ID_HEADER, OPERATION_SUCCESS);
         } else {
-            printCanResult(CURRENT_CAN_MESSAGE_BY_ID_HEADER, lastCanMessages.find(maybeID)->second, OPERATION_SUCCESS);
+            printCanResult(CURRENT_CAN_MESSAGE_BY_ID_HEADER, lastCanMessages.find(maybeID)->second, OPERATION_SUCCESS, NO_BROADCAST);
         }
     }
 
@@ -1632,7 +1646,7 @@ bool isSoftwareCoutStream(int coutIndex)
     void currentCachedCanMessagesRequest()
     {
         for (auto &it : lastCanMessages) {
-            printCanResult(CURRENT_CAN_MESSAGES_HEADER, it.second, OPERATION_SUCCESS);
+            printCanResult(CURRENT_CAN_MESSAGES_HEADER, it.second, OPERATION_SUCCESS, NO_BROADCAST);
         }
     }
         
@@ -1658,8 +1672,8 @@ bool isSoftwareCoutStream(int coutIndex)
 
     void allCurrentCanMasksRequest()
     {
-        currentPositiveCanMasksRequest(coutIndex);
-        currentNegativeCanMasksRequest(coutIndex);
+        currentPositiveCanMasksRequest();
+        currentNegativeCanMasksRequest();
     }
 
     void clearPositiveCanMasksRequest()
@@ -1693,7 +1707,7 @@ bool isSoftwareCoutStream(int coutIndex)
     CanMessage parseCanMessage(const std::string &str)
     {
         using namespace ArduinoPCStrings;
-        std::vector<std::string> rawMsg{parseToVector(str, ':')};
+        std::vector<std::string> rawMsg{parseToVector(str.begin(), str.end(), ':')};
         if (rawMsg.size() != CAN_WRITE_REQUEST_SIZE) {
             return CanMessage{};
         }
@@ -1709,24 +1723,6 @@ bool isSoftwareCoutStream(int coutIndex)
             }
         }
         return returnMessage;
-    }
-
-    std::pair<int, std::string> parseToCanState(const std::string &str)
-    {
-        using namespace ArduinoPCStrings;
-        int i{0};
-        while (static_cast<std::string>(DIGITAL_STATE_HIGH_IDENTIFIERS[i]) != static_cast<std::string>(CHAR_ARRAY_TERMINATOR)) {
-            if (toLowercase(str) == static_cast<std::string>(DIGITAL_STATE_HIGH_IDENTIFIERS[i++])) {
-                return std::pair<int, std::string>(HIGH, DIGITAL_STATE_HIGH_STRING); 
-            }
-        }
-        i = 0;
-        while (static_cast<std::string>(DIGITAL_STATE_LOW_IDENTIFIERS[i]) != static_cast<std::string>(CHAR_ARRAY_TERMINATOR)) {
-            if (toLowercase(str) == static_cast<std::string>(DIGITAL_STATE_LOW_IDENTIFIERS[i++])) {
-                return std::pair<int, std::string>(LOW, DIGITAL_STATE_LOW_STRING);
-            }
-        }
-        return std::pair<int, std::string>(OPERATION_FAILURE, str);
     }
 
     void sendCanMessage(const CanMessage &msg)

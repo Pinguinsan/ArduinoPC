@@ -22,8 +22,12 @@ enum IOStatus { OPERATION_SUCCESS, OPERATION_FAILURE };
 enum IOState { PIN_NUMBER, STATE, RETURN_CODE };
 enum ArduinoTypeEnum { RETURN_STATE, OPERATION_RESULT };
 enum IOReportEnum { IO_PIN_NUMBER, IO_TYPE, IO_STATE };
-enum CanEnabledStatus { CAN_RETURN_STATE, CAN_OPERATION_RESULT };
 enum ADThresholdReq { AD_RETURN_STATE, AD_OPERATION_RESULT };
+enum CanEnabledStatus { CAN_RETURN_STATE, CAN_OPERATION_RESULT };
+enum CanIOStatus { MESSAGE_ID, BYTE_0, BYTE_1, BYTE_2, BYTE_3, BYTE_4, BYTE_5, BYTE_6, BYTE_7 , CAN_IO_OPERATION_RESULT};
+enum CanMask { CAN_MASK_RETURN_STATE, CAN_MASK_OPERATION_RESULT };
+enum CanMaskType { POSITIVE, NEGATIVE };
+
 
 #ifndef HIGH
     #define HIGH 0x1
@@ -39,6 +43,12 @@ class ArduinoMega;
 class GPIO;
 class IOReport;
 class SerialReport;
+//class LinMessage;
+//class LinDataPacket;
+
+class CanReport;
+class CanMessage;
+class CanDataPacket;
 
 class Arduino
 {
@@ -56,12 +66,22 @@ public:
     std::pair<IOStatus, int> softAnalogReadRaw(int pinNumber);
     std::pair<IOStatus, IOType> pinMode(int pinNumber, IOType ioType);
     std::pair<IOStatus, IOType> currentPinMode(int pinNumber);
-    std::pair<IOStatus, bool> canCapability();
     std::pair<IOStatus, std::string> firmwareVersion();
     std::pair<IOStatus, std::string> arduinoTypeString();
     std::pair<IOStatus, int> analogToDigitalThreshold();
     std::pair<IOStatus, int> setAnalogToDigitalThreshold(int threshold);
+    std::pair<IOStatus, uint32_t> addCanMask(CanMaskType canMaskType, const std::string &mask);
+    std::pair<IOStatus, uint32_t> removeCanMask(CanMaskType canMaskType, const std::string &mask);
+    std::pair<IOStatus, bool> removeAllCanMasks(CanMaskType canMaskType);
+    std::pair<IOStatus, CanMessage> canWrite(const CanMessage &message);
+    std::pair<IOStatus, bool> canAutoUpdate(bool state);
+    std::pair<IOStatus, bool> initializeCanBus();
+    std::pair<IOStatus, CanMessage> canRead();    
+    std::pair<IOStatus, CanMessage> canListen(double delay);
+    std::pair<IOStatus, bool> canCapability();
+
     SerialReport serialReportRequest(const std::string &delimiter);
+    CanReport canReportRequest();
     IOReport ioReportRequest();
 
     std::string serialPortName() const;
@@ -204,6 +224,21 @@ private:
     std::vector<std::string> m_serialResults;
 };
 
+const unsigned int CAN_READ_BLANK_RETURN_SIZE{1};
+const unsigned int REMOVE_CAN_MASKS_RETURN_SIZE{3};
+const unsigned int CAN_ID_WIDTH{3};
+const unsigned int CAN_BYTE_WIDTH{2};
+const unsigned int RAW_CAN_MESSAGE_SIZE{8};
+const unsigned char CAN_MESSAGE_LENGTH{8};
+const unsigned char CAN_FRAME{0};
+const unsigned int CAN_BUS_ENABLED_RETURN_SIZE{2};
+const unsigned int CAN_READ_RETURN_SIZE{10};
+const unsigned int CAN_WRITE_RETURN_SIZE{10};
+const unsigned int CAN_AUTO_UPDATE_RETURN_SIZE{2};
+const unsigned int CAN_INIT_RETURN_SIZE{2};
+const unsigned int ADD_CAN_MASK_RETURN_SIZE{3};
+const unsigned int REMOVE_CAN_MASK_RETURN_SIZE{3};
+
 const unsigned int IO_STATE_RETURN_SIZE{3};
 const unsigned int ARDUINO_TYPE_RETURN_SIZE{2};
 const unsigned int PIN_TYPE_RETURN_SIZE{3};
@@ -220,7 +255,6 @@ const int DEFAULT_IO_STREAM_SEND_DELAY{20};
 const double ANALOG_TO_VOLTAGE_SCALE_FACTOR{0.0049};
 const double DEFAULT_BLUETOOTH_SEND_DELAY_MULTIPLIER{4.8};
 
-const unsigned int CAN_BUS_ENABLED_RETURN_SIZE{2};
 const unsigned int DIGITAL_WRITE_ALL_MINIMIM_RETURN_SIZE{2};
 const unsigned int SERIAL_REPORT_REQUEST_TIME_LIMIT{50};
 const unsigned int SERIAL_REPORT_OVERALL_TIME_LIMIT{50};
@@ -235,6 +269,7 @@ const std::vector<char> VALID_ANALOG_STATE_IDENTIFIERS{'0', '1', '2', '3', '4', 
 const std::vector<const char *> DIGITAL_STATE_HIGH_IDENTIFIERS{"1", "high", "true", "on"};
 const std::vector<const char *> DIGITAL_STATE_LOW_IDENTIFIERS{"0", "low", "false", "off"};
 const char LINE_ENDING{'\r'};
+const char TERMINATING_CHARACTER{'}'};
 const char * const INVALID_HEADER{"{invalid"};
 const char * const DIGITAL_READ_HEADER{"{dread"};
 const char * const ANALOG_READ_HEADER{"{aread"};
@@ -246,13 +281,30 @@ const char * const SOFT_ANALOG_READ_HEADER{"{saread"};
 const char * const PIN_TYPE_HEADER{"{ptype"};
 const char * const PIN_TYPE_CHANGE_HEADER{"{ptchange"};
 const char * const ARDUINO_TYPE_HEADER{"{ardtype"};
-const char * const CAN_BUS_ENABLED_HEADER{"{canbus"};
 const char * const FIRMWARE_VERSION_HEADER{"{version"};
 const char * const HEARTBEAT_HEADER{"{heartbeat"};
 const char * const IO_REPORT_HEADER{"{ioreport"};
 const char * const IO_REPORT_END_HEADER{"{ioreportend"};
 const char * const CHANGE_A_TO_D_THRESHOLD_HEADER{"{atodchange"};
 const char * const CURRENT_A_TO_D_THRESHOLD_HEADER{"{atodthresh"};
+
+const char * const CLEAR_CAN_MESSAGES_HEADER{"{clearcanmsgs"};
+const char * const CLEAR_CAN_MESSAGE_BY_ID_HEADER{"{clearcanmsgid"};
+const char * const CURRENT_CAN_MESSAGES_HEADER{"{curcanmsgs"};
+const char * const CURRENT_CAN_MESSAGE_BY_ID_HEADER{"{curcanmsgid"};
+const char * const CAN_BUS_ENABLED_HEADER{"{canbus"};
+const char * const CAN_READ_HEADER{"{canread"};
+const char * const CAN_WRITE_HEADER{"{canwrite"};
+const char * const ADD_POSITIVE_CAN_MASK_HEADER{"{addpcanmask"};
+const char * const ADD_NEGATIVE_CAN_MASK_HEADER{"{addncanmask"};
+const char * const REMOVE_POSITIVE_CAN_MASK_HEADER{"{rempcanmask"};
+const char * const REMOVE_NEGATIVE_CAN_MASK_HEADER{"{remncanmask"};
+const char * const CLEAR_ALL_POSITIVE_CAN_MASKS_HEADER{"{clearpcanmasks"};
+const char * const CLEAR_ALL_NEGATIVE_CAN_MASKS_HEADER{"{clearncanmasks"};
+const char * const CLEAR_ALL_CAN_MASKS_HEADER{"{clearallcanmasks"};
+const char * const CAN_REPORT_INVALID_DATA_STRING{"Invalid data received"};
+const char * const CAN_EMPTY_READ_SUCCESS_STRING{"{canread:1}"};
+
 const char * const UNO_A0_STRING{"A0"};
 const char * const UNO_A1_STRING{"A1"};
 const char * const UNO_A2_STRING{"A2"};
@@ -634,4 +686,616 @@ std::string analogPinFromNumber(ArduinoType arduinoType, int pinNumber)
     }
 }
 
-#endif
+class CanReport
+{
+public:
+    void addCanMessageResult(const CanMessage &result)
+    {
+        this->m_canMessageResults.emplace_back(result);
+    }
+
+    std::vector<CanMessage> canMessageResults() const
+    {
+        return this->m_canMessageResults;
+    }
+
+private:
+    std::vector<CanMessage> m_canMessageResults;
+};
+
+class CanDataPacket
+{
+public:
+    CanDataPacket() :
+        m_dataPacket{std::vector<unsigned char>{0, 0, 0, 0, 0, 0, 0, 0}}
+    {
+
+    }
+
+    CanDataPacket(unsigned char first, unsigned char second, 
+                                unsigned char third, unsigned char fourth, 
+                                unsigned char fifth, unsigned char sixth, 
+                                unsigned char seventh, unsigned char eighth) :
+        m_dataPacket{std::vector<unsigned char>{first, second, third, fourth, 
+                                                fifth, sixth, seventh, eighth}}
+    {
+
+    }                                            
+
+    CanDataPacket(const std::vector<unsigned char> &dataPacket) :
+        m_dataPacket(dataPacket)
+    {
+
+    }
+
+    CanDataPacket(const CanDataPacket &dataPacket) :
+        m_dataPacket{dataPacket.m_dataPacket}
+    {
+
+    }
+
+    void setDataPacket(const std::vector<unsigned char> &dataPacket)
+    {
+        this->m_dataPacket = dataPacket;
+    }
+
+    void setDataPacket(unsigned char first, unsigned char second, 
+                                    unsigned char third, unsigned char fourth, 
+                                    unsigned char fifth, unsigned char sixth, 
+                                    unsigned char seventh, unsigned char eighth)
+    {
+        this->m_dataPacket = std::vector<unsigned char>{first, second, third, fourth,
+                                                        fifth, sixth, seventh, eighth};
+    }                         
+
+    bool setNthByte(int index, unsigned char nth)
+    {
+        if ((index >= 0) && (index < 8)) {
+            this->m_dataPacket.at(index) = nth;
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    unsigned char nthByte(int index)
+    {
+        return this->m_dataPacket.at(index);
+    }
+
+    void toBasicArray(unsigned char copyArray[8]) const
+    {
+        int i = 0;
+        for (auto &it : this->m_dataPacket) {
+            copyArray[i++] = it;
+        }
+    }
+
+    std::vector<unsigned char> dataPacket() const
+    {
+        return m_dataPacket;
+    }
+
+    CanDataPacket combineDataPackets(const CanDataPacket &first, const CanDataPacket &second)
+    {
+        std::vector<unsigned char> constructorArg;
+        std::vector<unsigned char> firstCopy = first.dataPacket();
+        std::vector<unsigned char> secondCopy = second.dataPacket();
+        std::vector<unsigned char>::const_iterator firstIter = firstCopy.begin();
+        std::vector<unsigned char>::const_iterator secondIter = secondCopy.begin();
+        while (firstIter != firstCopy.end()) {
+            constructorArg.push_back((*firstIter++) | (*secondIter++));
+        }
+        return CanDataPacket(constructorArg);
+    }
+
+    friend bool operator==(const CanDataPacket &lhs, const CanDataPacket &rhs)
+    {
+        if (lhs.m_dataPacket.size() != rhs.m_dataPacket.size()) {
+            return false;
+        }
+        for (unsigned int i = 0; i < lhs.m_dataPacket.size(); i++) {
+            if (lhs.m_dataPacket.at(i) != rhs.m_dataPacket.at(i)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+
+private:
+    std::vector<unsigned char> m_dataPacket;
+
+};
+
+class CanMessage
+{
+public:
+    CanMessage(uint32_t id, uint8_t frame, uint8_t length, const CanDataPacket &dataPacket) :
+        m_id{id},
+        m_frame{frame},
+        m_length{length},
+        m_dataPacket{dataPacket}
+    {
+
+    }
+
+    CanMessage() :
+        m_id{0},
+        m_frame{0},
+        m_length{0},
+        m_dataPacket{CanDataPacket{0, 0, 0, 0, 0, 0, 0, 0}}
+    {
+
+    }
+
+    void setID(uint32_t id)
+    {
+        this->m_id = id;
+    }
+
+    void setFrame(uint8_t frame)
+    {
+        this->m_frame = frame;
+    }
+
+    void setLength(uint8_t length)
+    {
+        this->m_length = length;
+    }
+
+    void setDataPacket(const CanDataPacket &dataPacket)
+    {
+        this->m_dataPacket = dataPacket;
+    }
+
+    uint32_t id() const
+    {
+        return this->m_id;
+    }
+
+    uint8_t frame() const
+    {
+        return this->m_frame;
+    }
+
+    uint8_t length() const
+    {
+        return this->m_length;
+    }
+
+    unsigned char nthDataPacketByte(int index)
+    {
+        if ((index > 8) || (index < 0)) {
+            throw std::runtime_error(NTH_DATA_PACKET_BYTE_INDEX_OUT_OF_RANGE_STRING + std::to_string(index));
+        }
+        return this->m_dataPacket.nthByte(index);
+    }
+
+    bool setDataPacketNthByte(int index, unsigned char nth)
+    {
+        return this->m_dataPacket.setNthByte(index, nth);
+    }
+
+    CanDataPacket dataPacket() const
+    {
+        return this->m_dataPacket;
+    }
+
+    std::string toString() const
+    {
+        using namespace GeneralUtilities;
+        if ((this->m_id == 0) &&
+            (this->m_frame == 0) &&
+            (this->m_length == 0) &&
+            (this->m_dataPacket == CanDataPacket{0, 0, 0, 0, 0, 0, 0, 0})) {
+            return "";
+        }
+        std::string returnString{"0x" + toFixedWidth(toHexString(this->m_id), CAN_ID_WIDTH) + ":"};
+        unsigned int i{0};
+        for (auto &it : this->m_dataPacket.dataPacket()) {
+            returnString += "0x" + toFixedWidth(toHexString(it), CAN_BYTE_WIDTH);
+            if (i++ != (this->m_dataPacket.dataPacket().size()-1)) {
+                returnString += ":";
+            }
+        }
+        return returnString;
+    }
+
+    std::string toPrettyString() const
+    {
+        using namespace GeneralUtilities;
+        if ((this->m_id == 0) &&
+            (this->m_frame == 0) &&
+            (this->m_length == 0) &&
+            (this->m_dataPacket == CanDataPacket{0, 0, 0, 0, 0, 0, 0, 0})) {
+            return "";
+        }
+        std::string returnString{"0x" + toFixedWidth(toHexString(this->m_id), CAN_ID_WIDTH) + " : "};
+        unsigned int i{0};
+        for (auto &it : this->m_dataPacket.dataPacket()) {
+            returnString += "0x" + toFixedWidth(toHexString(it), CAN_BYTE_WIDTH);
+            if (i++ != (this->m_dataPacket.dataPacket().size()-1)) {
+                returnString += " : ";
+            }
+        }
+        return returnString;
+    }
+
+    static uint32_t parseCanID(const std::string &str)
+    {
+        using namespace GeneralUtilities;
+        return hexStringToUInt(str);
+    }
+
+    static uint8_t parseCanByte(const std::string &str)
+    {
+        using namespace GeneralUtilities;
+        return hexStringToUChar(str);
+    }
+
+    static CanMessage parseCanMessage(const std::string &str)
+    {
+        using namespace GeneralUtilities;
+        std::vector<std::string> rawMsg{GeneralUtilities::parseToContainer<std::vector<std::string>>(str.begin(), str.end(), ':')};
+        if (rawMsg.size() != CAN_MESSAGE_SIZE) {
+            return CanMessage{};
+        }
+        CanMessage returnMessage;
+        int i{0};
+        returnMessage.setFrame(CAN_FRAME);
+        returnMessage.setLength(CAN_MESSAGE_LENGTH);
+        for (auto &it : rawMsg) {
+            if (i++ == 0) {
+                returnMessage.setID(parseCanID(it));
+            } else {
+                returnMessage.setDataPacketNthByte(i-2, parseCanByte(it));
+            }
+        }
+        return returnMessage;
+    }
+
+    friend bool operator==(const CanMessage &lhs, const CanMessage &rhs)
+    {
+        if (lhs.m_dataPacket.dataPacket().size() != lhs.m_dataPacket.dataPacket().size()) {
+            return false;
+        }
+        for (unsigned int i = 0; i < lhs.m_dataPacket.dataPacket().size(); i++) {
+            if (lhs.m_dataPacket.dataPacket().at(i) != rhs.m_dataPacket.dataPacket().at(i)) {
+                return false;
+            }
+        }
+        return ((lhs.m_id == rhs.m_id) &&
+                (lhs.m_frame == rhs.m_frame) &&
+                (lhs.m_length == rhs.m_length));
+    }
+
+    static const int CAN_BYTE_WIDTH;
+    static const int CAN_ID_WIDTH;
+    static const unsigned int CAN_MESSAGE_SIZE;
+    static const unsigned char CAN_FRAME;
+    static const unsigned char CAN_MESSAGE_LENGTH;
+
+
+private:
+    uint32_t m_id;
+    uint8_t m_frame;
+    uint8_t m_length;
+    CanDataPacket m_dataPacket;
+
+    static const char *NTH_DATA_PACKET_BYTE_INDEX_OUT_OF_RANGE_STRING;
+};
+
+/*
+
+class LinDataPacket
+{
+public:
+    LinDataPacket() :
+        m_dataPacket{std::vector<unsigned char>{0, 0, 0, 0, 0, 0, 0, 0}}
+    {
+
+    }
+
+    LinDataPacket(unsigned char first, unsigned char second, 
+                                unsigned char third, unsigned char fourth, 
+                                unsigned char fifth, unsigned char sixth, 
+                                unsigned char seventh, unsigned char eighth) :
+        m_dataPacket{std::vector<unsigned char>{first, second, third, fourth, 
+                                                fifth, sixth, seventh, eighth}}
+    {
+
+    }                                            
+
+    LinDataPacket(const std::vector<unsigned char> &dataPacket) :
+        m_dataPacket(dataPacket)
+    {
+
+    }
+
+    LinDataPacket(const LinDataPacket &dataPacket) :
+        m_dataPacket{dataPacket.m_dataPacket}
+    {
+
+    }
+
+    void setDataPacket(const std::vector<unsigned char> &dataPacket)
+    {
+        this->m_dataPacket = dataPacket;
+    }
+
+    void setDataPacket(unsigned char first, unsigned char second, 
+                                    unsigned char third, unsigned char fourth, 
+                                    unsigned char fifth, unsigned char sixth, 
+                                    unsigned char seventh, unsigned char eighth)
+    {
+        this->m_dataPacket = std::vector<unsigned char>{first, second, third, fourth,
+                                                        fifth, sixth, seventh, eighth};
+    }                         
+
+    bool setNthByte(int index, unsigned char nth)
+    {
+        if ((index >= 0) && (index < 8)) {
+            this->m_dataPacket.at(index) = nth;
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    unsigned char nthByte(int index)
+    {
+        return this->m_dataPacket.at(index);
+    }
+
+    void toBasicArray(unsigned char copyArray[8]) const
+    {
+        int i = 0;
+        for (auto &it : this->m_dataPacket) {
+            copyArray[i++] = it;
+        }
+    }
+
+    std::vector<unsigned char> dataPacket() const
+    {
+        return m_dataPacket;
+    }
+
+    LinDataPacket combineDataPackets(const LinDataPacket &first, const LinDataPacket &second)
+    {
+        std::vector<unsigned char> constructorArg;
+        std::vector<unsigned char> firstCopy = first.dataPacket();
+        std::vector<unsigned char> secondCopy = second.dataPacket();
+        std::vector<unsigned char>::const_iterator firstIter = firstCopy.begin();
+        std::vector<unsigned char>::const_iterator secondIter = secondCopy.begin();
+        while (firstIter != firstCopy.end()) {
+            constructorArg.push_back((*firstIter++) | (*secondIter++));
+        }
+        return LinDataPacket(constructorArg);
+    }
+
+    friend bool operator==(const LinDataPacket &lhs, const LinDataPacket &rhs)
+    {
+        if (lhs.m_dataPacket.size() != rhs.m_dataPacket.size()) {
+            return false;
+        }
+        for (unsigned int i = 0; i < lhs.m_dataPacket.size(); i++) {
+            if (lhs.m_dataPacket.at(i) != rhs.m_dataPacket.at(i)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+
+private:
+    std::vector<unsigned char> m_dataPacket;
+
+};
+
+class LinMessage
+{
+public:
+    LinMessage(uint32_t id, uint8_t frame, uint8_t length, const LinDataPacket &dataPacket) :
+        m_id{id},
+        m_frame{frame},
+        m_length{length},
+        m_dataPacket{dataPacket}
+    {
+
+    }
+
+    LinMessage() :
+        m_id{0},
+        m_frame{0},
+        m_length{0},
+        m_dataPacket{LinDataPacket{0, 0, 0, 0, 0, 0, 0, 0}}
+    {
+
+    }
+
+    void setID(uint32_t id)
+    {
+        this->m_id = id;
+    }
+
+    void setFrame(uint8_t frame)
+    {
+        this->m_frame = frame;
+    }
+
+    void setLength(uint8_t length)
+    {
+        this->m_length = length;
+    }
+
+    void setDataPacket(const LinDataPacket &dataPacket)
+    {
+        this->m_dataPacket = dataPacket;
+    }
+
+    uint32_t id() const
+    {
+        return this->m_id;
+    }
+
+    uint8_t frame() const
+    {
+        return this->m_frame;
+    }
+
+    uint8_t length() const
+    {
+        return this->m_length;
+    }
+
+    unsigned char nthDataPacketByte(int index)
+    {
+        if ((index > 8) || (index < 0)) {
+            throw std::runtime_error(NTH_DATA_PACKET_BYTE_INDEX_OUT_OF_RANGE_STRING + std::to_string(index));
+        }
+        return this->m_dataPacket.nthByte(index);
+    }
+
+    bool setDataPacketNthByte(int index, unsigned char nth)
+    {
+        return this->m_dataPacket.setNthByte(index, nth);
+    }
+
+    LinDataPacket dataPacket() const
+    {
+        return this->m_dataPacket;
+    }
+
+    std::string toString() const
+    {
+        using namespace GeneralUtilities;
+        if ((this->m_id == 0) &&
+            (this->m_frame == 0) &&
+            (this->m_length == 0) &&
+            (this->m_dataPacket == LinDataPacket{0, 0, 0, 0, 0, 0, 0, 0})) {
+            return "";
+        }
+        std::string returnString{"0x" + toFixedWidth(toHexString(this->m_id), LIN_ID_WIDTH) + ":"};
+        unsigned int i{0};
+        for (auto &it : this->m_dataPacket.dataPacket()) {
+            returnString += "0x" + toFixedWidth(toHexString(it), LIN_BYTE_WIDTH);
+            if (i++ != (this->m_dataPacket.dataPacket().size()-1)) {
+                returnString += ":";
+            }
+        }
+        return returnString;
+    }
+
+    std::string toPrettyString() const
+    {
+        using namespace GeneralUtilities;
+        if ((this->m_id == 0) &&
+            (this->m_frame == 0) &&
+            (this->m_length == 0) &&
+            (this->m_dataPacket == LinDataPacket{0, 0, 0, 0, 0, 0, 0, 0})) {
+            return "";
+        }
+        std::string returnString{"0x" + toFixedWidth(toHexString(this->m_id), LIN_ID_WIDTH) + " : "};
+        unsigned int i{0};
+        for (auto &it : this->m_dataPacket.dataPacket()) {
+            returnString += "0x" + toFixedWidth(toHexString(it), LIN_BYTE_WIDTH);
+            if (i++ != (this->m_dataPacket.dataPacket().size()-1)) {
+                returnString += " : ";
+            }
+        }
+        return returnString;
+    }
+
+    static uint32_t parseLinID(const std::string &str)
+    {
+        using namespace GeneralUtilities;
+        return hexStringToUInt(str);
+    }
+
+    static uint8_t parseLinByte(const std::string &str)
+    {
+        using namespace GeneralUtilities;
+        return hexStringToUChar(str);
+    }
+
+    static LinMessage parseLinMessage(const std::string &str)
+    {
+        using namespace GeneralUtilities;
+        std::vector<std::string> rawMsg{parseToVector(str, ':')};
+        if (rawMsg.size() != LIN_MESSAGE_SIZE) {
+            return LinMessage{};
+        }
+        LinMessage returnMessage;
+        int i{0};
+        returnMessage.setFrame(LIN_FRAME);
+        returnMessage.setLength(LIN_MESSAGE_LENGTH);
+        for (auto &it : rawMsg) {
+            if (i++ == 0) {
+                returnMessage.setID(parseLinID(it));
+            } else {
+                returnMessage.setDataPacketNthByte(i-2, parseLinByte(it));
+            }
+        }
+        return returnMessage;
+    }
+
+    friend bool operator==(const LinMessage &lhs, const LinMessage &rhs)
+    {
+        if (lhs.m_dataPacket.dataPacket().size() != lhs.m_dataPacket.dataPacket().size()) {
+            return false;
+        }
+        for (unsigned int i = 0; i < lhs.m_dataPacket.dataPacket().size(); i++) {
+            if (lhs.m_dataPacket.dataPacket().at(i) != rhs.m_dataPacket.dataPacket().at(i)) {
+                return false;
+            }
+        }
+        return ((lhs.m_id == rhs.m_id) &&
+                (lhs.m_frame == rhs.m_frame) &&
+                (lhs.m_length == rhs.m_length));
+    }
+
+    static uint8_t calculateChecksum(const LinMessage &linMessage)
+    {
+        (void)linMessage;
+        //TODO:
+            /*
+            Public Function CheckSumCalc1(ByVal v As String) As String
+                Dim B As Integer
+                Dim ABit As Integer
+                Dim Rslt As Integer
+                For x = 1 To v.Length Step 2
+                    B = B + Val("&H" + Mid(v, x, 2))
+                Next
+                ABit = Int(B / 256)
+                B = (B And &HFF) + ABit
+                If B > 255 Then
+                    ABit = B / 256
+                    B = B + ABit
+                End If
+                Rslt = B Xor &HFF
+                CheckSumCalc1 = Hex(Rslt)
+            End Function
+            \*\/
+        return 0;
+    }
+
+    static const int LIN_BYTE_WIDTH;
+    static const int LIN_ID_WIDTH;
+    static const unsigned int LIN_MESSAGE_SIZE;
+    static const unsigned char LIN_FRAME;
+    static const unsigned char LIN_MESSAGE_LENGTH;
+
+
+private:
+    uint32_t m_id;
+    uint8_t m_frame;
+    uint8_t m_length;
+    LinDataPacket m_dataPacket;
+
+    static const char *NTH_DATA_PACKET_BYTE_INDEX_OUT_OF_RANGE_STRING;
+};
+*/
+
+
+#endif //TJLUTILS_ARDUINO_H

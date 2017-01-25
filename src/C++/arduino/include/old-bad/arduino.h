@@ -20,10 +20,10 @@ enum IOStatus { OPERATION_SUCCESS, OPERATION_FAILURE };
 enum IOState { PIN_NUMBER, STATE, RETURN_CODE };
 enum ArduinoTypeEnum { RETURN_STATE, OPERATION_RESULT };
 enum IOReportEnum { IO_PIN_NUMBER, IO_TYPE, IO_STATE };
-enum CanIOStatus { MESSAGE_ID, BYTE_0, BYTE_1, BYTE_2, BYTE_3, BYTE_4, BYTE_5, BYTE_6, BYTE_7 , CAN_IO_OPERATION_RESULT};
 enum CanEnabledStatus { CAN_RETURN_STATE, CAN_OPERATION_RESULT };
-enum ADThresholdReq { AD_RETURN_STATE, AD_OPERATION_RESULT };
+enum CanIOStatus { MESSAGE_ID, BYTE_0, BYTE_1, BYTE_2, BYTE_3, BYTE_4, BYTE_5, BYTE_6, BYTE_7 , CAN_IO_OPERATION_RESULT};
 enum CanMask { CAN_MASK_RETURN_STATE, CAN_MASK_OPERATION_RESULT };
+enum ADThresholdReq { AD_RETURN_STATE, AD_OPERATION_RESULT };
 
 class LinMessage;
 class CanMessage;
@@ -75,6 +75,9 @@ public:
     std::pair<IOStatus, uint32_t> removeCanMask(CanMaskType canMaskType, const std::string &mask, int serialPortIndex);
     std::pair<IOStatus, bool> removeAllCanMasks(CanMaskType canMaskType, int serialPortIndex);
     std::pair<IOStatus, CanMessage> canWrite(const CanMessage &message, int serialPortIndex);
+    std::pair<IOStatus, bool> canAutoUpdate(bool state, int serialPortIndex);
+    std::pair<IOStatus, bool> initializeCanBus(int serialPortIndex);
+    std::pair<IOStatus, CanMessage> canRead(int serialPortIndex);    CanReport canReportRequest(int serialPortIndex);
 
     void initializeIO();
     void assignPinsAndIdentifiers();
@@ -85,17 +88,12 @@ public:
 
     IOReport ioReportRequest(int serialPortIndex);
     SerialReport serialReportRequest(int serialPortIndex, const std::string &delimiter = "");
-    CanReport canReportRequest(int serialPortIndex);
     void writeRawString(const std::string &str, int serialPortIndex);
     std::string readRawString(int serialPortIndex);
     void flushRX(int serialPortIndex);
     void flushTX(int serialPortIndex);
     void flushRXTX(int serialPortIndex);
     void flushTXRX(int serialPortIndex);
-    std::pair<IOStatus, bool> canAutoUpdate(bool state, int serialPortIndex);
-    std::pair<IOStatus, bool> initializeCanBus(int serialPortIndex);
-    std::pair<IOStatus, CanMessage> canRead(int serialPortIndex);
-
 
     bool parseToDigitalState(const std::string &state) const;
     double parseToAnalogState(const std::string &state) const;
@@ -215,23 +213,11 @@ public:
 
     static const unsigned int CAN_READ_BLANK_RETURN_SIZE;
     static const unsigned int REMOVE_CAN_MASKS_RETURN_SIZE;
-    static const unsigned int IO_STATE_RETURN_SIZE;
-    static const unsigned int ARDUINO_TYPE_RETURN_SIZE;
-    static const unsigned int PIN_TYPE_RETURN_SIZE;
-    static const unsigned int IO_REPORT_RETURN_SIZE;
     static const unsigned int CAN_ID_WIDTH;
     static const unsigned int CAN_BYTE_WIDTH;
-    static const int OPERATION_FAILURE;
-    static const int OPERATION_SUCCESS;
-    static const int INVALID_PIN;
-    static const int STATE_FAILURE;
-    static const int ANALOG_MAX;
-    static const int CAN_BUS_PIN;
     static const unsigned int RAW_CAN_MESSAGE_SIZE;
     static const unsigned char CAN_MESSAGE_LENGTH;
     static const unsigned char CAN_FRAME;
-    static const double VOLTAGE_MAX;
-    static const int IO_TRY_COUNT;
     static const unsigned int CAN_READ_RETURN_SIZE;
     static const unsigned int CAN_WRITE_RETURN_SIZE;
     static const unsigned int CAN_BUS_ENABLED_RETURN_SIZE;
@@ -240,6 +226,31 @@ public:
     static const unsigned int CAN_INIT_RETURN_SIZE;
     static const unsigned int ADD_CAN_MASK_RETURN_SIZE;
     static const unsigned int REMOVE_CAN_MASK_RETURN_SIZE;
+    static const int CAN_BUS_PIN;
+
+    static const char *CAN_BUS_ENABLED_HEADER;
+    static const char *ADD_POSITIVE_CAN_MASK_HEADER;
+    static const char *ADD_NEGATIVE_CAN_MASK_HEADER;
+    static const char *REMOVE_POSITIVE_CAN_MASK_HEADER;
+    static const char *REMOVE_NEGATIVE_CAN_MASK_HEADER;
+    static const char *REMOVE_ALL_POSITIVE_CAN_MASKS_HEADER;
+    static const char *REMOVE_ALL_NEGATIVE_CAN_MASKS_HEADER;
+    static const char *REMOVE_ALL_CAN_MASKS_HEADER;
+    static const char *CAN_REPORT_INVALID_DATA_STRING;
+    static const char *CAN_EMPTY_READ_SUCCESS_STRING;
+
+    
+    static const unsigned int IO_STATE_RETURN_SIZE;
+    static const unsigned int ARDUINO_TYPE_RETURN_SIZE;
+    static const unsigned int PIN_TYPE_RETURN_SIZE;
+    static const unsigned int IO_REPORT_RETURN_SIZE;
+    static const int OPERATION_FAILURE;
+    static const double VOLTAGE_MAX;
+    static const int OPERATION_SUCCESS;
+    static const int INVALID_PIN;
+    static const int STATE_FAILURE;
+    static const int ANALOG_MAX;
+    static const int IO_TRY_COUNT;
     static const unsigned int RETURN_SIZE_HIGH_LIMIT;
     static const double BOOTLOADER_BOOT_TIME;
     static const double SERIAL_TIMEOUT;
@@ -296,7 +307,6 @@ private:
     static const char *PIN_TYPE_HEADER;
     static const char *PIN_TYPE_CHANGE_HEADER;
     static const char *ARDUINO_TYPE_HEADER;
-    static const char *CAN_BUS_ENABLED_HEADER;
     static const char *FIRMWARE_VERSION_HEADER;
     static const char *DIGITAL_INPUT_IDENTIFIER;
     static const char *DIGITAL_OUTPUT_IDENTIFIER;
@@ -304,13 +314,6 @@ private:
     static const char *ANALOG_OUTPUT_IDENTIFIER;
     static const char *DIGITAL_INPUT_PULLUP_IDENTIFIER;
     static const char *OPERATION_FAILURE_STRING;
-    static const char *ADD_POSITIVE_CAN_MASK_HEADER;
-    static const char *ADD_NEGATIVE_CAN_MASK_HEADER;
-    static const char *REMOVE_POSITIVE_CAN_MASK_HEADER;
-    static const char *REMOVE_NEGATIVE_CAN_MASK_HEADER;
-    static const char *REMOVE_ALL_POSITIVE_CAN_MASKS_HEADER;
-    static const char *REMOVE_ALL_NEGATIVE_CAN_MASKS_HEADER;
-    static const char *REMOVE_ALL_CAN_MASKS_HEADER;
 
     static const char *UNO_A0_STRING;
     static const char *UNO_A1_STRING;
@@ -391,8 +394,6 @@ private:
     static const char *SERIAL_PORT_INVALID_INDEX_STRING;
     static const char *IO_MUTEX_INVALID_INDEX_STRING;
     static const char *IO_REPORT_INVALID_DATA_STRING;
-    static const char *CAN_REPORT_INVALID_DATA_STRING;
-    static const char *CAN_EMPTY_READ_SUCCESS_STRING;
 
     static const char *INVALID_PIN_ALIAS_STRING;
     static const char *INVALID_PIN_NUMBER_STRING;
