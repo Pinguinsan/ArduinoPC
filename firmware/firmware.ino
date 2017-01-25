@@ -464,6 +464,8 @@ void handleSerialString(const std::string &str)
         currentAToDThresholdRequest();
     } else if (startsWith(str, ARDUINO_TYPE_HEADER)) {
         arduinoTypeRequest();
+    } else if (startsWith(str, CAN_BUS_ENABLED_HEADER)) {
+        canBusEnabledRequest();
 #if defined(__HAVE_CAN_BUS__)
     } else if (startsWith(str, CAN_INIT_HEADER)) {
         canInitRequest();
@@ -508,6 +510,18 @@ void handleSerialString(const std::string &str)
     } else if (startsWith(str, REMOVE_POSITIVE_CAN_MASK_HEADER)) {
         if (checkValidRequestString(REMOVE_POSITIVE_CAN_MASK_HEADER, str)) {
             removePositiveCanMaskRequest(str.substr(static_cast<std::string>(REMOVE_POSITIVE_CAN_MASK_HEADER).length()+1));
+        } else {
+            printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
+        }
+    } else if (startsWith(str, ADD_POSITIVE_CAN_MASK_HEADER)) {
+        if (checkValidRequestString(ADD_POSITIVE_CAN_MASK_HEADER, str)) {
+            addPositiveCanMaskRequest(str.substr(static_cast<std::string>(ADD_POSITIVE_CAN_MASK_HEADER).length()+1));
+        } else {
+            printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
+        }
+    } else if (startsWith(str, ADD_NEGATIVE_CAN_MASK_HEADER)) {
+        if (checkValidRequestString(ADD_NEGATIVE_CAN_MASK_HEADER, str)) {
+            addNegativeCanMaskRequest(str.substr(static_cast<std::string>(ADD_NEGATIVE_CAN_MASK_HEADER).length()+1));
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
@@ -1536,14 +1550,14 @@ bool isSoftwareCoutStream(int coutIndex)
         }
         CanMessage msg{parseCanMessage(str)};
         if (msg.toString() == "") {
-            printSingleResult(CAN_WRITE_HEADER, OPERATION_FAILURE);
+            printSingleResult((once ? CAN_WRITE_ONCE_HEADER : CAN_WRITE_HEADER), OPERATION_FAILURE);
             return;
         }
         if (!once) {
             addLastCanMessage(msg);
         }
         sendCanMessage(msg);
-        printCanResult(CAN_WRITE_HEADER, msg.toString(), OPERATION_SUCCESS, NO_BROADCAST);
+        printCanResult((once ? CAN_WRITE_ONCE_HEADER : CAN_WRITE_HEADER), msg.toString(), OPERATION_SUCCESS, NO_BROADCAST);
     }
 
     void addPositiveCanMaskRequest(const std::string &str)
