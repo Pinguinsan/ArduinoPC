@@ -60,6 +60,7 @@ static const bool BROADCAST{true};
 
 static const char CLOSING_CHARACTER{'}'};
 static const char LINE_ENDING{'\r'};
+static const char ITEM_SEPARATOR{':'}; 
 
 void broadcastString(const std::string &str);
 #if defined(__HAVE_CAN_BUS__)
@@ -125,6 +126,16 @@ GPIO *gpioPinByPinNumber(int pinNumber);
 bool pinInUseBySerialPort(int pinNumber);
 int nextAvailableSerialSlotNumber();
 static std::map<int, GPIO*> gpioPins;
+
+std::string loadString(const char *stringToLoad)
+{
+    std::string returnString{""};
+    int lengthOfString{strlen_P(stringToLoad)};
+    for (int i = 0; i < lengthOfString; i++) {
+        returnString += static_cast<char>(pgm_read_byte_near(stringToLoad + i));
+    }
+    return returnString;
+}
 
 #if defined(ARDUINO_AVR_UNO)
     static const PROGMEM int AVAILABLE_ANALOG_PINS[]{A0, A1, A2, A3, A4, A5, -1};
@@ -275,17 +286,17 @@ SerialPortInfo *defaultNativePort{hardwareSerialPorts.at(0)};
 
 template <typename Header, typename PinNumber, typename State, typename ResultCode> inline void printResult(const Header &header, PinNumber pinNumber, State state, ResultCode resultCode)
 {    
-    *getCurrentValidOutputStream() << header << ':' << pinNumber << ':' << state << ':' << resultCode << CLOSING_CHARACTER << LINE_ENDING;
+    *getCurrentValidOutputStream() << header << ITEM_SEPARATOR << pinNumber << ITEM_SEPARATOR << state << ITEM_SEPARATOR << resultCode << CLOSING_CHARACTER << LINE_ENDING;
 }
 
 template <typename Header, typename ResultCode> inline void printSingleResult(const Header &header, ResultCode resultCode)
 {
-    *getCurrentValidOutputStream() << header << ':' << resultCode << CLOSING_CHARACTER << LINE_ENDING;
+    *getCurrentValidOutputStream() << header << ITEM_SEPARATOR << resultCode << CLOSING_CHARACTER << LINE_ENDING;
 }
 
 template <typename Header, typename Type, typename ResultCode> inline void printTypeResult(const Header &header, Type type, ResultCode resultCode)
 {
-    *getCurrentValidOutputStream() << header << ':' << type << ':' << resultCode << CLOSING_CHARACTER << LINE_ENDING; 
+    *getCurrentValidOutputStream() << header << ITEM_SEPARATOR << type << ITEM_SEPARATOR << resultCode << CLOSING_CHARACTER << LINE_ENDING; 
 }
 
 template <typename Parameter> inline void printString(const Parameter &parameter)
@@ -588,7 +599,7 @@ void addSoftwareSerialRequest(const std::string &str)
 
 void addHardwareSerialRequest(const std::string &str)
 {
-    size_t foundPosition{str.find(":")};
+    size_t foundPosition{str.find(ITEM_SEPARATOR)};
     std::string maybeRxPin{str.substr(0, foundPosition).c_str()};
     int rxPinNumber{parsePin(maybeRxPin)};
     if (rxPinNumber == INVALID_PIN) {
@@ -614,7 +625,7 @@ void addHardwareSerialRequest(const std::string &str)
 
 void removeSoftwareSerialRequest(const std::string &str)
 {
-    size_t foundPosition{str.find(":")};
+    size_t foundPosition{str.find(ITEM_SEPARATOR)};
     std::string maybeRxPin{str.substr(0, foundPosition).c_str()};
     int rxPinNumber{parsePin(maybeRxPin)};
     if (rxPinNumber == INVALID_PIN) {
@@ -643,7 +654,7 @@ void removeSoftwareSerialRequest(const std::string &str)
 
 void removeHardwareSerialRequest(const std::string &str)
 {
-    size_t foundPosition{str.find(":")};
+    size_t foundPosition{str.find(ITEM_SEPARATOR)};
     std::string maybeRxPin{str.substr(0, foundPosition).c_str()};
     int rxPinNumber{parsePin(maybeRxPin)};
     if (rxPinNumber == INVALID_PIN) {
@@ -769,9 +780,9 @@ void ioReportRequest()
             state = gpioPin->g_softAnalogRead();
         }
         if (isValidAnalogInputPin(gpioPin->pinNumber())) {
-            *getCurrentValidOutputStream() << '{' << analogPinFromNumber(gpioPin->pinNumber()) << ':' << getIOTypeString(gpioPin->ioType()) << ':' << state << "};";
+            *getCurrentValidOutputStream() << '{' << analogPinFromNumber(gpioPin->pinNumber()) << ITEM_SEPARATOR << getIOTypeString(gpioPin->ioType()) << ITEM_SEPARATOR << state << "};";
         } else {
-            *getCurrentValidOutputStream() << '{' << gpioPin->pinNumber() << ':' << getIOTypeString(gpioPin->ioType()) << ':' << state << "};";
+            *getCurrentValidOutputStream() << '{' << gpioPin->pinNumber() << ITEM_SEPARATOR << getIOTypeString(gpioPin->ioType()) << ITEM_SEPARATOR << state << "};";
         }
     }
     *getCurrentValidOutputStream() << IO_REPORT_END_HEADER << CLOSING_CHARACTER << LINE_ENDING;
@@ -806,7 +817,7 @@ void digitalWriteRequest(const std::string &str)
         printResult(DIGITAL_WRITE_HEADER, INVALID_PIN, STATE_FAILURE, OPERATION_FAILURE);
         return;
     }
-    size_t foundPosition{str.find(":")};
+    size_t foundPosition{str.find(ITEM_SEPARATOR)};
     std::string maybePin{str.substr(0, foundPosition).c_str()};
     int pinNumber{parsePin(maybePin)};
     if (pinNumber == INVALID_PIN) {
@@ -838,7 +849,7 @@ void digitalWriteAllRequest(const std::string &str)
         printResult(DIGITAL_WRITE_ALL_HEADER, INVALID_PIN, STATE_FAILURE, OPERATION_FAILURE);
         return;
     }
-    size_t foundPosition{str.find(":")};
+    size_t foundPosition{str.find(ITEM_SEPARATOR)};
     std::string maybeState{str.substr(0, foundPosition).c_str()};
     int state{parseToDigitalState(maybeState)};
     if (state == OPERATION_FAILURE) {
@@ -850,14 +861,14 @@ void digitalWriteAllRequest(const std::string &str)
         if (gpioPin->ioType() == IOType::DIGITAL_OUTPUT) {
             gpioPin->g_digitalWrite(state);
             if (isValidAnalogInputPin(gpioPin->pinNumber())) {
-                *getCurrentValidOutputStream() << ':' << analogPinFromNumber(gpioPin->pinNumber());
+                *getCurrentValidOutputStream() << ITEM_SEPARATOR << analogPinFromNumber(gpioPin->pinNumber());
             } else {
-                *getCurrentValidOutputStream() << ':' << gpioPin->pinNumber();
+                *getCurrentValidOutputStream() << ITEM_SEPARATOR << gpioPin->pinNumber();
         
             }
         }
     }
-    *getCurrentValidOutputStream() << ':' << state << ':' << OPERATION_SUCCESS << CLOSING_CHARACTER << LINE_ENDING;
+    *getCurrentValidOutputStream() << ITEM_SEPARATOR << state << ITEM_SEPARATOR << OPERATION_SUCCESS << CLOSING_CHARACTER << LINE_ENDING;
 }
 
 void analogReadRequest(const std::string &str)
@@ -888,7 +899,7 @@ void analogWriteRequest(const std::string &str)
         printResult(ANALOG_WRITE_HEADER, INVALID_PIN, STATE_FAILURE, OPERATION_FAILURE);
         return;
     }
-    size_t foundPosition{str.find(":")};
+    size_t foundPosition{str.find(ITEM_SEPARATOR)};
     std::string maybePin{str.substr(0, foundPosition).c_str()};
     int pinNumber{parsePin(maybePin)};
 
@@ -938,7 +949,7 @@ void pinTypeChangeRequest(const std::string &str)
         printResult(PIN_TYPE_CHANGE_HEADER, INVALID_PIN, STATE_FAILURE, OPERATION_FAILURE);
         return;
     }
-    size_t foundPosition{str.find(":")};
+    size_t foundPosition{str.find(ITEM_SEPARATOR)};
 
     std::string maybePin{str.substr(0, foundPosition)};
     int pinNumber{parsePin(maybePin)};
@@ -1287,11 +1298,11 @@ void broadcastString(const std::string &str)
 void announceStartup()
 {
     broadcastString(static_cast<std::string>(INITIALIZATION_HEADER) 
-                    + ":" 
+                    + ITEM_SEPARATOR
                     + static_cast<std::string>(ARDUINO_TYPE) 
-                    + ":" 
+                    + ITEM_SEPARATOR 
                     + static_cast<std::string>(FIRMWARE_VERSION) 
-                    + "}");
+                    + CLOSING_CHARACTER);
 }
 
 GPIO *gpioPinByPinNumber(int pinNumber)
@@ -1440,15 +1451,16 @@ bool isSoftwareCoutStream(int coutIndex)
     }
 }
 
+
 #if defined(__HAVE_CAN_BUS__)
     void printCanResult(const std::string &header, const std::string &str, int resultCode, bool broadcast)
     {
         if (broadcast) {
             for (auto &it : hardwareSerialPorts) {
-                *it << header << ':' << str << ':' << resultCode << CLOSING_CHARACTER << LINE_ENDING;
+                *it << header << ITEM_SEPARATOR << str << ITEM_SEPARATOR << resultCode << CLOSING_CHARACTER << LINE_ENDING;
             }            
         } else {
-            *getCurrentValidOutputStream() << header << ':' << str << ':' << resultCode << CLOSING_CHARACTER << LINE_ENDING;
+            *getCurrentValidOutputStream() << header << ITEM_SEPARATOR << str << ITEM_SEPARATOR << resultCode << CLOSING_CHARACTER << LINE_ENDING;
         }
     }
     
@@ -1456,16 +1468,16 @@ bool isSoftwareCoutStream(int coutIndex)
     { 
         if (broadcast) {
             for (auto &it : hardwareSerialPorts) {
-                *it << header << ':' << msg.toString() << ':' << resultCode << CLOSING_CHARACTER << LINE_ENDING;
+                *it << header << ITEM_SEPARATOR << msg.toString() << ITEM_SEPARATOR << resultCode << CLOSING_CHARACTER << LINE_ENDING;
             }
         } else {
-            *getCurrentValidOutputStream() << header << ':' << msg.toString() << ':' << resultCode << CLOSING_CHARACTER << LINE_ENDING;
+            *getCurrentValidOutputStream() << header << ITEM_SEPARATOR << msg.toString() << ITEM_SEPARATOR << resultCode << CLOSING_CHARACTER << LINE_ENDING;
         }
     }
     
     void printBlankCanResult(const std::string &header, int resultCode) 
     { 
-        *getCurrentValidOutputStream() << header << ':' << resultCode << CLOSING_CHARACTER << LINE_ENDING;
+        *getCurrentValidOutputStream() << header << ITEM_SEPARATOR << resultCode << CLOSING_CHARACTER << LINE_ENDING;
     } 
 
     void canInit()
@@ -1721,7 +1733,7 @@ bool isSoftwareCoutStream(int coutIndex)
     CanMessage parseCanMessage(const std::string &str)
     {
         using namespace ArduinoPCStrings;
-        std::vector<std::string> rawMsg{parseToVector(str.begin(), str.end(), ':')};
+        std::vector<std::string> rawMsg{parseToVector(str.begin(), str.end(), ITEM_SEPARATOR)};
         if (rawMsg.size() != CAN_WRITE_REQUEST_SIZE) {
             return CanMessage{};
         }

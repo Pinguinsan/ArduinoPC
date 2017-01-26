@@ -1,3 +1,4 @@
+/*
 #include "../include/arduinopcstrings.h"
 
 namespace ArduinoPCStrings
@@ -42,8 +43,8 @@ namespace ArduinoPCStrings
     const char *INITIALIZATION_HEADER{"{arduinopc-firmware"};
 
     const char *ARDUINO_TYPE_HEADER{"{ardtype"};
-    const char *ANALOG_READ_HEADER{"{aread"};
-    const char *ANALOG_WRITE_HEADER{"{awrite"};
+    const char * const ANALOG_READ_HEADER{"{aread"};
+    const char * const ANALOG_WRITE_HEADER{"{awrite"};
     const char *CHANGE_A_TO_D_THRESHOLD_HEADER{"{atodchange"};
     const char *CURRENT_A_TO_D_THRESHOLD_HEADER{"{atodthresh"};
     const char *ADD_SOFTWARE_SERIAL_HEADER{"{addsoftserial"};
@@ -78,3 +79,4 @@ namespace ArduinoPCStrings
 
     
 }
+*/

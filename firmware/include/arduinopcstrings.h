@@ -5,75 +5,81 @@
 
 namespace ArduinoPCStrings
 {
-    extern const char *ARDUINO_TYPE;
-
-#if defined(__HAVE_CAN_BUS__)
-    extern const char *CAN_INIT_HEADER;
-    extern const char *CAN_READ_HEADER;
-    extern const char *CAN_WRITE_HEADER;
-    extern const char *CAN_WRITE_ONCE_HEADER;
-    extern const char *CAN_LIVE_UPDATE_HEADER;
-
-    extern const char *CLEAR_CAN_MESSAGES_HEADER;
-    extern const char *CLEAR_CAN_MESSAGE_BY_ID_HEADER;
-    extern const char *CURRENT_CAN_MESSAGES_HEADER;
-    extern const char *CURRENT_CAN_MESSAGE_BY_ID_HEADER;
-    
-    extern const char *ADD_POSITIVE_CAN_MASK_HEADER;
-    extern const char *REMOVE_POSITIVE_CAN_MASK_HEADER;
-    extern const char *CURRENT_POSITIVE_CAN_MASKS_HEADER;
-    extern const char *CLEAR_POSITIVE_CAN_MASKS_HEADER;
-
-    extern const char *ADD_NEGATIVE_CAN_MASK_HEADER;
-    extern const char *REMOVE_NEGATIVE_CAN_MASK_HEADER;
-    extern const char *CURRENT_NEGATIVE_CAN_MASKS_HEADER;
-    extern const char *CLEAR_NEGATIVE_CAN_MASKS_HEADER;
-
-    extern const char *ALL_CURRENT_CAN_MASKS_HEADER;
-    extern const char *CLEAR_ALL_CAN_MASKS_HEADER;
+#if defined(ARDUINO_AVR_UNO)
+    const char * const ARDUINO_TYPE{"arduino_uno"};
+#elif defined(ARDUINO_AVR_NANO)
+    const char * const ARDUINO_TYPE{"arduino_nano"};
+#elif defined(ARDUINO_AVR_MEGA1280) || defined(ARDUINO_AVR_MEGA2560)
+    const char * const ARDUINO_TYPE{"arduino_mega"};
 #endif
 
-    extern const char *INITIALIZATION_HEADER;
+#if defined(__HAVE_CAN_BUS__)
+    const char * const CLEAR_NEGATIVE_CAN_MASKS_HEADER{"{clearncanmasks"};
+    const char * const CURRENT_NEGATIVE_CAN_MASKS_HEADER{"{curncanmasks"};
+    const char * const CURRENT_POSITIVE_CAN_MASKS_HEADER{"{curpcanmasks"};
+    const char * const CLEAR_ALL_CAN_MASKS_HEADER{"{clearallcanmasks"};
+    const char * const CAN_INIT_HEADER{"{caninit"};
+    const char * const CAN_READ_HEADER{"{canread"};
+    const char * const CAN_WRITE_HEADER{"{canwrite"};
+    const char * const CAN_WRITE_ONCE_HEADER{"{canwriteo"};
+    const char * const CAN_LIVE_UPDATE_HEADER{"{canlup"};
+    const char * const CLEAR_CAN_MESSAGES_HEADER{"{clearcanmsgs"};
+    const char * const CLEAR_CAN_MESSAGE_BY_ID_HEADER{"{clearcanmsgid"};
+    const char * const CURRENT_CAN_MESSAGES_HEADER{"{curcanmsgs"};
+    const char * const CURRENT_CAN_MESSAGE_BY_ID_HEADER{"{curcanmsgid"};
+    const char * const CLEAR_POSITIVE_CAN_MASKS_HEADER{"{clearpcanmasks"};
+    
+    const char * const ADD_POSITIVE_CAN_MASK_HEADER{"{addpcanmask"};
+    const char * const ADD_NEGATIVE_CAN_MASK_HEADER{"{addncanmask"};
+    const char * const ALL_CURRENT_CAN_MASKS_HEADER{"{allcanmasks"};
+    
+    const char * const REMOVE_POSITIVE_CAN_MASK_HEADER{"{rempcanmask"};
+    const char * const REMOVE_NEGATIVE_CAN_MASK_HEADER{"{remncanmask"};
+#endif
 
-    extern const char *HARDWARE_SERIAL_RX_PIN_TYPE;
-    extern const char *HARDWARE_SERIAL_TX_PIN_TYPE;
-    extern const char *SOFTWARE_SERIAL_RX_PIN_TYPE;
-    extern const char *SOFTWARE_SERIAL_TX_PIN_TYPE;
+    const char * const HEARTBEAT_HEADER{"{heartbeat}"};
 
-    extern const char *ADD_SOFTWARE_SERIAL_HEADER;
-    extern const char *REMOVE_SOFTWARE_SERIAL_HEADER;
-    extern const char *ADD_HARDWARE_SERIAL_HEADER;
-    extern const char *REMOVE_HARDWARE_SERIAL_HEADER;
+    const char * const HARDWARE_SERIAL_RX_PIN_TYPE{"{hardserialrx"};
+    const char * const HARDWARE_SERIAL_TX_PIN_TYPE{"{hardserialtx"};
+    const char * const SOFTWARE_SERIAL_RX_PIN_TYPE{"{softserialrx"};
+    const char * const SOFTWARE_SERIAL_TX_PIN_TYPE{"{softserialtx"};
 
-    extern const char *DIGITAL_INPUT_IDENTIFIER;
-    extern const char *DIGITAL_OUTPUT_IDENTIFIER;
-    extern const char *ANALOG_INPUT_IDENTIFIER;
-    extern const char *ANALOG_OUTPUT_IDENTIFIER;
-    extern const char *DIGITAL_INPUT_PULLUP_IDENTIFIER;
-    extern const char *INVALID_HEADER;
-    extern const char *REMOVE_SOFTWARE_SERIAL_HEADER;
-    extern const char *DIGITAL_READ_HEADER;
-    extern const char *ANALOG_READ_HEADER;
-    extern const char *DIGITAL_WRITE_HEADER;
-    extern const char *DIGITAL_WRITE_ALL_HEADER;
-    extern const char *ANALOG_WRITE_HEADER;
-    extern const char *SOFT_DIGITAL_READ_HEADER;
-    extern const char *SOFT_ANALOG_READ_HEADER;
-    extern const char *PIN_TYPE_HEADER;
-    extern const char *PIN_TYPE_CHANGE_HEADER;
-    extern const char *ARDUINO_TYPE_HEADER;
-    extern const char *CHANGE_A_TO_D_THRESHOLD_HEADER;
-    extern const char *CURRENT_A_TO_D_THRESHOLD_HEADER;
+    const char * const INITIALIZATION_HEADER{"{arduinopc-firmware"};
 
-    extern const char *IO_REPORT_HEADER;
-    extern const char *IO_REPORT_END_HEADER;
+    const char * const ARDUINO_TYPE_HEADER{"{ardtype"};
+    const char * const ANALOG_READ_HEADER{"{aread"};
+    const char * const ANALOG_WRITE_HEADER{"{awrite"};
+    const char * const CHANGE_A_TO_D_THRESHOLD_HEADER{"{atodchange"};
+    const char * const CURRENT_A_TO_D_THRESHOLD_HEADER{"{atodthresh"};
+    const char * const ADD_SOFTWARE_SERIAL_HEADER{"{addsoftserial"};
+    const char * const REMOVE_SOFTWARE_SERIAL_HEADER{"{remsoftserial"};
+    const char * const ADD_HARDWARE_SERIAL_HEADER{"{addhardserial"};
+    const char * const REMOVE_HARDWARE_SERIAL_HEADER{"{remhardserial"};
+    
+    const char * const CAN_BUS_ENABLED_HEADER{"{canbus"};
+    
+    const char * const DIGITAL_READ_HEADER{"{dread"};
+    const char * const DIGITAL_WRITE_HEADER{"{dwrite"};
+    const char * const DIGITAL_WRITE_ALL_HEADER{"{dwriteall"};
+    
+    const char * const IO_REPORT_HEADER{"{ioreport"};
+    
+    const char * const PIN_TYPE_HEADER{"{ptype"};
+    const char * const PIN_TYPE_CHANGE_HEADER{"{ptchange"};
+    
+    const char * const SOFT_DIGITAL_READ_HEADER{"{sdread"};
+    const char * const SOFT_ANALOG_READ_HEADER{"{saread"};
 
-    extern const char *CAN_BUS_ENABLED_HEADER;
-    extern const char *FIRMWARE_VERSION_HEADER;
-    extern const char *INVALID_LENGTH_EXCEEDED_HEADER;
-    extern const char *UNSPECIFIED_IO_TYPE_IDENTIFIER;
-    extern const char *FIRMWARE_VERSION;
-    extern const char *HEARTBEAT_HEADER;
+    const char * const FIRMWARE_VERSION_HEADER{"{version"};
+    const char * const IO_REPORT_END_HEADER{"{ioreportend"};
+    const char * const DIGITAL_INPUT_IDENTIFIER{"din"};
+    const char * const DIGITAL_OUTPUT_IDENTIFIER{"dout"};
+    const char * const DIGITAL_INPUT_PULLUP_IDENTIFIER{"dinpup"};
+    const char * const ANALOG_INPUT_IDENTIFIER{"ain"};
+    const char * const ANALOG_OUTPUT_IDENTIFIER{"aout"};
+    const char * const UNSPECIFIED_IO_TYPE_IDENTIFIER{"unspecified"};
+    const char * const INVALID_HEADER{"{invalid"};
+    const char * const FIRMWARE_VERSION{"0.50"};   
 }
 
 #endif //ARDUINOPC_ARDUINOPCSTRINGS_H
