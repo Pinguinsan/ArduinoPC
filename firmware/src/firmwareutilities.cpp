@@ -214,22 +214,6 @@ namespace FirmwareUtilities
         return endsWith(str, std::string{1,compare});
     }
 
-    std::vector<std::string> parseToVector(std::string::iterator first, std::string::iterator last, char delimiter)
-    {
-        std::vector<std::string> returnContainer;
-        std::string::iterator it;
-        do {
-            it = std::find(first, last, delimiter);
-            std::string tempContainer{""};
-            std::copy(first, it, std::inserter(tempContainer, tempContainer.end()));
-            if (!tempContainer.empty()) {
-                returnContainer.insert(returnContainer.end(), tempContainer);
-            }
-            first = it+1;
-        } while (it != last);
-        return returnContainer;
-    }
-
     bool isWhitespace(const std::string &stringToCheck)
     {
         for (std::string::const_iterator iter = stringToCheck.begin(); iter != stringToCheck.end(); iter++) {

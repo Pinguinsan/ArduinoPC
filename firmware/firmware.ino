@@ -44,7 +44,7 @@ namespace std { ohserialstream cout{Serial}; }
 #define PIN_OFFSET 2
 #define NEXT_SERIAL_PORT_UNAVAILABLE -1
 #define SERIAL_BAUD 115200L
-#define SERIAL_TIMEOUT 1000
+#define SERIAL_TIMEOUT 0
 
 #define OPERATION_FAILURE -1
 #define INVALID_PIN -1
@@ -126,16 +126,6 @@ GPIO *gpioPinByPinNumber(int pinNumber);
 bool pinInUseBySerialPort(int pinNumber);
 int nextAvailableSerialSlotNumber();
 static std::map<int, GPIO*> gpioPins;
-
-std::string loadString(const char *stringToLoad)
-{
-    std::string returnString{""};
-    int lengthOfString{strlen_P(stringToLoad)};
-    for (int i = 0; i < lengthOfString; i++) {
-        returnString += static_cast<char>(pgm_read_byte_near(stringToLoad + i));
-    }
-    return returnString;
-}
 
 #if defined(ARDUINO_AVR_UNO)
     static const PROGMEM int AVAILABLE_ANALOG_PINS[]{A0, A1, A2, A3, A4, A5, -1};
@@ -314,22 +304,30 @@ int main()
     while (true) {
         for (auto &it : hardwareSerialPorts) {
             if ((it->isEnabled()) && (it->available())) {
-                String serialRead{it->readStringUntil(CLOSING_CHARACTER)};
+                std::string serialRead{it->readLine()};
                 currentSerialStream = it;
                 if (serialRead.length() > MAXIMUM_SERIAL_READ_SIZE) {
                     printString(INVALID_HEADER);
                 } else {
-                    handleSerialString(serialRead.c_str());
+                    if (FirmwareUtilities::endsWith(serialRead, CLOSING_CHARACTER)) {
+                        handleSerialString(serialRead.substr(0, serialRead.length()-1));
+                    } else {
+                        handleSerialString(serialRead);
+                    }
                 }
             }
         }
         for (auto &it : softwareSerialPorts) {
             if ((it->isEnabled()) && (it->available())) {
-                String serialRead{it->readStringUntil(CLOSING_CHARACTER)};
+                std::string serialRead{it->readLine()};
                 if (serialRead.length() > MAXIMUM_SERIAL_READ_SIZE) {
                     printString(INVALID_HEADER);
                 } else {
-                    handleSerialString(serialRead.c_str());
+                    if (FirmwareUtilities::endsWith(serialRead, CLOSING_CHARACTER)) {
+                        handleSerialString(serialRead.substr(0, serialRead.length()-1));
+                    } else {
+                        handleSerialString(serialRead);
+                    }
                 }
             }
         }
@@ -1290,7 +1288,7 @@ void broadcastString(const std::string &str)
 {
     for (auto &it : hardwareSerialPorts) {
         if (it->isEnabled()) {
-            it->print(str);            
+            *it << str << LINE_ENDING;            
         }
     }    
 }
@@ -1522,7 +1520,6 @@ bool isSoftwareCoutStream(int coutIndex)
         unsigned char receivedPacketLength{0};
         unsigned char pack[8]{0, 0, 0, 0, 0, 0, 0, 0};
         uint32_t canID{0}; 
-    
         if (CAN_MSGAVAIL == canController->checkReceive()) {
             canController->readMsgBuf(&receivedPacketLength, pack);
             canID = canController->getCanId();
@@ -1733,7 +1730,7 @@ bool isSoftwareCoutStream(int coutIndex)
     CanMessage parseCanMessage(const std::string &str)
     {
         using namespace ArduinoPCStrings;
-        std::vector<std::string> rawMsg{parseToVector(str.begin(), str.end(), ITEM_SEPARATOR)};
+        std::vector<std::string> rawMsg{parseToContainer<std::vector<std::string>>(str.begin(), str.end(), ITEM_SEPARATOR)};
         if (rawMsg.size() != CAN_WRITE_REQUEST_SIZE) {
             return CanMessage{};
         }

@@ -46,9 +46,9 @@
 #ifndef ARDUINOPC_MCP2515_H_
 #define ARDUINOPC_MCP2515_H_
 
-//#if !defined(__HAVE_CAN_BUS__)
-//    #define __HAVE_CAN_BUS__ 1
-//#endif
+#if !defined(__HAVE_CAN_BUS__)
+    #define __HAVE_CAN_BUS__ 1
+#endif
 
 #if defined(__HAVE_CAN_BUS__)
     #include <SPI.h>

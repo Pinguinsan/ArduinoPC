@@ -19,6 +19,8 @@
 #include <algorithm>
 #include <iostream>
 #include <sstream>
+#include <string>
+#include <deque>
 
 #include "firmwareutilities.h"
 
@@ -27,8 +29,10 @@ class SerialPortInfo
 public:
     virtual ~SerialPortInfo() { }
     virtual bool available() = 0;
-    virtual String readString() = 0;
-    virtual String readStringUntil(char until) = 0;
+    virtual std::string readLine() = 0;
+    virtual std::string readUntil(char until) = 0;
+    virtual std::string readUntil(const char *until) = 0;
+    virtual std::string readUntil(const std::string &until) = 0;
     virtual void setEnabled(bool enabled) = 0;
     virtual short rxPin() const = 0;
     virtual short txPin() const  = 0;
@@ -37,7 +41,7 @@ public:
     virtual bool serialPortIsNull() const = 0;
     virtual bool isEnabled() const = 0;
     virtual bool initialize() = 0;
-    virtual char lineEnding() const = 0;
+    virtual std::string lineEnding() const = 0;
 
     virtual void print(const std::string &stringToPrint) = 0;
     virtual void print(const char *stringToPrint) = 0;
@@ -54,7 +58,11 @@ public:
     virtual SerialPortInfo &operator<<(unsigned long rhs) = 0;
     virtual SerialPortInfo &operator<<(bool rhs) = 0;
 
-    static const int MAX_READ_BUFFER{8192};
+    static const int SERIAL_PORT_BUF_MAX{8192};
+    static bool isValid(char byteToCheck)
+    {
+        return (isPrintable(byteToCheck) || (byteToCheck == '\r'));
+    }
 };
 
 class HardwareSerialPortInfo : public SerialPortInfo
@@ -66,7 +74,7 @@ public:
                             long long baudRate, 
                             long long timeout,
                             bool enabled,
-                            char lineEnding) :
+                            const std::string &lineEnding) :
         m_serialPort{serialPort},
         m_rxPin{rxPin},
         m_txPin{txPin},
@@ -74,6 +82,18 @@ public:
         m_timeout{timeout},
         m_isEnabled{enabled},
         m_lineEnding{lineEnding}
+    {
+        this->initialize();
+    }
+
+         HardwareSerialPortInfo(HardwareSerial *serialPort, 
+                                short rxPin, 
+                                short txPin, 
+                                long long baudRate, 
+                                long long timeout,
+                                bool enabled,
+                                char lineEnding) :
+                            HardwareSerialPortInfo(serialPort, rxPin, txPin, baudRate, timeout, enabled, std::string{1, lineEnding})
     {
 
     }
@@ -85,17 +105,65 @@ public:
 
     bool available()
     {
-        return this->m_serialPort->available();
+        return ((this->m_serialPort->available()) || (!this->m_stringQueue.empty()));
     }
 
-    String readString()
+    std::string readUntil(char readUntil)
     {
-        return this->readStringUntil(this->m_lineEnding);
+        return this->readUntil(std::string{1, readUntil});
     }
 
-    String readStringUntil(char until)
+    std::string readUntil(const char *readUntil)
     {
-        return this->m_serialPort->readStringUntil(until);
+        return this->readUntil(static_cast<std::string>(readUntil));
+    }
+
+    std::string readUntil(const std::string &str)
+    {
+        std::string tempLineEnding{this->m_lineEnding};
+        this->m_lineEnding = str;
+        std::string readString{this->readLine()};
+        this->m_lineEnding = tempLineEnding;
+        return readString;
+    }
+
+    std::string readLine()
+    {
+        this->syncStringListener();
+        if (this->m_stringQueue.size() == 0) {
+            return "";
+        }
+        std::string stringToReturn{this->m_stringQueue.front()};
+        this->m_stringQueue.pop_front();
+        return stringToReturn;
+    }
+
+    void syncStringListener()
+    {
+        long long int startTime = millis();
+        long long int endTime = millis();
+        do {
+            char byteRead{this->m_serialPort->read()};
+            if (SerialPortInfo::isValid(byteRead)) {
+                addToStringBuilderQueue(byteRead);
+                startTime = millis();
+            } else {
+                break;
+            }
+            endTime = millis();
+        } while ((endTime - startTime) <= this->m_timeout);
+    }
+
+    void addToStringBuilderQueue(char byte)
+    {
+        if (this->m_stringBuilderQueue.size() >= SERIAL_PORT_BUF_MAX) {
+            this->m_stringBuilderQueue = this->m_stringBuilderQueue.substr(1);
+        }
+        this->m_stringBuilderQueue += static_cast<char>(byte);
+        while (this->m_stringBuilderQueue.find(this->m_lineEnding) != std::string::npos) {
+            this->m_stringQueue.push_back(this->m_stringBuilderQueue.substr(0, this->m_stringBuilderQueue.find(this->m_lineEnding)));
+            this->m_stringBuilderQueue = this->m_stringBuilderQueue.substr(this->m_stringBuilderQueue.find(this->m_lineEnding) + 1);
+        }
     }
 
     void setEnabled(bool enabled) 
@@ -137,7 +205,7 @@ public:
     {
         if (this->m_serialPort) {
             this->m_serialPort->begin(this->m_baudRate);
-            this->m_serialPort->setTimeout(this->m_timeout);
+            this->m_serialPort->setTimeout(0);
             this->m_serialPort->flush();
             return true;
         } else {
@@ -145,7 +213,7 @@ public:
         }
     }
 
-    char lineEnding() const
+    std::string lineEnding() const
     {
         return this->m_lineEnding;
     }
@@ -230,7 +298,9 @@ private:
     long long m_baudRate;
     long long m_timeout;
     bool m_isEnabled;
-    char m_lineEnding;
+    std::string m_lineEnding;
+    std::string m_stringBuilderQueue;
+    std::deque<std::string> m_stringQueue;
 };
 
 
@@ -238,12 +308,12 @@ private:
 class SoftwareSerialPortInfo : public SerialPortInfo
 {
 public:
-       SoftwareSerialPortInfo( short rxPin, 
-                               short txPin, 
-                               long long baudRate, 
-                               long long timeout,
-                               bool enabled,
-                               char lineEnding) :
+       SoftwareSerialPortInfo(short rxPin, 
+                              short txPin, 
+                              long long baudRate, 
+                              long long timeout,
+                              bool enabled,
+                              const std::string &lineEnding) :
         m_serialPort{new SoftwareSerial{static_cast<uint8_t>(rxPin), static_cast<uint8_t>(txPin)}},
         m_rxPin{rxPin},
         m_txPin{txPin},
@@ -255,6 +325,17 @@ public:
         this->m_serialPort->begin(baudRate);
     }
 
+         SoftwareSerialPortInfo(short rxPin, 
+                                short txPin, 
+                                long long baudRate, 
+                                long long timeout,
+                                bool enabled,
+                                char lineEnding) :
+                            SoftwareSerialPortInfo(rxPin, txPin, baudRate, timeout, enabled, std::string{1, lineEnding})
+    {
+
+    }
+
     virtual ~SoftwareSerialPortInfo()
     {
         //delete this->m_serialPort;
@@ -262,55 +343,66 @@ public:
 
     bool available()
     {
-        return this->m_serialPort->available();
+        return ((this->m_serialPort->available()) || (!this->m_stringQueue.empty()));
     }
 
-    String readString()
+    std::string readUntil(char readUntil)
     {
-        unsigned long long startTime{millis()};
-        unsigned long long endTime{millis()};
-        unsigned long long elapsedTime{0};
-        String returnString{""};
-        char readChar{0};
+        return this->readUntil(std::string{1, readUntil});
+    }
+
+    std::string readUntil(const char *readUntil)
+    {
+        return this->readUntil(static_cast<std::string>(readUntil));
+    }
+
+    std::string readUntil(const std::string &str)
+    {
+        std::string tempLineEnding{this->m_lineEnding};
+        this->m_lineEnding = str;
+        std::string readString{this->readLine()};
+        this->m_lineEnding = tempLineEnding;
+        return readString;
+    }
+
+    std::string readLine()
+    {
+        this->syncStringListener();
+        if (this->m_stringQueue.size() == 0) {
+            return "";
+        }
+        std::string stringToReturn{this->m_stringQueue.front()};
+        this->m_stringQueue.pop_front();
+        return stringToReturn;
+    }
+
+    void syncStringListener()
+    {
+        long long int startTime = millis();
+        long long int endTime = millis();
         do {
-            if (this->m_serialPort->available()) {
-                readChar = this->m_serialPort->read();
-                if (isPrintable(readChar)) {
-                    returnString += readChar;
-                }
-                if (readChar == this->m_lineEnding) {
-                    break;
-                }
+            char byteRead = this->m_serialPort->read();
+            if (SerialPortInfo::isValid(byteRead)) {
+                addToStringBuilderQueue(byteRead);
+                startTime = millis();
+            } else {
+                break;
             }
             endTime = millis();
-            elapsedTime = endTime - startTime;
-        } while (elapsedTime <= static_cast<unsigned long long>(this->m_timeout));
-        return returnString;
+        } while ((endTime - startTime) <= this->m_timeout);
     }
 
-    String readStringUntil(char until)
+    void addToStringBuilderQueue(char byte)
     {
-        unsigned long long startTime{millis()};
-        unsigned long long endTime{millis()};
-        unsigned long long elapsedTime{0};
-        String returnString{""};
-        char readChar{0};
-        do {
-            if (this->m_serialPort->available()) {
-                readChar = this->m_serialPort->read();
-                if (isPrintable(readChar)) {
-                    returnString += readChar;
-                }
-                if (readChar == until) {
-                    break;
-                }
-            }
-            endTime = millis();
-            elapsedTime = endTime - startTime;
-        } while (elapsedTime <= static_cast<unsigned long long>(this->m_timeout));
-        return returnString;
+        if (this->m_stringBuilderQueue.size() >= SERIAL_PORT_BUF_MAX) {
+            this->m_stringBuilderQueue = this->m_stringBuilderQueue.substr(1);
+        }
+        this->m_stringBuilderQueue += byte;
+        while (this->m_stringBuilderQueue.find(this->m_lineEnding) != std::string::npos) {
+            this->m_stringQueue.push_back(this->m_stringBuilderQueue.substr(0, this->m_stringBuilderQueue.find(this->m_lineEnding)));
+            this->m_stringBuilderQueue = this->m_stringBuilderQueue.substr(this->m_stringBuilderQueue.find(this->m_lineEnding) + 1);
+        }
     }
-
     void setEnabled(bool enabled) 
     { 
         this->m_isEnabled = enabled; 
@@ -357,7 +449,7 @@ public:
         }
     }
 
-    char lineEnding() const
+    std::string lineEnding() const
     {
         return this->m_lineEnding;
     }
@@ -443,8 +535,9 @@ private:
     long long m_baudRate;
     long long m_timeout;
     bool m_isEnabled;
-    char m_lineEnding;
-
+    std::string m_lineEnding;
+    std::string m_stringBuilderQueue;
+    std::deque<std::string> m_stringQueue;
 };
 
 #endif //ARDUINOPC_SERIALPORTINFO_H
