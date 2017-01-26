@@ -4,6 +4,7 @@ const BaudRate FIRMWARE_BAUD_RATE{BaudRate::BAUD115200};
 const DataBits FIRMWARE_DATA_BITS{DataBits::EIGHT};
 const StopBits FIRMWARE_STOP_BITS{StopBits::ONE};
 const Parity FIRMWARE_PARITY{Parity::NONE};
+const char FIRMWARE_LINE_ENDING{'}'};
 const int ANALOG_MAX{1023};
 const double VOLTAGE_MAX{5.0};
 const unsigned int DEFAULT_IO_TRY_COUNT{3};
@@ -22,7 +23,7 @@ Arduino::Arduino(ArduinoType arduinoType, std::shared_ptr<TStream> tStream) :
     } catch (std::exception &e) {
         throw e;
     }
-    this->m_ioStream->setLineEnding(LineEnding::LE_CarriageReturn);
+    this->m_ioStream->setLineEnding(std::string{1, FIRMWARE_LINE_ENDING});
     //TODO: Validate type of Arduino
     this->assignPinsAndIdentifiers();
 }
@@ -113,13 +114,13 @@ std::vector<std::string> Arduino::genericIOTask(const std::string &stringToSend,
     }
     unsigned long int tempTimeout{this->m_ioStream->timeout()};
     this->m_ioStream->setTimeout(SERIAL_REPORT_REQUEST_TIME_LIMIT);
-    this->m_ioStream->writeString(stringToSend);
+    this->m_ioStream->writeLine(stringToSend);
     GeneralUtilities::delayMilliseconds(delay);
     std::unique_ptr<std::string> returnString{std::make_unique<std::string>("")};
     EventTimer eventTimer;
     eventTimer.start();
     do {
-        std::string str{this->m_ioStream->readStringUntil(LINE_ENDING)};
+        std::string str{this->m_ioStream->readUntil(LINE_ENDING)};
         if (str != "") {
             *returnString = str;
             break;
@@ -147,13 +148,13 @@ std::vector<std::string> Arduino::genericIOReportTask(const std::string &stringT
         this->m_ioStream->openPort();
         GeneralUtilities::delayMilliseconds(BOOTLOADER_BOOT_TIME);
     }
-    this->m_ioStream->writeString(stringToSend);
+    this->m_ioStream->writeLine(stringToSend);
     GeneralUtilities::delayMilliseconds(delay);
     std::unique_ptr<std::string> returnString{std::make_unique<std::string>("")};
     EventTimer eventTimer;
     eventTimer.start();
     do {
-        std::string str{this->m_ioStream->readStringUntil(LINE_ENDING)};
+        std::string str{this->m_ioStream->readUntil(LINE_ENDING)};
         if (str != "") {
             *returnString = str;
             break;
@@ -334,7 +335,7 @@ SerialReport Arduino::serialReportRequest(const std::string &delimiter)
         GeneralUtilities::delayMilliseconds(BOOTLOADER_BOOT_TIME);
     }
     SerialReport serialReport;
-    std::unique_ptr<std::string> readString{std::make_unique<std::string>("")};
+    std::unique_ptr<std::string> readLine{std::make_unique<std::string>("")};
     std::unique_ptr<EventTimer> eventTimer{std::make_unique<EventTimer>()};
     std::unique_ptr<EventTimer> overallTimeout{std::make_unique<EventTimer>()};
     std::string returnString{""};
@@ -358,12 +359,12 @@ SerialReport Arduino::serialReportRequest(const std::string &delimiter)
         do {
             eventTimer->update();
             overallTimeout->update();
-            *readString = this->m_ioStream->readString();
-            if ((*readString == "") || (GeneralUtilities::isWhitespace(*readString))) {
+            *readLine = this->m_ioStream->readLine();
+            if ((*readLine == "") || (GeneralUtilities::isWhitespace(*readLine))) {
                 continue;
             } else {
                 eventTimer->restart();
-                returnString += *readString;
+                returnString += *readLine;
             }
         } while ((eventTimer->totalMilliseconds() <= SERIAL_REPORT_REQUEST_TIME_LIMIT) &&
                  (overallTimeout->totalMilliseconds() <= SERIAL_REPORT_OVERALL_TIME_LIMIT) &&
@@ -1023,10 +1024,10 @@ std::pair<IOStatus, CanMessage> Arduino::canListen(double delay)
     using namespace GeneralUtilities;
     std::string stringToSend{static_cast<std::string>(CAN_READ_HEADER) + TERMINATING_CHARACTER};
     CanMessage emptyMessage{0, 0, 0, CanDataPacket()};
-    this->m_ioStream->writeString(stringToSend);
+    this->m_ioStream->writeLine(stringToSend);
     for (int i = 0; i < IO_TRY_COUNT; i++) {
         std::unique_ptr<std::string> returnString{std::make_unique<std::string>("")};
-        *returnString = this->m_ioStream->readStringUntil(TERMINATING_CHARACTER);
+        *returnString = this->m_ioStream->readUntil(TERMINATING_CHARACTER);
         bool canRead{false};
         if ((returnString->find(CAN_EMPTY_READ_SUCCESS_STRING) != std::string::npos) && (returnString->length() > static_cast<std::string>(CAN_EMPTY_READ_SUCCESS_STRING).length() + 10)) {
             *returnString = returnString->substr(static_cast<std::string>(CAN_EMPTY_READ_SUCCESS_STRING).length());

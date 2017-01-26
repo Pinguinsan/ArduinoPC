@@ -107,6 +107,7 @@ public:
     static const DataBits FIRMWARE_DATA_BITS;
     static const StopBits FIRMWARE_STOP_BITS;
     static const Parity FIRMWARE_PARITY;
+    static const char FIRMWARE_LINE_ENDING;
     static const int ANALOG_MAX;
     static const double VOLTAGE_MAX;
     static const unsigned int DEFAULT_IO_TRY_COUNT;
