@@ -183,11 +183,60 @@ namespace FirmwareUtilities
         return m;
     }
 
-    bool substringExists(const const char *first, const const char *second)
+    bool substringExists(const char *first, const char *second)
     {
+        if ((!first) || (!second)) {
+            return false;
+        }
         return (strstr(first, second) != NULL);
-    } 
+    }
 
+    int positionOfSubtring(const char *first, const char *second)
+    {
+        if ((!first) || (!second)) {
+            return -1;
+        }
+        char *pos{strstr(first, second)};
+        if (!pos) {
+            return -1;
+        }
+        return (pos - first);
+    }
+
+    int substring(const char *str, size_t startPosition, char *out, size_t maximumLength)
+    {
+        if ((!str) || (!out)) {
+            return -1;
+        }
+        size_t stringLength{strlen(str)};
+        size_t numberToCopy{stringLength - startPosition};
+        if (numberToCopy > maximumLength) {
+            return -1;
+        }
+        memcpy(out, &(*(str + startPosition)), numberToCopy);
+        *(out + numberToCopy) = '\0';
+        return numberToCopy;
+    }
+
+    int substring(const char *str, size_t startPosition, size_t length, char *out, size_t maximumLength)
+    {
+        if ((!str) || (!out)) {
+            return -1;
+        }
+        size_t stringLength{strlen(str)};
+        size_t numberToCopy{length};
+        if (numberToCopy > maximumLength) {
+            return -1;
+        }
+        memcpy(out, &(*(str + startPosition)), numberToCopy);
+        *(out + numberToCopy) = '\0';
+        return numberToCopy;
+    }
+/*
+    char subbuff[5];
+    memcpy( subbuff, &buff[10], 4 );
+    subbuff[4] = '\0';
+*/
     /*
     std::string stripFromString(const std::string &stringToStrip, const std::string &whatToStrip)
     {

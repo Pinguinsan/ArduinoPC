@@ -88,7 +88,7 @@ bool isValidPwmPinIdentifier(const char *str);
 bool isValidPinTypeIdentifier(const char *str);
 
 bool checkValidIOChangeRequest(IOType ioType, int pinNumber);
-bool checkValidRequestString(const std::string header); 
+bool checkValidRequestString(const char *header); 
 
 bool isValidDigitalOutputPin(int pinNumber);
 bool isValidDigitalInputPin(int pinNumber);
