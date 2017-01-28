@@ -1267,7 +1267,6 @@ bool isValidAnalogPinIdentifier(const std::string &str)
 
 bool isValidPinTypeIdentifier(const std::string &str)
 {
-    std::string copyString{toLowercase(str)};
     return ((copyString == static_cast<std::string>(DIGITAL_INPUT_IDENTIFIER)) ||
             (copyString == static_cast<std::string>(DIGITAL_OUTPUT_IDENTIFIER)) ||
             (copyString == static_cast<std::string>(ANALOG_INPUT_IDENTIFIER)) ||
@@ -1322,12 +1321,16 @@ int parseAnalogPin(const std::string &pinAlias)
         }
     }
     int i{0};
+    int maybePinNumber{parsePin(pinAlias)};
+    if (maybePinNumber == INVALID_PIN) {
+        return 0;
+    }
     do {
         int tempPinNumber{pgm_read_word_near(AVAILABLE_ANALOG_PINS + i++)};
         if (tempPinNumber < 0) {
             break;
         }
-        if (toDecString(tempPinNumber) == pinAlias) {
+        if (tempPinNumber == maybePinNumber) {
             return tempPinNumber;
         }
     } while (true);

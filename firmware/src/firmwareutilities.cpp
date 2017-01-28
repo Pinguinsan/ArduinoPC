@@ -19,205 +19,41 @@ namespace FirmwareUtilities
     {
         return !isEven(numberToCheck);
     }
- 
-    std::string toLowercase(const std::string &str)
+
+    bool startsWith(const char *str, const char *compare)
     {
-        std::string copyString{str};
-        std::transform(copyString.begin(), copyString.end(), copyString.begin(), ::tolower);
-        return copyString;
-    }
-    
-    std::string toUppercase(const std::string &str)
-    {
-        std::string copyString{str};
-        std::transform(copyString.begin(), copyString.end(), copyString.begin(), ::toupper);
-        return copyString;
+        return (strncmp(str, compare, strlen(compare)) == 0);
     }
 
-    std::string toBinaryString(int number)
+    bool endsWith(const char *str, const char *compare)
     {
-        if (number == 0) {
-            return "0";
-        }
-        int digitCount = 0;
-        int copy = number;
-        do {
-            digitCount++;
-        } while (copy /= 2);
-        copy = number;
-        std::string returnString{""};
-        for (int i = 0; i < digitCount; i++) {
-            copy = number % 2;
-            if (copy == 0) returnString.insert(returnString.begin(), '0');
-            else if ((copy % 1) == 0) returnString.insert(returnString.begin(), '1');
-            number /= 2;
-        }
-        return returnString;
-    }
-
-    std::string toDecString(int number)
-    {
-        if (number == 0) {
-            return "0";
-        }
-        int digitCount = 0;
-        int copy = number;
-        while (copy > 0) {
-            copy /= 10;
-            digitCount++;
-        }
-        copy = number;
-        std::string returnString{""};
-        for (int i = 0; i < digitCount; i++) {
-            copy = number % 10;
-            if (copy == 0) returnString.insert(returnString.begin(), '0');
-            else if ((copy % 9 ) == 0) returnString.insert(returnString.begin(), '9');
-            else if ((copy % 8) == 0) returnString.insert(returnString.begin(), '8');
-            else if ((copy % 7) == 0) returnString.insert(returnString.begin(), '7');
-            else if ((copy % 6) == 0) returnString.insert(returnString.begin(), '6');
-            else if ((copy % 5) == 0) returnString.insert(returnString.begin(), '5');
-            else if ((copy % 4) == 0) returnString.insert(returnString.begin(), '4');
-            else if ((copy % 3) == 0) returnString.insert(returnString.begin(), '3');
-            else if ((copy % 2) == 0) returnString.insert(returnString.begin(), '2');
-            else if ((copy % 1) == 0) returnString.insert(returnString.begin(), '1');
-            number /= 10;
-        }
-        return returnString;
-    }
-
-    std::string toHexString(int number)
-    {
-        if (number == 0) {
-            return "0";
-        }
-        int digitCount = 0;
-        int copy = number;
-        do {
-            digitCount++;
-        } while (copy /= 16);
-        copy = number;
-        std::string returnString{""};
-        for (int i = 0; i < digitCount; i++) {
-            copy = number % 16;
-            if (copy == 0) returnString.insert(returnString.begin(), '0');
-            else if ((copy % 15) == 0) returnString.insert(returnString.begin(), 'f');
-            else if ((copy % 14) == 0) returnString.insert(returnString.begin(), 'e');
-            else if ((copy % 13) == 0) returnString.insert(returnString.begin(), 'd');
-            else if ((copy % 12) == 0) returnString.insert(returnString.begin(), 'c');
-            else if ((copy % 11) == 0) returnString.insert(returnString.begin(), 'b');
-            else if ((copy % 10) == 0) returnString.insert(returnString.begin(), 'a');                        
-            else if ((copy % 9) == 0) returnString.insert(returnString.begin(), '9');
-            else if ((copy % 8) == 0) returnString.insert(returnString.begin(), '8');
-            else if ((copy % 7) == 0) returnString.insert(returnString.begin(), '7');
-            else if ((copy % 6) == 0) returnString.insert(returnString.begin(), '6');
-            else if ((copy % 5) == 0) returnString.insert(returnString.begin(), '5');
-            else if ((copy % 4) == 0) returnString.insert(returnString.begin(), '4');
-            else if ((copy % 3) == 0) returnString.insert(returnString.begin(), '3');
-            else if ((copy % 2) == 0) returnString.insert(returnString.begin(), '2');
-            else if ((copy % 1) == 0) returnString.insert(returnString.begin(), '1');
-            number /= 16;
-        }
-        return returnString;
-    }
-
-    std::string toBinaryString(bool number) { return (number ? toBinaryString("1") : toBinaryString("0")); }
-    std::string toDecString(bool number) { return (number ? toDecString("1") : toDecString("0")); }
-    std::string toHexString(bool number) { return (number ? toHexString("1") : toHexString("0")); }
-    
-    std::string toBinaryString(uint32_t number)
-    {
-        return toBinaryString(static_cast<int>(number));
-    }
-
-    std::string toDecString(uint32_t number)
-    {
-        return toDecString(static_cast<int>(number));
-    }
-
-
-    std::string toHexString(uint32_t number)
-    {
-        return toHexString(static_cast<int>(number));
-    }
-
-    std::string toBinaryString(uint8_t number)
-    {
-        return toBinaryString(static_cast<int>(number));
-    }
-
-    std::string toDecString(uint8_t number)
-    {
-        return toDecString(static_cast<int>(number));
-    }    
-    
-    std::string toHexString(uint8_t number)
-    {
-        return toHexString(static_cast<int>(number));
-        
-    }
-
-    std::string toString(const char *convert)
-    {
-        return std::string(convert);
-    }
-
-    std::string toString(const String &convert)
-    {
-        return std::string(convert.c_str());
-    }
-
-    std::string toString(char convert)
-    {
-        return std::string(1, convert);
-    }
-
-    std::string tQuoted(const std::string &convert)
-    {
-        return "\"" + convert + "\"";
-    }
-
-    std::string tQuoted(const char *convert)
-    {
-        return "\"" + static_cast<std::string>(convert) + "\"";
-    }
-
-    std::string tQuoted(char convert)
-    {
-        return "\"" + std::string(1, convert) + "\"";
-    }
-
-    bool startsWith(const std::string &str, const std::string &compare)
-    {
-        return (str.find(compare) == 0);
-    }
-
-    bool startsWith(const std::string &str, const char *compare)
-    {
-        return startsWith(str, static_cast<std::string>(compare));
-    }
-
-    bool startsWith(const std::string &str, char compare)
-    {
-        return startsWith(str, std::string{1, compare});
-    }
-
-    bool endsWith(const std::string &stringToCheck, const std::string &matchString)
-    {
-        if (matchString.size() > stringToCheck.size()) {
+        if ((!str) || (!compare)) {
             return false;
         }
-        return std::equal(matchString.rbegin(), matchString.rend(), stringToCheck.rbegin());
+        size_t stringLength = strlen(str);
+        size_t endingStringLength = strlen(compare);
+        if (endingStringLength > stringLength)
+            return 0;
+        return strncmp(str + stringLength - endingStringLength, compare, endingStringLength) == 0;
     }
 
-    bool endsWith(const std::string &str, char compare)
+    bool endsWith(const char *str, char compare)
     {
-        return endsWith(str, std::string{1,compare});
+        if (!str) {
+            return false;
+        }
+        size_t endOfStringPosition{strlen(str)-1};
+        return (*(str + endOfStringPosition) == compare);
     }
 
-    bool isWhitespace(const std::string &stringToCheck)
+    bool isWhitespace(const char *stringToCheck)
     {
-        for (std::string::const_iterator iter = stringToCheck.begin(); iter != stringToCheck.end(); iter++) {
-            if (static_cast<unsigned>(*iter) > ASCII_WHITESPACE_MAXIMUM_VALUE) {
+        if (!stringToCheck) {
+            return false;
+        }
+        for (int i = 0; i < strlen(stringToCheck); i++) {
+            char tempChar{*(stringToCheck + i)};
+            if ((tempChar > ASCII_WHITESPACE_MAXIMUM_VALUE) || (tempChar == '\r') || (tempChar == '\n')) {
                 return false;
             }
         }
@@ -226,50 +62,12 @@ namespace FirmwareUtilities
 
     bool isWhitespace(char charToCheck)
     {
-        return isWhitespace(std::string(1, charToCheck));
+        return ((charToCheck < ASCII_WHITESPACE_MAXIMUM_VALUE) || (charToCheck == '\r') || (charToCheck == '\n')) 
     }
 
-    std::string stripFromString(const std::string &stringToStrip, const std::string &whatToStrip)
+    int whitespace(unsigned int howMuch, char *out) 
     {
-        std::string returnString{stringToStrip};
-        if (returnString.find(whatToStrip) == std::string::npos) {
-            return returnString;
-        }
-        size_t foundPosition{stringToStrip.find(whatToStrip)};
-        if (foundPosition == 0) {
-            returnString = returnString.substr(whatToStrip.length());
-        } else if (foundPosition == (returnString.length() - whatToStrip.length())) {
-            returnString = returnString.substr(0, foundPosition);
-        } else {
-            returnString = returnString.substr(0, foundPosition) + returnString.substr(foundPosition+whatToStrip.length());
-        }
-        return returnString;
-    }
-
-    std::string stripFromString(const std::string &stringToStrip, char whatToStrip)
-    {
-        return stripFromString(stringToStrip, std::string(1, whatToStrip));
-    }
-
-    std::string stripAllFromString(const std::string &stringToStrip, const std::string &whatToStrip)
-    {
-        std::string returnString{stringToStrip};
-        if (returnString.find(whatToStrip) == std::string::npos) {
-            return returnString;
-        }
-        while (returnString.find(whatToStrip) != std::string::npos) {
-            returnString = stripFromString(returnString, whatToStrip);
-        }
-        return returnString;
-    }
-
-    std::string stripAllFromString(const std::string &stringToStrip, char whatToStrip)
-    {
-        return stripAllFromString(stringToStrip, std::string(1, whatToStrip));
-    }
-
-    std::string whitespace(unsigned int howMuch) 
-    {
+        
         std::string returnString{""};
         for (unsigned int i = 0; i < howMuch; i++) {
             returnString += " ";
@@ -316,61 +114,34 @@ namespace FirmwareUtilities
         return ((charToCheck == '0') || (charToCheck == '1') || (charToCheck == '2') || (charToCheck == '3') || (charToCheck == '4') || (charToCheck == '5') || (charToCheck == '6') || (charToCheck == '7') || (charToCheck == '8') || (charToCheck == '9'));
     }
 
-    String toFixedWidth(const String &inputString, unsigned int fixedWidth)
+    int toFixedWidth(char *inputString, unsigned int fixedWidth, char *out)
     {
-        String copyString{inputString};
-        unsigned int copyLength{copyString.length()};
-        if (copyLength < fixedWidth) {
-            copyLength = fixedWidth - copyLength;
-            while (copyLength--) {
-                copyString = "0" + copyString;
-            }
+        size_t ssize = strlen(inputString);
+        size_t bits = fixedWidth * 8;
+        out = (char *) malloc(bits + 1);
+        assert(ssize < bits);
+        memset(out, '0', bits - ssize);
+        strcpy(out + bits - ssize, string);
+        strlen(out);
+    }
+
+    uint32_t hexStringToUInt(char *str)
+    {
+        if (!str) {
+            return 0;
         }
-        return copyString;
-    }
-
-    std::string toFixedWidth(const std::string &inputString, unsigned int fixedWidth)
-    {
-        std::string copyString{inputString};
-        unsigned int copyLength{copyString.length()};
-        if (copyLength < fixedWidth) {
-            copyLength = (fixedWidth - copyLength);
-            while (copyLength--) {
-                copyString = "0" + copyString;
-            }
-        }
-        return copyString;
-    }
-
-    std::string toFixedWidth(const char *inputString, unsigned int fixedWidth)
-    {
-        return toFixedWidth(static_cast<std::string>(inputString), fixedWidth);
-    }
-
-    uint32_t hexStringToUInt(const std::string &str)
-    {
-        std::string copyString{str};
+        char *copyString{malloc(strlen(str) + 1)};
+        strcpy(copyString, str);
+        int base{16};
         if (startsWith(copyString, "0x")) {
-            copyString = copyString.substr(2);
+            base = 0;
         }
-        unsigned int ret{0};   
-        std::stringstream ss;
-        ss << std::hex << copyString;
-        ss >> ret;
-        return ret;
+        return (int)strtol(hexstring, NULL, base);
     }
 
-    uint8_t hexStringToUChar(const std::string &str)
+    uint8_t hexStringToUChar(char *str)
     {
-        std::string copyString{str};
-        if (startsWith(copyString, "0x")) {
-            copyString = copyString.substr(2);
-        }
-        unsigned int ret{0};   
-        std::stringstream ss;
-        ss << std::hex << copyString;
-        ss >> ret;
-        return ret;
+        return (uint8_t)hexStringToUInt(str);
     }
 
     int intExp(int base, int super)
@@ -399,4 +170,46 @@ namespace FirmwareUtilities
     {
         return (lhs <= rhs) ? lhs : rhs;
     }
+
+
+    /*
+    std::string stripFromString(const std::string &stringToStrip, const std::string &whatToStrip)
+    {
+        std::string returnString{stringToStrip};
+        if (returnString.find(whatToStrip) == std::string::npos) {
+            return returnString;
+        }
+        size_t foundPosition{stringToStrip.find(whatToStrip)};
+        if (foundPosition == 0) {
+            returnString = returnString.substr(whatToStrip.length());
+        } else if (foundPosition == (returnString.length() - whatToStrip.length())) {
+            returnString = returnString.substr(0, foundPosition);
+        } else {
+            returnString = returnString.substr(0, foundPosition) + returnString.substr(foundPosition+whatToStrip.length());
+        }
+        return returnString;
+    }
+
+    std::string stripFromString(const std::string &stringToStrip, char whatToStrip)
+    {
+        return stripFromString(stringToStrip, std::string(1, whatToStrip));
+    }
+
+    std::string stripAllFromString(const std::string &stringToStrip, const std::string &whatToStrip)
+    {
+        std::string returnString{stringToStrip};
+        if (returnString.find(whatToStrip) == std::string::npos) {
+            return returnString;
+        }
+        while (returnString.find(whatToStrip) != std::string::npos) {
+            returnString = stripFromString(returnString, whatToStrip);
+        }
+        return returnString;
+    }
+
+    std::string stripAllFromString(const std::string &stringToStrip, char whatToStrip)
+    {
+        return stripAllFromString(stringToStrip, std::string(1, whatToStrip));
+    }
+*/
 }

@@ -23,58 +23,64 @@
 namespace FirmwareUtilities
 {
     const int constexpr ASCII_WHITESPACE_MAXIMUM_VALUE{32};
-    std::string toLowercase(const std::string &str);
-    std::string toUppercase(const std::string &str);
     
     bool isEvenlyDivisibleBy(int numberToCheck, int divisor);
     bool isEven(int numberToCheck);
     bool isOdd(int numberToCheck);
-    
-    std::string toBinaryString(int number);
-    std::string toDecString(int number);
-    std::string toHexString(int number);
-
-    std::string toBinaryString(uint32_t number);
-    std::string toDecString(uint32_t number);
-    std::string toHexString(uint32_t number);
-
-    std::string toBinaryString(uint8_t number);
-    std::string toDecString(uint8_t number);
-    std::string toHexString(uint8_t number);
-    
-    std::string toBinaryString(bool number);
-    std::string toDecString(bool number);
-    std::string toHexString(bool number);
-
-    std::string toString(const char *convert);
-    std::string toString(const String &convert);
-    std::string toString(char convert);
-    std::string tQuoted(const std::string &convert);
-    std::string tQuoted(const char *convert);
-    std::string tQuoted(char convert);
-    bool startsWith(const std::string &str, const std::string &compare);
-    bool startsWith(const std::string &str, char compare);
-    bool startsWith(const std::string &str, const char *compare);
-    bool endsWith(const std::string &str, const std::string &compare);
-    bool endsWith(const std::string &str, char compare);
-    bool isWhitespace(const std::string &stringToCheck);
+    bool startsWith(char *str, char compare);
+    bool startsWith(char *str, char *compare);
+    bool endsWith(char *str, char *compare);
+    bool endsWith(char *str, char compare);
+    bool isWhitespace(char *str);
     bool isWhitespace(char charToCheck);
+    int whitespace(unsigned int howMuch, char *out);
+    int charToInt(char charToConvert);
+    char intToChar (int intToConvert);
+    bool isDigit(char charToCheck);
+    int toFixedWidth(const String &inputString, unsigned int fixedWidth);
+    int toFixedWidth(const std::string &inputString, unsigned int fixedWidth);
+    uint32_t parseCanID(char *str);
+    uint8_t parseCanByte(char *str);
+    uint32_t hexStringToUInt(char *str);
+    uint8_t hexStringToUChar(char *str);
+    int intExp(int base, int super);
+    int tAbs(int lhs, int rhs);
+    int tMax(int lhs, int rhs);
+    int tMin(int lhs, int rhs);
+
+    template <typename T>
+    int toDecString(T number, char *out)
+    {
+        return (sprintf(out, "%i", number));
+    }
+
+    template <typename T>
+    int toHexString(T number, char *out)
+    {
+        return (sprintf(out, "%02X", number)); 
+    }
+
+    /*
+    int toBinaryString(int number);
+    int toDecString(int number);
+    int toHexString(int number);
+
+    int toBinaryString(uint32_t number);
+    int toDecString(uint32_t number);
+    int toHexString(uint32_t number);
+
+    int toBinaryString(uint8_t number);
+    int toDecString(uint8_t number);
+    int toHexString(uint8_t number);
+    
+    int toBinaryString(bool number);
+    int toDecString(bool number);
+    int toHexString(bool number);
+    */
     std::string stripFromString(const std::string &stringToStrip, const std::string &whatToStrip);
     std::string stripFromString(const std::string &stringToStrip, char whatToStrip);
     std::string stripAllFromString(const std::string &stringToStrip, const std::string &whatToStrip);
     std::string stripAllFromString(const std::string &stringToStrip, char whatToStrip);
-    std::string whitespace(unsigned int howMuch);
-    int charToInt(char charToConvert);
-    char intToChar (int intToConvert);
-    bool isDigit(char charToCheck);
-    String toFixedWidth(const String &inputString, unsigned int fixedWidth);
-    std::string toFixedWidth(const std::string &inputString, unsigned int fixedWidth);
-    uint32_t parseCanID(const std::string &str);
-    uint8_t parseCanByte(const std::string &str);
-    uint32_t hexStringToUInt(const std::string &str);
-    uint8_t hexStringToUChar(const std::string &str);
-
-    
     template <typename Container, typename InputIter, typename Delimiter>
     Container parseToContainer(InputIter first, InputIter last, Delimiter delimiter)
     {
@@ -91,12 +97,6 @@ namespace FirmwareUtilities
         } while (it != last);
         return returnContainer;
     }
-
-    int intExp(int base, int super);
-    int tAbs(int lhs, int rhs);
-    int tMax(int lhs, int rhs);
-    int tMin(int lhs, int rhs);
-
     template <typename T>
     std::string toString(const T &convert)
     {
@@ -112,7 +112,7 @@ namespace FirmwareUtilities
     {
         return "\"" + toString(convert) + "\"";
     }
-
+    */
 
 }
 
