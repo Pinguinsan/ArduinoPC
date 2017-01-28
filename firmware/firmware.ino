@@ -7,23 +7,6 @@
 #include "include/firmwareutilities.h"
 #include "include/arduinopcstrings.h"
 
-/* 
- * Standard C++ headers
- * Special thanks to maniacbug for the
- * nice port of the c++ stdlib 
- * https://github.com/maniacbug/StandardCplusplus
- */
-#include <StandardCplusplus.h>
-#include <system_configuration.h>
-#include <unwind-cxx.h>
-#include <utility.h>
-#include <serstream>
-#include <algorithm>
-#include <iostream>
-#include <sstream>
-#include <string>
-#include <vector>
-#include <map>
 
 #define ARRAY_SIZE(x) (sizeof(x)/sizeof(x[0]))
 
@@ -62,31 +45,31 @@ static const char CLOSING_CHARACTER{'}'};
 static const char LINE_ENDING{'\r'};
 static const char ITEM_SEPARATOR{':'}; 
 
-void broadcastString(const std::string &str);
+void broadcastString(const char *str);
 #if defined(__HAVE_CAN_BUS__)
-    void printCanResult(const std::string &header, const std::string &str, int resultCode, bool broadcast = false);
-    void printCanResult(const std::string &header, const CanMessage &msg, int resultCode, bool broadcast = false);
-    void printBlankCanResult(const std::string &header, int resultCode); 
+    void printCanResult(const char *header, const char *str, int resultCode, bool broadcast = false);
+    void printCanResult(const char *header, const CanMessage &msg, int resultCode, bool broadcast = false);
+    void printBlankCanResult(const char *header, int resultCode); 
 #endif
 
-void handleSerialString(const std::string &str);
+void handleSerialString(const char *str);
 void handleSerialString(const char *str);
 
-void digitalReadRequest(const std::string &str, bool soft);
-void digitalWriteRequest(const std::string &str);
-void digitalWriteAllRequest(const std::string &str);
-void analogReadRequest(const std::string &str);
-void analogWriteRequest(const std::string &str);
-void softAnalogReadRequest(const std::string &str);
-void addSoftwareSerialRequest(const std::string &str);
-void addHardwareSerialRequest(const std::string &str);
-void removeSoftwareSerialRequest(const std::string &str);
-void removeSoftwareSerialRequest(const std::string &str);
+void digitalReadRequest(const char *str, bool soft);
+void digitalWriteRequest(const char *str);
+void digitalWriteAllRequest(const char *str);
+void analogReadRequest(const char *str);
+void analogWriteRequest(const char *str);
+void softAnalogReadRequest(const char *str);
+void addSoftwareSerialRequest(const char *str);
+void addHardwareSerialRequest(const char *str);
+void removeSoftwareSerialRequest(const char *str);
+void removeSoftwareSerialRequest(const char *str);
 
-void pinTypeRequest(const std::string &str);
-void pinTypeChangeRequest(const std::string &str);
+void pinTypeRequest(const char *str);
+void pinTypeChangeRequest(const char *str);
 
-void changeAToDThresholdRequest(const std::string &str);
+void changeAToDThresholdRequest(const char *str);
 void currentAToDThresholdRequest();
 
 void arduinoTypeRequest();
@@ -96,12 +79,12 @@ void ioReportRequest();
 
 SerialPortInfo *getCurrentValidOutputStream();
 
-bool isValidAnalogPinIdentifier(const std::string &str);
-bool isValidPinIdentifier(const std::string &str);
-bool isValidDigitalStateIdentifier(const std::string &str);
-bool isValidAnalogStateIdentifier(const std::string &str);
-bool isValidPwmPinIdentifier(const std::string &str);
-bool isValidPinTypeIdentifier(const std::string &str);
+bool isValidAnalogPinIdentifier(const char *str);
+bool isValidPinIdentifier(const char *str);
+bool isValidDigitalStateIdentifier(const char *str);
+bool isValidAnalogStateIdentifier(const char *str);
+bool isValidPwmPinIdentifier(const char *str);
+bool isValidPinTypeIdentifier(const char *str);
 
 bool checkValidIOChangeRequest(IOType ioType, int pinNumber);
 bool checkValidRequestString(const std::string header); 
@@ -110,13 +93,13 @@ bool isValidDigitalOutputPin(int pinNumber);
 bool isValidDigitalInputPin(int pinNumber);
 bool isValidAnalogOutputPin(int pinNumber);
 bool isValidAnalogInputPin(int pinNumber);
-int parseAnalogPin(const std::string &str);
-int parseToState(const std::string &str);
+int parseAnalogPin(const char *str);
+int parseToState(const char *str);
 
-int parseToAnalogState(const std::string &str);
-IOType parseIOType(const std::string &str);
-int parseToDigitalState(const std::string &str);
-int parsePin(const std::string &str);
+int parseToAnalogState(const char *str);
+IOType parseIOType(const char *str);
+int parseToDigitalState(const char *str);
+int parsePin(const char *str);
 void populateGpioMap();
 
 std::string getIOTypeString(IOType type);
@@ -183,12 +166,12 @@ static std::map<int, GPIO*> gpioPins;
     #endif
     void canInitRequest();
     void canReadRequest(bool autoUp);
-    void canWriteRequest(const std::string &canMessage, bool once);
-    void addNegativeCanMaskRequest(const std::string &canMask);
-    void removePositiveCanMaskRequest(const std::string &canMask);
-    void canLiveUpdateRequest(const std::string &str);
-    void clearCurrentMessageByIdRequest(const std::string &str);
-    void currentCachedCanMessageByIdRequest(const std::string &str);
+    void canWriteRequest(const char *canMessage, bool once);
+    void addNegativeCanMaskRequest(const char *canMask);
+    void removePositiveCanMaskRequest(const char *canMask);
+    void canLiveUpdateRequest(const char *str);
+    void clearCurrentMessageByIdRequest(const char *str);
+    void currentCachedCanMessageByIdRequest(const char *str);
     void clearCanMessagesRequest();
     void currentPositiveCanMasksRequest();
     void currentNegativeCanMasksRequest();
@@ -205,7 +188,7 @@ static std::map<int, GPIO*> gpioPins;
     #define CAN_WRITE_REQUEST_SIZE 9
     static bool canBusInitialized{false};
     static bool canLiveUpdate{false};
-    CanMessage parseCanMessage(const std::string &str);
+    CanMessage parseCanMessage(const char *str);
     static std::map<uint32_t, CanMessage> lastCanMessages;
     static std::set<uint32_t> positiveCanMasks;
     static std::set<uint32_t> negativeCanMasks;
@@ -376,7 +359,7 @@ void handleSerialString(const char *str)
     return handleSerialString(static_cast<std::string>(str));
 }
 
-void handleSerialString(const std::string &str)
+void handleSerialString(const char *str)
 {
     if (str.length() == 0) {
         return;
@@ -554,7 +537,7 @@ void handleSerialString(const std::string &str)
     }
 }
 
-void addSoftwareSerialRequest(const std::string &str)
+void addSoftwareSerialRequest(const char *str)
 {
     size_t foundPosition{str.find(":")};
     std::string maybeRxPin{str.substr(0, foundPosition).c_str()};
@@ -595,7 +578,7 @@ void addSoftwareSerialRequest(const std::string &str)
     }
 }
 
-void addHardwareSerialRequest(const std::string &str)
+void addHardwareSerialRequest(const char *str)
 {
     size_t foundPosition{str.find(ITEM_SEPARATOR)};
     std::string maybeRxPin{str.substr(0, foundPosition).c_str()};
@@ -621,7 +604,7 @@ void addHardwareSerialRequest(const std::string &str)
     printResult(ADD_HARDWARE_SERIAL_HEADER, maybeRxPin, maybeTxPin, OPERATION_FAILURE);
 }
 
-void removeSoftwareSerialRequest(const std::string &str)
+void removeSoftwareSerialRequest(const char *str)
 {
     size_t foundPosition{str.find(ITEM_SEPARATOR)};
     std::string maybeRxPin{str.substr(0, foundPosition).c_str()};
@@ -650,7 +633,7 @@ void removeSoftwareSerialRequest(const std::string &str)
     printResult(REMOVE_SOFTWARE_SERIAL_HEADER, maybeRxPin, maybeTxPin, OPERATION_FAILURE);
 }
 
-void removeHardwareSerialRequest(const std::string &str)
+void removeHardwareSerialRequest(const char *str)
 {
     size_t foundPosition{str.find(ITEM_SEPARATOR)};
     std::string maybeRxPin{str.substr(0, foundPosition).c_str()};
@@ -742,7 +725,7 @@ bool isValidHardwareSerialAddition(int rxPinNumber, int txPinNumber)
     #endif
 }
 
-void changeAToDThresholdRequest(const std::string &str)
+void changeAToDThresholdRequest(const char *str)
 {
     if (str.length() == 0) {
         printTypeResult(CHANGE_A_TO_D_THRESHOLD_HEADER, STATE_FAILURE, OPERATION_FAILURE);
@@ -786,7 +769,7 @@ void ioReportRequest()
     *getCurrentValidOutputStream() << IO_REPORT_END_HEADER << CLOSING_CHARACTER << LINE_ENDING;
 }
 
-void digitalReadRequest(const std::string &str, bool soft)
+void digitalReadRequest(const char *str, bool soft)
 {
     if (str.length() == 0) {
         printResult(DIGITAL_READ_HEADER, INVALID_PIN, STATE_FAILURE, OPERATION_FAILURE);
@@ -809,7 +792,7 @@ void digitalReadRequest(const std::string &str, bool soft)
     printResult((soft ? SOFT_DIGITAL_READ_HEADER : DIGITAL_READ_HEADER), str, state, OPERATION_SUCCESS);
 }
 
-void digitalWriteRequest(const std::string &str)
+void digitalWriteRequest(const char *str)
 {
     if (str.length() == 0) {
         printResult(DIGITAL_WRITE_HEADER, INVALID_PIN, STATE_FAILURE, OPERATION_FAILURE);
@@ -840,7 +823,7 @@ void digitalWriteRequest(const std::string &str)
     printResult(DIGITAL_WRITE_HEADER, maybePin, maybeState, OPERATION_SUCCESS);
 }
 
-void digitalWriteAllRequest(const std::string &str)
+void digitalWriteAllRequest(const char *str)
 {
     *getCurrentValidOutputStream() << DIGITAL_WRITE_ALL_HEADER;
     if (str.length() == 0) {
@@ -869,7 +852,7 @@ void digitalWriteAllRequest(const std::string &str)
     *getCurrentValidOutputStream() << ITEM_SEPARATOR << state << ITEM_SEPARATOR << OPERATION_SUCCESS << CLOSING_CHARACTER << LINE_ENDING;
 }
 
-void analogReadRequest(const std::string &str)
+void analogReadRequest(const char *str)
 {
     if (str.length() == 0) {
         printResult(ANALOG_READ_HEADER, INVALID_PIN, STATE_FAILURE, OPERATION_FAILURE);
@@ -891,7 +874,7 @@ void analogReadRequest(const std::string &str)
     printResult(ANALOG_READ_HEADER, str, gpioPinByPinNumber(pinNumber)->g_analogRead(), OPERATION_SUCCESS);
 }
 
-void analogWriteRequest(const std::string &str)
+void analogWriteRequest(const char *str)
 {
     if (str.length() == 0) {
         printResult(ANALOG_WRITE_HEADER, INVALID_PIN, STATE_FAILURE, OPERATION_FAILURE);
@@ -923,7 +906,7 @@ void analogWriteRequest(const std::string &str)
     }
 }
 
-void pinTypeRequest(const std::string &str)
+void pinTypeRequest(const char *str)
 {
     if (str.length() == 0) {
         printResult(PIN_TYPE_HEADER, INVALID_PIN, STATE_FAILURE, OPERATION_FAILURE);
@@ -941,7 +924,7 @@ void pinTypeRequest(const std::string &str)
     printResult(PIN_TYPE_HEADER, str, getIOTypeString(gpioPinByPinNumber(pinNumber)->ioType()), OPERATION_SUCCESS);
 }
 
-void pinTypeChangeRequest(const std::string &str)
+void pinTypeChangeRequest(const char *str)
 {   
     if (str.length() == 0) {
         printResult(PIN_TYPE_CHANGE_HEADER, INVALID_PIN, STATE_FAILURE, OPERATION_FAILURE);
@@ -975,7 +958,7 @@ void pinTypeChangeRequest(const std::string &str)
     printResult(PIN_TYPE_CHANGE_HEADER, maybePin, getIOTypeString(type), OPERATION_SUCCESS);
 }
 
-void softAnalogReadRequest(const std::string &str)
+void softAnalogReadRequest(const char *str)
 {
     if (str.length() == 0) {
         printResult(SOFT_ANALOG_READ_HEADER, INVALID_PIN, STATE_FAILURE, OPERATION_FAILURE);
@@ -1046,7 +1029,7 @@ void populateGpioMap()
     } while (true);
 }
 
-bool checkValidRequestString(const char *header, const std::string &checkStr)
+bool checkValidRequestString(const char *header, const char *checkStr)
 {
     return (checkStr.length() > (static_cast<std::string>(header).length() + 1));
 }
@@ -1142,7 +1125,7 @@ std::string getIOTypeString(IOType ioType)
     }
 }
 
-int parsePin(const std::string &str)
+int parsePin(const char *str)
 {
     if (str.find("A") != std::string::npos) {
         return parseAnalogPin(str);
@@ -1153,7 +1136,7 @@ int parsePin(const std::string &str)
     }
 }
 
-IOType parseIOType(const std::string &str)
+IOType parseIOType(const char *str)
 {
     if (str == DIGITAL_INPUT_IDENTIFIER) {
         return IOType::DIGITAL_INPUT;
@@ -1170,7 +1153,7 @@ IOType parseIOType(const std::string &str)
     }
 }
 
-bool isValidAnalogStateIdentifier(const std::string &str)
+bool isValidAnalogStateIdentifier(const char *str)
 {
     if (str == "0") {
         return true;
@@ -1179,12 +1162,12 @@ bool isValidAnalogStateIdentifier(const std::string &str)
     return (returnVal != 0); 
 }
 
-bool isValidDigitalStateIdentifier(const std::string &str)
+bool isValidDigitalStateIdentifier(const char *str)
 {   
     return (str == "1") || (str == "0");
 }
 
-int parseToDigitalState(const std::string &str)
+int parseToDigitalState(const char *str)
 {
     if (str == "1") {
         return HIGH; 
@@ -1195,7 +1178,7 @@ int parseToDigitalState(const std::string &str)
     }
 }
 
-int parseToAnalogState(const std::string &str)
+int parseToAnalogState(const char *str)
 {
     if (!isValidAnalogStateIdentifier(str)) {
         return OPERATION_FAILURE;
@@ -1211,7 +1194,7 @@ int parseToAnalogState(const std::string &str)
     }
 }
 
-bool isValidPinIdentifier(const std::string &str)
+bool isValidPinIdentifier(const char *str)
 {
     for (auto &it : gpioPins) {
         if (atoi(str.c_str()) == static_cast<int>(it.first)) {
@@ -1228,7 +1211,7 @@ bool isValidPinIdentifier(const std::string &str)
     return false;
 }
 
-bool isValidPwmPinIdentifier(const std::string &str)
+bool isValidPwmPinIdentifier(const char *str)
 {
     int i{0};
     do {
@@ -1242,7 +1225,7 @@ bool isValidPwmPinIdentifier(const std::string &str)
     } while (true);
 }
 
-bool isValidAnalogPinIdentifier(const std::string &str)
+bool isValidAnalogPinIdentifier(const char *str)
 {
     int i{0};
     do {
@@ -1265,7 +1248,7 @@ bool isValidAnalogPinIdentifier(const std::string &str)
     return false;
 }
 
-bool isValidPinTypeIdentifier(const std::string &str)
+bool isValidPinTypeIdentifier(const char *str)
 {
     return ((copyString == static_cast<std::string>(DIGITAL_INPUT_IDENTIFIER)) ||
             (copyString == static_cast<std::string>(DIGITAL_OUTPUT_IDENTIFIER)) ||
@@ -1283,7 +1266,7 @@ void initializeSerialPorts()
     }
 }
 
-void broadcastString(const std::string &str)
+void broadcastString(const char *str)
 {
     for (auto &it : hardwareSerialPorts) {
         if (it->isEnabled()) {
@@ -1311,7 +1294,7 @@ GPIO *gpioPinByPinNumber(int pinNumber)
         return result->second;
     }
 }
-int parseAnalogPin(const std::string &pinAlias)
+int parseAnalogPin(const char *pinAlias)
 {
     for (unsigned int i =  0; i < ARRAY_SIZE(AVAILABLE_ANALOG_PINS)-1; i++) {
         if (pinAlias.find("A") != std::string::npos) {
@@ -1454,7 +1437,7 @@ bool isSoftwareCoutStream(int coutIndex)
 
 
 #if defined(__HAVE_CAN_BUS__)
-    void printCanResult(const std::string &header, const std::string &str, int resultCode, bool broadcast)
+    void printCanResult(const char *header, const char *str, int resultCode, bool broadcast)
     {
         if (broadcast) {
             for (auto &it : hardwareSerialPorts) {
@@ -1465,7 +1448,7 @@ bool isSoftwareCoutStream(int coutIndex)
         }
     }
     
-    void printCanResult(const std::string &header, const CanMessage &msg, int resultCode, bool broadcast) 
+    void printCanResult(const char *header, const CanMessage &msg, int resultCode, bool broadcast) 
     { 
         if (broadcast) {
             for (auto &it : hardwareSerialPorts) {
@@ -1476,7 +1459,7 @@ bool isSoftwareCoutStream(int coutIndex)
         }
     }
     
-    void printBlankCanResult(const std::string &header, int resultCode) 
+    void printBlankCanResult(const char *header, int resultCode) 
     { 
         *getCurrentValidOutputStream() << header << ITEM_SEPARATOR << resultCode << CLOSING_CHARACTER << LINE_ENDING;
     } 
@@ -1554,7 +1537,7 @@ bool isSoftwareCoutStream(int coutIndex)
         }
     }
 
-    void canWriteRequest(const std::string &str, bool once)
+    void canWriteRequest(const char *str, bool once)
     {
         using namespace ArduinoPCStrings;
         if (!canBusInitialized) {
@@ -1572,7 +1555,7 @@ bool isSoftwareCoutStream(int coutIndex)
         printCanResult((once ? CAN_WRITE_ONCE_HEADER : CAN_WRITE_HEADER), msg.toString(), OPERATION_SUCCESS, NO_BROADCAST);
     }
 
-    void addPositiveCanMaskRequest(const std::string &str)
+    void addPositiveCanMaskRequest(const char *str)
     {
         using namespace ArduinoPCStrings;
         using namespace FirmwareUtilities;
@@ -1587,7 +1570,7 @@ bool isSoftwareCoutStream(int coutIndex)
         }
     }
 
-    void removePositiveCanMaskRequest(const std::string &str)
+    void removePositiveCanMaskRequest(const char *str)
     {
         using namespace ArduinoPCStrings;
         using namespace FirmwareUtilities;
@@ -1599,7 +1582,7 @@ bool isSoftwareCoutStream(int coutIndex)
         printTypeResult(REMOVE_POSITIVE_CAN_MASK_HEADER, str, OPERATION_SUCCESS);
     }
 
-    void addNegativeCanMaskRequest(const std::string &str)
+    void addNegativeCanMaskRequest(const char *str)
     {
         using namespace ArduinoPCStrings;
         using namespace FirmwareUtilities;
@@ -1614,7 +1597,7 @@ bool isSoftwareCoutStream(int coutIndex)
         }
     }
 
-    void removeNegativeCanMaskRequest(const std::string &str)
+    void removeNegativeCanMaskRequest(const char *str)
     {
         using namespace ArduinoPCStrings;
         using namespace FirmwareUtilities;
@@ -1626,7 +1609,7 @@ bool isSoftwareCoutStream(int coutIndex)
         printTypeResult(REMOVE_NEGATIVE_CAN_MASK_HEADER, str, OPERATION_SUCCESS);
     }
 
-    void canLiveUpdateRequest(const std::string &str)
+    void canLiveUpdateRequest(const char *str)
     {
         using namespace ArduinoPCStrings;
         if (str == "") {
@@ -1642,7 +1625,7 @@ bool isSoftwareCoutStream(int coutIndex)
         }
     }
 
-    void currentCachedCanMessageByIdRequest(const std::string &str)
+    void currentCachedCanMessageByIdRequest(const char *str)
     {
         using namespace ArduinoPCStrings;
         using namespace FirmwareUtilities;
@@ -1657,7 +1640,7 @@ bool isSoftwareCoutStream(int coutIndex)
         }
     }
 
-    void clearCurrentMessageByIdRequest(const std::string &str)
+    void clearCurrentMessageByIdRequest(const char *str)
     {
         using namespace ArduinoPCStrings;
         using namespace FirmwareUtilities;
@@ -1730,7 +1713,7 @@ bool isSoftwareCoutStream(int coutIndex)
             lastCanMessages.insert(std::pair<uint32_t, CanMessage>(msg.id(), msg));
         }
     }
-    CanMessage parseCanMessage(const std::string &str)
+    CanMessage parseCanMessage(const char *str)
     {
         using namespace ArduinoPCStrings;
         std::vector<std::string> rawMsg{parseToContainer<std::vector<std::string>>(str.begin(), str.end(), ITEM_SEPARATOR)};

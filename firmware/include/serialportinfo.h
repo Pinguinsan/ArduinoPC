@@ -5,23 +5,6 @@
 #include <SoftwareSerial.h>
 #include <HardwareSerial.h>
 
-/* 
- * Standard C++ headers
- * Special thanks to maniacbug for the
- * nice port of the c++ stdlib 
- * https://github.com/maniacbug/StandardCplusplus
- */
-#include <StandardCplusplus.h>
-#include <system_configuration.h>
-#include <unwind-cxx.h>
-#include <utility.h>
-#include <serstream>
-#include <algorithm>
-#include <iostream>
-#include <sstream>
-#include <string>
-#include <deque>
-
 #include "firmwareutilities.h"
 
 class SerialPortInfo
@@ -29,10 +12,9 @@ class SerialPortInfo
 public:
     virtual ~SerialPortInfo() { }
     virtual bool available() = 0;
-    virtual std::string readLine() = 0;
-    virtual std::string readUntil(char until) = 0;
-    virtual std::string readUntil(const char *until) = 0;
-    virtual std::string readUntil(const std::string &until) = 0;
+    virtual int readLine(char *out) = 0;
+    virtual int readUntil(char until) = 0;
+    virtual int readUntil(const char *until, char *out) = 0;
     virtual void setEnabled(bool enabled) = 0;
     virtual short rxPin() const = 0;
     virtual short txPin() const  = 0;
@@ -41,17 +23,15 @@ public:
     virtual bool serialPortIsNull() const = 0;
     virtual bool isEnabled() const = 0;
     virtual bool initialize() = 0;
-    virtual std::string lineEnding() const = 0;
+    virtual char *lineEnding() const = 0;
 
-    virtual void print(const std::string &stringToPrint) = 0;
-    virtual void print(const char *stringToPrint) = 0;
+    virtual void print(char *stringToPrint) = 0;
     virtual void print(char charToprint) = 0;
     virtual void print(short shortToPrint) = 0;
     virtual void print(int intToPrint) = 0;
     virtual void print(bool boolToPrint) = 0;
 
-    virtual SerialPortInfo &operator<<(const std::string &rhs) = 0;
-    virtual SerialPortInfo &operator<<(const char *rhs) = 0;
+    virtual SerialPortInfo &operator<<(char *rhs) = 0;
     virtual SerialPortInfo &operator<<(char rhs) = 0;
     virtual SerialPortInfo &operator<<(short rhs) = 0;
     virtual SerialPortInfo &operator<<(int rhs) = 0;
@@ -74,7 +54,7 @@ public:
                             long long baudRate, 
                             long long timeout,
                             bool enabled,
-                            const std::string &lineEnding) :
+                            char *lineEnding) :
         m_serialPort{serialPort},
         m_rxPin{rxPin},
         m_txPin{txPin},
@@ -93,7 +73,7 @@ public:
                                 long long timeout,
                                 bool enabled,
                                 char lineEnding) :
-                            HardwareSerialPortInfo(serialPort, rxPin, txPin, baudRate, timeout, enabled, std::string{1, lineEnding})
+                            HardwareSerialPortInfo(serialPort, rxPin, txPin, baudRate, timeout, enabled, &lineEnding)
     {
 
     }
@@ -105,35 +85,35 @@ public:
 
     bool available()
     {
-        return ((this->m_serialPort->available()) || (!this->m_stringQueue.empty()));
+        return (this->m_serialPort->available());
     }
 
-    std::string readUntil(char readUntil)
+    int readUntil(char readUntil, char *out)
     {
-        return this->readUntil(std::string{1, readUntil});
+        return this->readUntil(&readUntil, out);
     }
 
-    std::string readUntil(const char *readUntil)
+    int readUntil(const char *readUntil, char *out)
     {
-        return this->readUntil(static_cast<std::string>(readUntil));
-    }
-
-    std::string readUntil(const std::string &str)
-    {
-        std::string tempLineEnding{this->m_lineEnding};
-        this->m_lineEnding = str;
-        std::string readString{this->readLine()};
+        if (!readUntil) {
+            return 0;
+        }
+        char *copyString{malloc(strlen(readUntil) + 1)};
+        strcpy(copyString, str);
+        char *tempLineEnding{this->m_lineEnding};
+        this->m_lineEnding = copyString;
+        int readStuff{this->readLine(out)};
         this->m_lineEnding = tempLineEnding;
-        return readString;
+        return readStuff;
     }
 
-    std::string readLine()
+    int readLine(char *out)
     {
         this->syncStringListener();
-        if (this->m_stringQueue.size() == 0) {
-            return "";
+        if (this->m_stringQueueSize == 0) {
+            return 0;
         }
-        std::string stringToReturn{this->m_stringQueue.front()};
+        out = this->m_stringQueue[0];
         this->m_stringQueue.pop_front();
         return stringToReturn;
     }
@@ -298,9 +278,10 @@ private:
     long long m_baudRate;
     long long m_timeout;
     bool m_isEnabled;
-    std::string m_lineEnding;
-    std::string m_stringBuilderQueue;
-    std::deque<std::string> m_stringQueue;
+    char *m_lineEnding;
+    char *m_stringBuilderQueue;
+    char **m_stringQueue;
+    int stringQueueIndex;
 };
 
 
