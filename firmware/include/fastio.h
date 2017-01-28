@@ -5,7 +5,6 @@
     #undef digitalPinToTimer
 #endif
 
-
 #if !defined(digitalPinToPortReg)
 #if !(defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__) || defined(__AVR_ATmega2561__) )
 

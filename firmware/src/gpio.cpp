@@ -12,45 +12,6 @@ GPIO::GPIO(int pinNumber, IOType ioType) :
     setIOType(this->m_ioType);
 }
 
-int GPIO::getIOAgnosticState()
-{
-    if ((this->m_ioType == IOType::DIGITAL_INPUT) || (this->m_ioType == IOType::DIGITAL_INPUT_PULLUP)) {
-        return this->g_digitalRead();
-    } else if (this->m_ioType == IOType::DIGITAL_OUTPUT) {
-        return this->g_softDigitalRead();
-    } else if (this->m_ioType == IOType::ANALOG_INPUT) {
-        return this->g_analogRead();
-    } else if (this->m_ioType == IOType::ANALOG_OUTPUT) {
-        return this->g_softAnalogRead();
-    } else {
-        return 0;
-    }
-}
-
-std::vector<unsigned char> GPIO::getEEPROMWritableState()
-{
-    return GPIO::toEEPROMWritableState(this->getIOAgnosticState());
-}
-
-std::vector<unsigned char> GPIO::toEEPROMWritableState(int longState)
-{
-    std::vector<unsigned char> result;
-    result.reserve(5);
-    int copyInt{longState};
-    while (copyInt > 0) {
-        if (copyInt > 254) {
-            result.insert(result.begin(), 255);
-        } else {
-            result.insert(result.begin(), static_cast<unsigned char>(copyInt));
-        }
-        copyInt -= 255;
-    }
-    while (result.size() != 5) {
-        result.insert(result.begin(), 0);
-    }
-    return result;
-}
-
 void GPIO::setAnalogToDigitalThreshold(int threshold)
 {
     using namespace FirmwareUtilities;

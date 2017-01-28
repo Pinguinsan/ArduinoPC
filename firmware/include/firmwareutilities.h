@@ -1,24 +1,7 @@
 #ifndef ARDUINOPC_FIRMWAREUTILITIES_H
 #define ARDUINOPC_FIRMWAREUTILITIES_H
 
-/* 
- * Standard C++ headers
- * Special thanks to maniacbug for the
- * nice port of the c++ stdlib 
- * https://github.com/maniacbug/StandardCplusplus
- */
-#include <StandardCplusplus.h>
-#include <system_configuration.h>
-#include <unwind-cxx.h>
-#include <utility.h>
-#include <iostream>
-#include <string>
-#include <iterator>
-#include <vector>
-#include <sstream>
-#include <algorithm>
-
-#include <Arduino.h>
+#include <string.h>
 
 namespace FirmwareUtilities
 {
@@ -27,18 +10,17 @@ namespace FirmwareUtilities
     bool isEvenlyDivisibleBy(int numberToCheck, int divisor);
     bool isEven(int numberToCheck);
     bool isOdd(int numberToCheck);
-    bool startsWith(char *str, char compare);
-    bool startsWith(char *str, char *compare);
-    bool endsWith(char *str, char *compare);
-    bool endsWith(char *str, char compare);
-    bool isWhitespace(char *str);
+    bool startsWith(const char *str, char compare);
+    bool startsWith(const char *str, const char *compare);
+    bool endsWith(const char *str, const char *compare);
+    bool endsWith(const char *str, char compare);
+    bool isWhitespace(const char *str);
     bool isWhitespace(char charToCheck);
     int whitespace(unsigned int howMuch, char *out);
     int charToInt(char charToConvert);
     char intToChar (int intToConvert);
     bool isDigit(char charToCheck);
     int toFixedWidth(const String &inputString, unsigned int fixedWidth);
-    int toFixedWidth(const std::string &inputString, unsigned int fixedWidth);
     uint32_t parseCanID(char *str);
     uint8_t parseCanByte(char *str);
     uint32_t hexStringToUInt(char *str);
@@ -47,6 +29,8 @@ namespace FirmwareUtilities
     int tAbs(int lhs, int rhs);
     int tMax(int lhs, int rhs);
     int tMin(int lhs, int rhs);
+    bool substringExists(const char *first, const char *second);
+    unsigned long tMillis();
 
     template <typename T>
     int toDecString(T number, char *out)

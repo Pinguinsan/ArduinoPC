@@ -1,5 +1,7 @@
 #include "../include/firmwareutilities.h"
 
+volatile unsigned long timer0_millis = 0;
+
 namespace FirmwareUtilities
 {
     bool isEvenlyDivisibleBy(int numberToCheck, int divisor)
@@ -65,14 +67,14 @@ namespace FirmwareUtilities
         return ((charToCheck < ASCII_WHITESPACE_MAXIMUM_VALUE) || (charToCheck == '\r') || (charToCheck == '\n')) 
     }
 
-    int whitespace(unsigned int howMuch, char *out) 
+    int whitespace(size_t howMuch, char *out) 
     {
-        
-        std::string returnString{""};
-        for (unsigned int i = 0; i < howMuch; i++) {
-            returnString += " ";
+        if (!out) {
+            return;
         }
-        return returnString;
+        char temp[howMuch + 1]{' '};
+        strncopy(out, temp, howMuch);
+        return 0;
     }
 
     int charToInt(char charToConvert)
@@ -114,32 +116,30 @@ namespace FirmwareUtilities
         return ((charToCheck == '0') || (charToCheck == '1') || (charToCheck == '2') || (charToCheck == '3') || (charToCheck == '4') || (charToCheck == '5') || (charToCheck == '6') || (charToCheck == '7') || (charToCheck == '8') || (charToCheck == '9'));
     }
 
-    int toFixedWidth(char *inputString, unsigned int fixedWidth, char *out)
+    int toFixedWidth(const char *inputString, unsigned int fixedWidth, char *out)
     {
         size_t ssize = strlen(inputString);
         size_t bits = fixedWidth * 8;
-        out = (char *) malloc(bits + 1);
+        out = (const char *) malloc(bits + 1);
         assert(ssize < bits);
         memset(out, '0', bits - ssize);
         strcpy(out + bits - ssize, string);
         strlen(out);
     }
 
-    uint32_t hexStringToUInt(char *str)
+    uint32_t hexStringToUInt(const char *str)
     {
         if (!str) {
             return 0;
-        }
-        char *copyString{malloc(strlen(str) + 1)};
-        strcpy(copyString, str);
+        };
         int base{16};
-        if (startsWith(copyString, "0x")) {
+        if (startsWith(str, "0x")) {
             base = 0;
         }
-        return (int)strtol(hexstring, NULL, base);
+        return (int)strtol(str, NULL, base);
     }
 
-    uint8_t hexStringToUChar(char *str)
+    uint8_t hexStringToUChar(const char *str)
     {
         return (uint8_t)hexStringToUInt(str);
     }
@@ -170,7 +170,23 @@ namespace FirmwareUtilities
     {
         return (lhs <= rhs) ? lhs : rhs;
     }
+    
+    unsigned long tMillis()
+    {   
+        unsigned long m;
+        uint8_t oldSREG = SREG;
+        // disable interrupts while we read timer0_millis or we might get an
+        // inconsistent value (e.g. in the middle of a write to timer0_millis)
+        cli();
+        m = timer0_millis;
+        SREG = oldSREG;
+        return m;
+    }
 
+    bool substringExists(const const char *first, const const char *second)
+    {
+        return (strstr(first, second) != NULL);
+    } 
 
     /*
     std::string stripFromString(const std::string &stringToStrip, const std::string &whatToStrip)

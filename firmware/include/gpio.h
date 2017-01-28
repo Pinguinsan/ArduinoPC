@@ -1,22 +1,9 @@
 #ifndef ARDUINOPC_GPIO_H
 #define ARDUINOPC_GPIO_H
 
-#include <Arduino.h>
-
-/* 
- * Standard C++ headers
- * Special thanks to maniacbug for the
- * nice port of the c++ stdlib 
- * https://github.com/maniacbug/StandardCplusplus
- */
-#include <StandardCplusplus.h>
-#include <system_configuration.h>
-#include <unwind-cxx.h>
-#include <utility.h>
-#include <vector>
-
 #include "firmwareutilities.h"
 #include "fastio.h"
+#include <Arduino.h>
 
 #ifndef HIGH
     #define HIGH true
@@ -45,9 +32,7 @@ public:
     void setPinNumber(int pinNumber);
 
     int getIOAgnosticState();
-    std::vector<unsigned char> getEEPROMWritableState();
-    static std::vector<unsigned char> toEEPROMWritableState(int longState);
-
+    
     static const int ANALOG_MAX;
     static void setAnalogToDigitalThreshold(int threshold);
     static int analogToDigitalThreshold();
