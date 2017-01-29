@@ -6,6 +6,10 @@
 
 #include "firmwareutilities.h"
 
+#ifndef SMALL_BUFFER_SIZE
+    #define SMALL_BUFFER_SIZE 255
+#endif
+
 class SerialPort
 {
 public:
@@ -22,8 +26,11 @@ public:
         m_baudRate{baudRate},
         m_timeout{timeout},
         m_isEnabled{enabled},
-        m_lineEnding{lineEnding}
+        m_stringQueueIndex{0}
     {
+        this->m_lineEnding = (char *)malloc(strlen(lineEnding) * sizeof(char));
+        strcpy(this->m_lineEnding, lineEnding);
+        this->m_stringBuilderQueue = (char *)malloc(SERIAL_PORT_BUF_MAX * sizeof(char));
         this->initialize();
     }
 
@@ -39,16 +46,19 @@ public:
         m_baudRate{baudRate},
         m_timeout{timeout},
         m_isEnabled{enabled},
-        m_lineEnding{lineEnding}
+        m_stringQueueIndex{0}
     {
+        this->m_lineEnding = (char *)malloc(strlen(lineEnding) * sizeof(char));
+        strcpy(this->m_lineEnding, lineEnding);
+        this->m_stringBuilderQueue = (char *)malloc(SERIAL_PORT_BUF_MAX * sizeof(char));
         this->initialize();
     }
 
     ~SerialPort()
     {
-        delete m_lineEnding;
-        delete[] m_stringBuilderQueue;
-        delete m_stringQueue;
+        delete this->m_lineEnding;
+        delete[] this->m_stringBuilderQueue;
+        delete this->m_stringQueue;
     }
 
 
@@ -59,7 +69,8 @@ public:
 
     int readUntil(char readUntil, char *out, size_t maximumReadSize)
     {
-        return this->readUntil(&readUntil, out);
+        char temp[1]{readUntil};
+        return this->readUntil(temp, out);
     }
 
     int readUntil(const char *readUntil, char *out, size_t maximumReadSize)
@@ -67,10 +78,11 @@ public:
         if (!readUntil) {
             return 0;
         }
-        char *tempLineEnding{this->m_lineEnding};
-        this->m_lineEnding = copyString;
+        char *tempLineEnding[SMALL_BUFFER_SIZE];
+        strncpy(tempLineEnding, this->m_lineEnding, SMALL_BUFFER_SIZE); 
+        strncpy(this->m_lineEnding, copyString, SMALL_BUFFER_SIZE);
         int readStuff{this->readLine(out)};
-        this->m_lineEnding = tempLineEnding;
+        strncpy(this->m_lineEnding, tempLineEnding, SMALL_BUFFER_SIZE);
         return readStuff;
     }
 
@@ -80,9 +92,9 @@ public:
         if (this->m_stringQueueSize == 0) {
             return 0;
         }
-        out = this->m_stringQueue[0];
-        this->m_stringQueue.pop_front();
-        return stringToReturn;
+        strncpy(out, this->m_stringQueue[0], maximumReadSize);
+        memmove(this->m_stringQueue, this->m_stringQueue+1, (SERIAL_PORT_BUF_MAX - 1)*sizeof(this->m_stringQueue[0]));
+        return strlen(out);
     }
 
     void syncStringListener()
@@ -103,13 +115,19 @@ public:
 
     void addToStringBuilderQueue(char byte)
     {
-        if (this->m_stringBuilderQueue.size() >= SERIAL_PORT_BUF_MAX) {
-            this->m_stringBuilderQueue = this->m_stringBuilderQueue.substr(1);
+        if (strlen(this->m_stringBuilderQueue) >= SERIAL_PORT_BUF_MAX) {
+            (void)FirmwareUtilities::substring(this->m_stringBuilderQueue, 1, this->m_stringBuilderQueue, SERIAL_PORT_BUF_MAX);
         }
-        this->m_stringBuilderQueue += static_cast<char>(byte);
-        while (this->m_stringBuilderQueue.find(this->m_lineEnding) != std::string::npos) {
-            this->m_stringQueue.push_back(this->m_stringBuilderQueue.substr(0, this->m_stringBuilderQueue.find(this->m_lineEnding)));
-            this->m_stringBuilderQueue = this->m_stringBuilderQueue.substr(this->m_stringBuilderQueue.find(this->m_lineEnding) + 1);
+        char temp[1]{byte};
+        strcat(this->m_stringBuilderQueue, temp); 
+        while (FirmwareUtilities::substringExists(this->m_stringBuilderQueue, this->m_lineEnding)) {
+            char stringToAdd[SMALL_BUFFER_SIZE];
+            (void)FirmwareUtilities::substring(this->m_stringBuilderQueue, 0, FirmwareUtilities::substringPosition(this->m_stringBuilderQueue, this->m_lineEnding));
+            char newStringBuilderQueue[SERIAL_PORT_BUF_MAX];
+            (void)FirmwareUtilities::substring(this->m_stringBuilderQueue, FirmwareUtilities::substringPosition(this->m_stringBuilderQueue, this->m_lineEnding) + 1);
+            
+            strcpy(this->m_stringQueue[i++], stringToAdd);
+            strcpy(this->m_stringBuilderQueue, newStringBuilderQueue);
         }
     }
 
@@ -231,9 +249,11 @@ private:
     long long m_baudRate;
     long long m_timeout;
     bool m_isEnabled;
+    size_t m_stringQueueIndex;
     char *m_lineEnding;
     char *m_stringBuilderQueue;
-    char **m_stringQueue;
+    char *m_stringQueue[SERIAL_PORT_BUF_MAX];
+    
 };
 
 #endif //ARDUINOPC_SerialPort_H
