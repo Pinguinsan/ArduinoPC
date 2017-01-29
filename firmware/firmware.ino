@@ -2,7 +2,7 @@
 //#include "include/arduinoinit.h"
 #include <avr/pgmspace.h>
 #include "include/gpio.h"
-#include "include/serialportinfo.h"
+#include "include/SerialPort.h"
 #include "include/firmwareutilities.h"
 #include "include/arduinopcstrings.h"
 #include <string.h>
@@ -250,10 +250,10 @@ int findInArray(T itemToFind, T *arrayToLook, size_t sizeOfArray)
 
 void initializeSerialPorts();
 void announceStartup();
-SerialPortInfo *getHardwareCout(int coutIndex);
-SerialPortInfo *getSoftwareCout(int coutIndex);
-static SerialPortInfo *currentSerialStream{hardwareSerialPorts[0]};
-SerialPortInfo *defaultNativePort{hardwareSerialPorts[0]};
+SerialPort *getHardwareCout(int coutIndex);
+SerialPort *getSoftwareCout(int coutIndex);
+static SerialPort *currentSerialStream{hardwareSerialPorts[0]};
+SerialPort *defaultNativePort{hardwareSerialPorts[0]};
 
 template <typename Header, typename PinNumber, typename State, typename ResultCode> inline void printResult(const Header &header, PinNumber pinNumber, State state, ResultCode resultCode)
 {    
@@ -430,7 +430,7 @@ void handleSerialString(const char *str)
     } else if (startsWith(str, PIN_TYPE_HEADER)) {
         if (checkValidRequestString(PIN_TYPE_HEADER, str)) {
             substringResult = substring(str, strlen(PIN_TYPE_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
-            pinTypeRequest(str.substr(static_cast<std::string>(substringResult).length()+1));
+            pinTypeRequest(requestString);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
@@ -569,14 +569,20 @@ void handleSerialString(const char *str)
 
 void addSoftwareSerialRequest(const char *str)
 {
-    size_t foundPosition{str.find(ITEM_SEPARATOR)};
-    std::string maybeRxPin{str.substr(0, foundPosition).c_str()};
+    size_t foundPosition{positionOfSubstring(str, ITEM_SEPARATOR)};
+    char maybeRxPin[SMALL_BUFFER_SIZE];
+    int result{FirmwareUtilities::substring(str, 0, foundPosition, maybeRxPin, SMALL_BUFFER_SIZE)};
+    (void)result;
+ 
     int rxPinNumber{parsePin(maybeRxPin)};
     if (rxPinNumber == INVALID_PIN) {
         printResult(ADD_SOFTWARE_SERIAL_HEADER, maybeRxPin, STATE_FAILURE, OPERATION_FAILURE);
         return;
     }
-    std::string maybeTxPin{str.substr(foundPosition+1).c_str()};
+
+    char maybeTxPin[SMALL_BUFFER_SIZE];
+    result = FirmwareUtilities::substring(str, foundPosition+1, maybeTxPin, SMALL_BUFFER_SIZE);
+    
     int txPinNumber{parsePin(maybeTxPin)};
     if (txPinNumber == INVALID_PIN) {
         printResult(ADD_SOFTWARE_SERIAL_HEADER, maybeRxPin, maybeTxPin, OPERATION_FAILURE);
@@ -610,14 +616,19 @@ void addSoftwareSerialRequest(const char *str)
 
 void addHardwareSerialRequest(const char *str)
 {
-    size_t foundPosition{str.find(ITEM_SEPARATOR)};
-    std::string maybeRxPin{str.substr(0, foundPosition).c_str()};
+    size_t foundPosition{positionOfSubstring(str, ITEM_SEPARATOR)};
+    char maybeRxPin[SMALL_BUFFER_SIZE];
+    int result{FirmwareUtilities::substring(str, 0, foundPosition, maybeRxPin, SMALL_BUFFER_SIZE)};
+    (void)result;
+    
     int rxPinNumber{parsePin(maybeRxPin)};
     if (rxPinNumber == INVALID_PIN) {
         printResult(ADD_HARDWARE_SERIAL_HEADER, maybeRxPin, STATE_FAILURE, OPERATION_FAILURE);
         return;
     }
-    std::string maybeTxPin{str.substr(foundPosition+1).c_str()};
+    char maybeTxPin[SMALL_BUFFER_SIZE];
+    result = FirmwareUtilities::substring(str, foundPosition+1, maybeTxPin, SMALL_BUFFER_SIZE);
+
     int txPinNumber{parsePin(maybeTxPin)};
     if (txPinNumber == INVALID_PIN) {
         printResult(ADD_HARDWARE_SERIAL_HEADER, maybeRxPin, maybeTxPin, OPERATION_FAILURE);
@@ -636,8 +647,11 @@ void addHardwareSerialRequest(const char *str)
 
 void removeSoftwareSerialRequest(const char *str)
 {
-    size_t foundPosition{str.find(ITEM_SEPARATOR)};
-    std::string maybeRxPin{str.substr(0, foundPosition).c_str()};
+    size_t foundPosition{positionOfSubstring(str, ITEM_SEPARATOR)};
+    char maybeRxPin[SMALL_BUFFER_SIZE];
+    int result{FirmwareUtilities::substring(str, 0, foundPosition, maybeRxPin, SMALL_BUFFER_SIZE)};
+    (void)result;
+ 
     int rxPinNumber{parsePin(maybeRxPin)};
     if (rxPinNumber == INVALID_PIN) {
         printResult(REMOVE_SOFTWARE_SERIAL_HEADER, maybeRxPin, STATE_FAILURE, OPERATION_FAILURE);
@@ -647,7 +661,9 @@ void removeSoftwareSerialRequest(const char *str)
         printResult(REMOVE_SOFTWARE_SERIAL_HEADER, maybeRxPin, STATE_FAILURE, OPERATION_PIN_USED_BY_SERIAL_PORT);
         return;
     }
-    std::string maybeTxPin{str.substr(foundPosition+1).c_str()};
+    char maybeTxPin[SMALL_BUFFER_SIZE];
+    result = FirmwareUtilities::substring(str, foundPosition+1, maybeTxPin, SMALL_BUFFER_SIZE);
+
     int txPinNumber{parsePin(maybeTxPin)};
     if (txPinNumber == INVALID_PIN) {
         printResult(REMOVE_SOFTWARE_SERIAL_HEADER, maybeRxPin, maybeTxPin, OPERATION_FAILURE);
@@ -665,8 +681,11 @@ void removeSoftwareSerialRequest(const char *str)
 
 void removeHardwareSerialRequest(const char *str)
 {
-    size_t foundPosition{str.find(ITEM_SEPARATOR)};
-    std::string maybeRxPin{str.substr(0, foundPosition).c_str()};
+    size_t foundPosition{positionOfSubstring(str, ITEM_SEPARATOR)};
+    char maybeRxPin[SMALL_BUFFER_SIZE];
+    int result{FirmwareUtilities::substring(str, 0, foundPosition, maybeRxPin, SMALL_BUFFER_SIZE)};
+    (void)result;
+ 
     int rxPinNumber{parsePin(maybeRxPin)};
     if (rxPinNumber == INVALID_PIN) {
         printResult(REMOVE_HARDWARE_SERIAL_HEADER, maybeRxPin, STATE_FAILURE, OPERATION_FAILURE);
@@ -676,7 +695,9 @@ void removeHardwareSerialRequest(const char *str)
         printResult(REMOVE_HARDWARE_SERIAL_HEADER, maybeRxPin, STATE_FAILURE, OPERATION_PIN_USED_BY_SERIAL_PORT);
         return;
     }
-    std::string maybeTxPin{str.substr(foundPosition+1).c_str()};
+    char maybeTxPin[SMALL_BUFFER_SIZE];
+    result = FirmwareUtilities::substring(str, foundPosition+1, maybeTxPin, SMALL_BUFFER_SIZE);
+
     int txPinNumber{parsePin(maybeTxPin)};
     if (txPinNumber == INVALID_PIN) {
         printResult(REMOVE_HARDWARE_SERIAL_HEADER, maybeRxPin, maybeTxPin, OPERATION_FAILURE);
@@ -1448,17 +1469,29 @@ int nextAvailableSerialSlotNumber()
 
 bool pinInUseBySerialPort(int pinNumber)
 {
-    for (auto &it : hardwareSerialPorts) {
-        if (it->isEnabled()) {
-            if ((pinNumber == it->rxPin()) || (pinNumber == it->txPin())) {
-                return true;
+    for (int i = 0; i < NUMBER_OF_HARDWARE_SERIAL_PORTS-1; i++) {
+        if (hardwareSerialPorts + i) {
+            if (hardwareSerialPorts[i]) {
+                if (hardwareSerialPorts[i]->isEnabled()) {
+                    if (pinNumber == hardwareSerialPorts[i]->rxPin()) {
+                        return true;
+                    } else if (pinNumber == hardwareSerialPorts[i]->txPin()) {
+                        return true;
+                    }
+                }
             }
         }
     }
-    for (auto &it : softwareSerialPorts) {
-        if (it->isEnabled()) {
-            if ((pinNumber == it->rxPin()) || (pinNumber == it->txPin())) {
-                return true;
+    for (int i = 0; i < MAXIMUM_SOFTWARE_SERIAL_PORTS - 1; i++) {
+        if (softwareSerialPorts + i) {
+            if (softwareSerialPorts[i]) {
+                if (softwareSerialPorts[i]->isEnabled()) {
+                    if (pinNumber == softwareSerialPorts[i]->rxPin()) {
+                        return true;
+                    } else if (pinNumber == softwareSerialPorts[i]->txPin()) {
+                        return true;
+                    }
+                }
             }
         }
     }
@@ -1471,10 +1504,12 @@ int getSerialPinIOTypeString(int pinNumber, char *out, size_t maximumSize)
         if (hardwareSerialPorts + i) {
             if (hardwareSerialPorts[i]) {
                 if (hardwareSerialPorts[i]->isEnabled()) {
-                    if (hardwareSerialPorts[i]->rxPin()) {
+                    if (pinNumber == hardwareSerialPorts[i]->rxPin()) {
                         strncpy(out, HARDWARE_SERIAL_RX_PIN_TYPE, maximumSize);
-                    } else {
-
+                        return strlen(out);
+                    } else if (pinNumber == hardwareSerialPorts[i]->txPin()) {
+                        strncpy(out, HARDWARE_SERIAL_TX_PIN_TYPE, maximumSize);
+                        return strlen(out);
                     }
                 }
             }
@@ -1484,39 +1519,26 @@ int getSerialPinIOTypeString(int pinNumber, char *out, size_t maximumSize)
         if (softwareSerialPorts + i) {
             if (softwareSerialPorts[i]) {
                 if (softwareSerialPorts[i]->isEnabled()) {
-                    *(softwareSerialPorts[i]) << str << LINE_ENDING;
+                    if (pinNumber == softwareSerialPorts[i]->rxPin()) {
+                        strncpy(out, SOFTWARE_SERIAL_RX_PIN_TYPE, maximumSize);
+                        return strlen(out);
+                    } else if (pinNumber == softwareSerialPorts[i]->txPin()) {
+                        strncpy(out, SOFTWARE_SERIAL_TX_PIN_TYPE, maximumSize);
+                        return strlen(out);
+                    }
                 }
             }
         }
     }
-
-    for (auto &it : hardwareSerialPorts) {
-        if (it->isEnabled()) {
-            if (pinNumber == it->rxPin()) {
-                return static_cast<std::string>(HARDWARE_SERIAL_RX_PIN_TYPE);
-            } else if (pinNumber == it->txPin()) {
-                return static_cast<std::string>(HARDWARE_SERIAL_TX_PIN_TYPE);
-            }
-        }
-    }
-    for (auto &it : softwareSerialPorts) {
-        if (it->isEnabled()) {
-            if (pinNumber == it->rxPin()) {
-                return static_cast<std::string>(SOFTWARE_SERIAL_RX_PIN_TYPE);
-            } else if (pinNumber == it->txPin()) {
-                return static_cast<std::string>(SOFTWARE_SERIAL_TX_PIN_TYPE);
-            }
-        }
-    }
-    return "";
+    return -1;
 }
 
-SerialPortInfo *getCurrentValidOutputStream()
+SerialPort *getCurrentValidOutputStream()
 {
     return (currentSerialStream != nullptr ? currentSerialStream : defaultNativePort);
 }
 
-SerialPortInfo *getHardwareCout(int coutIndex)
+SerialPort *getHardwareCout(int coutIndex)
 {
     if (coutIndex < 0) {
         return nullptr;
@@ -1532,7 +1554,7 @@ SerialPortInfo *getHardwareCout(int coutIndex)
     }
 }
 
-SerialPortInfo *getSoftwareCout(int coutIndex)
+SerialPort *getSoftwareCout(int coutIndex)
 {
     if (coutIndex < 0) {
         return nullptr;
@@ -1829,7 +1851,7 @@ SerialPortInfo *getSoftwareCout(int coutIndex)
     CanMessage parseCanMessage(const char *str)
     {
         using namespace ArduinoPCStrings;
-        std::vector<std::string> rawMsg{parseToContainer<std::vector<std::string>>(str.begin(), str.end(), ITEM_SEPARATOR)};
+        std::vector<std::string> rawMsg{FirmwareUtilities::parseToContainer<std::vector<std::string>>(str.begin(), str.end(), ITEM_SEPARATOR)};
         if (rawMsg.size() != CAN_WRITE_REQUEST_SIZE) {
             return CanMessage{};
         }
