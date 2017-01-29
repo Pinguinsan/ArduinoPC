@@ -75,6 +75,9 @@ public:
     {
         delete this->m_lineEnding;
         delete this->m_stringBuilderQueue;
+        for (int i = 0; i < MAXIMUM_STRING_COUNT - 1; i++) {
+            delete[] this->m_stringQueue[i];
+        }
     }
 
 
@@ -306,7 +309,11 @@ public:
     {
         delete this->m_lineEnding;
         delete this->m_stringBuilderQueue;
+        for (int i = 0; i < MAXIMUM_STRING_COUNT - 1; i++) {
+            delete[] this->m_stringQueue[i];
+        }
     }
+
 
     int available()
     {
@@ -337,9 +344,8 @@ public:
         if (this->m_stringQueueIndex == 0) {
             return 0;
         } else {
-            strncpy(out, this->m_stringQueue[0], maximumReadSize);
-            memmove(this->m_stringQueue, this->m_stringQueue+1, (MAXIMUM_STRING_COUNT - 1)*sizeof(this->m_stringQueue[0]));
-            this->m_stringQueueIndex--;
+            strncpy(out, this->m_stringQueue[--this->m_stringQueueIndex], maximumReadSize);
+            memmove(this->m_stringQueue, this->m_stringQueue+1, (sizeof(this->m_stringQueue) - sizeof(this->m_stringQueue[0])));
             return strlen(out);
         }
         return 0;
@@ -476,8 +482,6 @@ private:
         long long int endTime = millis();
         do {
             char byteRead{static_cast<char>(this->m_serialPort->read())};
-            Serial.print("SerialPort read byte ");
-            Serial.println(byteRead);
             if (FirmwareUtilities::isValidByte(byteRead)) {
                 addToStringBuilderQueue(byteRead);
                 startTime = millis();
@@ -486,41 +490,28 @@ private:
             }
             endTime = millis();
         } while ((endTime - startTime) <= this->m_timeout);
-        Serial.println("Exiting syncStringListener()");
-        delay(1000);
     }
 
     void addToStringBuilderQueue(char byte)
     {
         using namespace FirmwareUtilities;
-        Serial.print("Entering addToStringBuilderQueue(");
-        Serial.print(byte);
-        Serial.println(")");
         if (strlen(this->m_stringBuilderQueue) >= SERIAL_PORT_BUFFER_MAX) {
             (void)substring(this->m_stringBuilderQueue, 1, this->m_stringBuilderQueue, SERIAL_PORT_BUFFER_MAX);
         }
-        char temp[2];
-        temp[0] = byte;
-        temp[1] = '\0';
-        strcat(this->m_stringBuilderQueue, temp);             
+        char temp[2] = {byte, '\0'};
+        strncat(this->m_stringBuilderQueue, temp, SERIAL_PORT_BUFFER_MAX);             
         while (substringExists(this->m_stringBuilderQueue, this->m_lineEnding)) {
-            Serial.println("Line ending found in this->m_stringBuilderQueue");
-            Serial.println(positionOfSubstring(this->m_stringBuilderQueue, this->m_lineEnding));
             (void)substring(this->m_stringBuilderQueue,
                             0, 
                             positionOfSubstring(this->m_stringBuilderQueue, this->m_lineEnding), 
                             this->m_stringQueue[this->m_stringQueueIndex++],
                             SMALL_BUFFER_SIZE);
-
             (void)substring(this->m_stringBuilderQueue,
                             positionOfSubstring(this->m_stringBuilderQueue, this->m_lineEnding) + 1,
                             this->m_stringBuilderQueue,
                             strlen(this->m_stringBuilderQueue) + 1);
-            Serial.print("this->m_stringQueue[0] = ");
-            Serial.println(this->m_stringQueue[0]);
         }
-        Serial.println("Exiting addToStringBuilderQueue()");
-    }  
+    }   
 };
 
 #endif //ARDUINOPC_SERIALPORT_H

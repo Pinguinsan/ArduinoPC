@@ -335,14 +335,14 @@ int main()
                     debug.println(" is enabled and available ");
                     char buffer[MAXIMUM_SERIAL_READ_SIZE];
                     int serialRead{it->readLine(buffer, MAXIMUM_SERIAL_READ_SIZE)};
-                    debug.print("hardware serial port at i = ");
-                    debug.print(i);
-                    debug.print(" read ");
-                    debug.print(serialRead);
-                    debug.println(" bytes");
                     if (serialRead > 0) {
+                        debug.print("hardware serial port at i = ");
+                        debug.print(i);
+                        debug.print(" read ");
+                        debug.print(serialRead);
+                        debug.println(" bytes");
                         currentSerialStream = it;
-                        //handleSerialString(buffer);
+                        handleSerialString(buffer);
                     }
                 }
             }
@@ -350,11 +350,7 @@ int main()
             debug.print(i);
             debug.println(" has no data available");
         }
-        /*
         for (unsigned int i = 0; i < ARRAY_SIZE(softwareSerialPorts); i++) {
-            debug.print("Checking software serial port at i = ");
-            debug.println(i);
-            delay(1000);
             SerialPortBase *it{nullptr};
             if (softwareSerialPorts + i) {
                 if (softwareSerialPorts[i]) {
@@ -364,16 +360,28 @@ int main()
             if (!it) {
                 continue;
             }
-            if ((it->isEnabled()) && (it->available())) {
-                char buffer[MAXIMUM_SERIAL_READ_SIZE];
-                int serialRead{it->readLine(buffer, MAXIMUM_SERIAL_READ_SIZE)};
-                if (serialRead > 0) {
-                    currentSerialStream = it;
-                    handleSerialString(buffer);
+            if (it->isEnabled()) {
+                if (it->available() != 0) {
+                    debug.print("software serial port at i = ");
+                    debug.print(i);
+                    debug.println(" is enabled and available ");
+                    char buffer[MAXIMUM_SERIAL_READ_SIZE];
+                    int serialRead{it->readLine(buffer, MAXIMUM_SERIAL_READ_SIZE)};
+                    if (serialRead > 0) {
+                        debug.print("software serial port at i = ");
+                        debug.print(i);
+                        debug.print(" read ");
+                        debug.print(serialRead);
+                        debug.println(" bytes");
+                        currentSerialStream = it;
+                        handleSerialString(buffer);
+                    }
                 }
             }
+            debug.print("software serial port at i = ");
+            debug.print(i);
+            debug.println(" has no data available");
         }
-        */
         #if defined(__HAVE_CAN_BUS__)
             if (canLiveUpdate) {
                 canReadRequest(canLiveUpdate);
@@ -428,6 +436,8 @@ int main()
 
 void handleSerialString(const char *str)
 {
+    Serial.print("str = ");
+    Serial.println(str);
     if (!str) {
         return;
     } else if (strlen(str) == 0) {
