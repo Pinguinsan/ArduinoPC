@@ -236,6 +236,11 @@ private:
 
     void syncStringListener()
     {
+        Serial.println("Entering syncStringListener()");
+        delay(2000);
+
+        Serial.println("Entering syncStringListener()");
+        delay(2000);
         long long int startTime = millis();
         long long int endTime = millis();
         do {
@@ -295,7 +300,6 @@ public:
         delete this->m_lineEnding;
         delete this->m_stringBuilderQueue;
     }
-
 
     int available()
     {

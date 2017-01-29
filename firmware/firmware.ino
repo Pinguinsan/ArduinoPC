@@ -1,12 +1,12 @@
-//#include <SoftwareSerial.h>
+#include "include/debug.h"
 #include "include/arduinoinit.h"
-#include <avr/pgmspace.h>
 #include "include/gpio.h"
 #include "include/serialportbase.h"
 #include "include/firmwareutilities.h"
 #include "include/arduinopcstrings.h"
 #include <string.h>
 #include <stdlib.h>
+#include <avr/pgmspace.h>
 
 #define ARRAY_SIZE(x) (sizeof(x)/sizeof(x[0]))
 
@@ -15,6 +15,10 @@
     #include "include/candatapacket.h"
     #include "include/canmessage.h"
 #endif
+
+#define __DEBUG__ true
+
+static Debug debug{__DEBUG__};
 
 using namespace ArduinoPCStrings;
 using namespace FirmwareUtilities;
@@ -313,66 +317,49 @@ int main()
     initializeSerialPorts();
     announceStartup();
     populateGpioMap();
-
-
+    debug.println("Hello, World!");
     while (true) {
         for (unsigned int i = 0; i < ARRAY_SIZE(hardwareSerialPorts); i++) {
-            Serial.print("Checking hardware serial port at i = ");
-            Serial.println(i);
-            Serial.flush();
-            delay(1000);
             SerialPortBase *it{nullptr};
             if (hardwareSerialPorts + i) {
                 if (hardwareSerialPorts[i]) {
-                    Serial.print("Assigning hardware serial port at i = ");
-                    Serial.println(i);
-                    Serial.flush();
-                    delay(1000);
                     it = hardwareSerialPorts[i];
-                    Serial.print("serial port at i = ");
-                    Serial.print(i);
-                    Serial.println(" was assigned");
-                    Serial.flush();
-                    delay(1000);
                 }
             }
-            if (it == nullptr) {
+            debug.print("hardware serial port at i = ");
+            debug.print(i);
+            debug.println(" is assigned ");
+            if (!it) {
                 continue;
             }
-            if ((it->isEnabled()) && (it->available())) {
-                Serial.print("hardware serial port at i = ");
-                Serial.print(i);
-                Serial.println(" is available and enabled");
-                Serial.flush();
-                delay(1000);
+            debug.print("hardware serial port at i = ");
+            debug.print(i);
+            debug.println(" is not null");
+            //if ((it->isEnabled()) && (it->available())) {
+                debug.print("hardware serial port at i = ");
+                debug.print(i);
+                debug.println(" is enabled and available ");
                 char buffer[MAXIMUM_SERIAL_READ_SIZE];
-                int serialRead{it->readLine(buffer, MAXIMUM_SERIAL_READ_SIZE)};
-                Serial.print("hardware serial port at i = ");
-                Serial.print(i);
-                Serial.print(" read ");
-                Serial.print(serialRead);
-                Serial.println(" bytes");
-                Serial.flush();
-                delay(1000);
+                //int serialRead{it->readLine(buffer, MAXIMUM_SERIAL_READ_SIZE)};
+                int serialRead{0};
+                debug.print("hardware serial port at i = ");
+                debug.print(i);
+                debug.print(" read ");
+                debug.print(serialRead);
+                debug.println(" bytes");
                 if (serialRead > 0) {
                     currentSerialStream = it;
                     handleSerialString(buffer);
                 }
-                Serial.print("hardware serial port at i = ");
-                Serial.print(i);
-                Serial.println(" is available and enabled");
-                Serial.flush();
-                delay(1000);
-            }
-            Serial.print("hardware serial port at i = ");
-            Serial.print(i);
-            Serial.println(" is either not available and or not enabled");
-            Serial.flush();
-            delay(1000);
+            //}
+            debug.print("hardware serial port at i = ");
+            debug.print(i);
+            debug.println(" has no data available");
         }
+        /*
         for (unsigned int i = 0; i < ARRAY_SIZE(softwareSerialPorts); i++) {
-            Serial.print("Checking software serial port at i = ");
-            Serial.println(i);
+            debug.print("Checking software serial port at i = ");
+            debug.println(i);
             delay(1000);
             SerialPortBase *it{nullptr};
             if (softwareSerialPorts + i) {
@@ -380,7 +367,7 @@ int main()
                     it = softwareSerialPorts[i];
                 }
             }
-            if (it == nullptr) {
+            if (!it) {
                 continue;
             }
             if ((it->isEnabled()) && (it->available())) {
@@ -392,6 +379,7 @@ int main()
                 }
             }
         }
+        */
         #if defined(__HAVE_CAN_BUS__)
             if (canLiveUpdate) {
                 canReadRequest(canLiveUpdate);
@@ -1465,10 +1453,23 @@ bool isValidPinTypeIdentifier(const char *str)
 
 void initializeSerialPorts()
 {
+    Serial.begin(115200L);
     for (unsigned int i = 0; i < ARRAY_SIZE(hardwareSerialPorts); i++) {
         if (hardwareSerialPorts + i) {
-            if (hardwareSerialPorts[i]->isEnabled()) {
-                (void)hardwareSerialPorts[i]->initialize();
+            if (hardwareSerialPorts[i]) {
+                if (hardwareSerialPorts[i]->isEnabled()) {
+                    debug.print("Initializing serial port at i = ");
+                    debug.println(i);
+                    if (!hardwareSerialPorts[i]->initialize()) {
+                        debug.print("Serial port at i = ");
+                        debug.print(i);
+                        debug.println(" was NOT initialized");
+                    } else {
+                        debug.print("Serial port at i = ");
+                        debug.print(i);
+                        debug.println(" was initialized");
+                    }
+                }
             }
         }
     }
@@ -1498,15 +1499,6 @@ void broadcastString(const char *str)
 
 void announceStartup()
 {
-    /*
-    snprintf(str, sizeof(str), "%s%c%s%c%s%c", INITIALIZATION_HEADER, 
-                                               ITEM_SEPARATOR, 
-                                               ARDUINO_TYPE, 
-                                               ITEM_SEPARATOR, 
-                                               FIRMWARE_VERSION, 
-                                               CLOSING_CHARACTER);
-    
-    */
     char str[SMALL_BUFFER_SIZE];
     strcpy (str, INITIALIZATION_HEADER);
     strcat (str, ITEM_SEPARATOR);
