@@ -18,8 +18,6 @@
 using namespace ArduinoPCStrings;
 using namespace FirmwareUtilities;
 
-namespace std { ohserialstream cout{Serial}; }
-
 #define ID_WIDTH 3
 #define MESSAGE_WIDTH 2
 #define MAXIMUM_SERIAL_READ_SIZE 175
@@ -40,9 +38,13 @@ namespace std { ohserialstream cout{Serial}; }
 static const bool NO_BROADCAST{false};
 static const bool BROADCAST{true};
 
+static const char OPENING_CHARACTER{'{'};
 static const char CLOSING_CHARACTER{'}'};
 static const char LINE_ENDING{'\r'};
 static const char ITEM_SEPARATOR{':'}; 
+static const char DIGITAL_LOW_IDENTIFIER{'0'};
+static const char DIGITAL_HIGH_IDENTIFIER{'1'};
+static const char ANALOG_IDENTIFIER_CHAR{'A'};
 
 void broadcastString(const char *str);
 #if defined(__HAVE_CAN_BUS__)
@@ -333,7 +335,7 @@ int main()
         #endif
         if (serialEventRun) serialEventRun();
     }
-    for (int i = 0; i < numberOfGpioPins; i++) {
+    for (int i = 0; i < ARRAY_SIZE(gpioPins); i++) {
         if (gpioPins + i) {
             if (gpioPins[i]) {
                 delete gpioPins[i];
@@ -367,87 +369,103 @@ void handleSerialString(const char *str)
     } else if (strlen(str) == 0) {
         return;
     }
+    char requestString[SMALL_BUFFER_SIZE];
+    int substringResult{0};
     if (startsWith(str, ANALOG_READ_HEADER)) {
         if (checkValidRequestString(ANALOG_READ_HEADER, str)) {
-            analogReadRequest(str.substr(static_cast<std::string>(ANALOG_READ_HEADER).length()+1));
+            substringResult = substring(str, strlen(ANALOG_READ_HEADER)+1, requestString, SMALL_BUFFER_SIZE); 
+            analogReadRequest(requestString);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
     } else if (startsWith(str, ANALOG_WRITE_HEADER)) {
         if (checkValidRequestString(ANALOG_WRITE_HEADER, str)) {
-            analogWriteRequest(str.substr(static_cast<std::string>(ANALOG_WRITE_HEADER).length()+1));
+            substringResult = substring(str, strlen(ANALOG_WRITE_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            analogWriteRequest(substringResult);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
     } else if (startsWith(str, CHANGE_A_TO_D_THRESHOLD_HEADER)) {
         if (checkValidRequestString(CHANGE_A_TO_D_THRESHOLD_HEADER, str)) {
-            changeAToDThresholdRequest(str.substr(static_cast<std::string>(CHANGE_A_TO_D_THRESHOLD_HEADER).length()+1));
+            substringResult = substring(str, strlen(CHANGE_A_TO_D_THRESHOLD_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            changeAToDThresholdRequest(substringResult);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
     } else if (startsWith(str, ADD_SOFTWARE_SERIAL_HEADER)) {
         if (checkValidRequestString(ADD_SOFTWARE_SERIAL_HEADER, str)) {
-            addSoftwareSerialRequest(str.substr(static_cast<std::string>(ADD_SOFTWARE_SERIAL_HEADER).length()+1));
+            substringResult = substring(str, strlen(ADD_SOFTWARE_SERIAL_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            addSoftwareSerialRequest(substringResult);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
     } else if (startsWith(str, ADD_HARDWARE_SERIAL_HEADER)) {
         if (checkValidRequestString(ADD_HARDWARE_SERIAL_HEADER, str)) {
-            addHardwareSerialRequest(str.substr(static_cast<std::string>(ADD_HARDWARE_SERIAL_HEADER).length()+1));
+            substringResult = substring(str, strlen(ADD_HARDWARE_SERIAL_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            addHardwareSerialRequest(substringResult);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }  
     } else if (startsWith(str, DIGITAL_READ_HEADER)) {
         if (checkValidRequestString(DIGITAL_READ_HEADER, str)) {
-            digitalReadRequest(str.substr(static_cast<std::string>(DIGITAL_READ_HEADER).length()+1), false);
+            substringResult = substring(str, strlen(DIGITAL_READ_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            digitalReadRequest(substringResult, false);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
     } else if (startsWith(str, DIGITAL_WRITE_ALL_HEADER)) {
         if (checkValidRequestString(DIGITAL_WRITE_ALL_HEADER, str)) {
-            digitalWriteAllRequest(str.substr(static_cast<std::string>(DIGITAL_WRITE_ALL_HEADER).length()+1));
+            substringResult = substring(str, strlen(DIGITAL_WRITE_ALL_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            digitalWriteAllRequest(substringResult);
         } else {
             printTypeResult(DIGITAL_WRITE_ALL_HEADER, str, OPERATION_FAILURE);
         }
     } else if (startsWith(str, DIGITAL_WRITE_HEADER)) {
         if (checkValidRequestString(DIGITAL_WRITE_HEADER, str)) {
-            digitalWriteRequest(str.substr(static_cast<std::string>(DIGITAL_WRITE_HEADER).length()+1));
+            substringResult = substring(str, strlen(DIGITAL_WRITE_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            digitalWriteRequest(substringResult);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
     } else if (startsWith(str, PIN_TYPE_HEADER)) {
         if (checkValidRequestString(PIN_TYPE_HEADER, str)) {
-            pinTypeRequest(str.substr(static_cast<std::string>(PIN_TYPE_HEADER).length()+1));
+            substringResult = substring(str, strlen(PIN_TYPE_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            pinTypeRequest(str.substr(static_cast<std::string>(substringResult).length()+1));
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
     } else if (startsWith(str, PIN_TYPE_CHANGE_HEADER)) {
         if (checkValidRequestString(PIN_TYPE_CHANGE_HEADER, str)) {
-            pinTypeChangeRequest(str.substr(static_cast<std::string>(PIN_TYPE_CHANGE_HEADER).length()+1));
+            substringResult = substring(str, strlen(PIN_TYPE_CHANGE_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            pinTypeChangeRequest(substringResult);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
     } else if (startsWith(str, REMOVE_SOFTWARE_SERIAL_HEADER)) {
         if (checkValidRequestString(REMOVE_SOFTWARE_SERIAL_HEADER, str)) {
-            removeSoftwareSerialRequest(str.substr(static_cast<std::string>(REMOVE_SOFTWARE_SERIAL_HEADER).length()+1));
+            substringResult = substring(str, strlen(REMOVE_SOFTWARE_SERIAL_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            removeSoftwareSerialRequest(substringResult);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
     } else if (startsWith(str, REMOVE_HARDWARE_SERIAL_HEADER)) {
         if (checkValidRequestString(REMOVE_HARDWARE_SERIAL_HEADER, str)) {
-            removeHardwareSerialRequest(str.substr(static_cast<std::string>(REMOVE_HARDWARE_SERIAL_HEADER).length()+1));
+            substringResult = substring(str, strlen(REMOVE_HARDWARE_SERIAL_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            removeHardwareSerialRequest(substringResult);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }   
     } else if (startsWith(str, SOFT_DIGITAL_READ_HEADER)) {
         if (checkValidRequestString(SOFT_DIGITAL_READ_HEADER, str)) {
-            digitalReadRequest(str.substr(static_cast<std::string>(SOFT_DIGITAL_READ_HEADER).length()+1), SOFT);
+            substringResult = substring(str, strlen(SOFT_DIGITAL_READ_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            digitalReadRequest(substringResult);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
     } else if (startsWith(str, SOFT_ANALOG_READ_HEADER)) {
         if (checkValidRequestString(SOFT_ANALOG_READ_HEADER, str)) {
-            softAnalogReadRequest(str.substr(static_cast<std::string>(SOFT_ANALOG_READ_HEADER).length()+1));
+            substringResult = substring(str, strlen(SOFT_ANALOG_READ_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            softAnalogReadRequest(substringResult);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
@@ -468,55 +486,64 @@ void handleSerialString(const char *str)
         canReadRequest(false);
     } else if (startsWith(str, CAN_WRITE_ONCE_HEADER)) {
         if (checkValidRequestString(CAN_WRITE_ONCE_HEADER, str)) {
-            canWriteRequest(str.substr(static_cast<std::string>(CAN_WRITE_HEADER).length()+1), true);
+            substringResult = substring(str, strlen(CAN_WRITE_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            canWriteRequest(substringResult, true);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
     } else if (startsWith(str, CAN_WRITE_HEADER)) {
         if (checkValidRequestString(CAN_WRITE_HEADER, str)) {
-            canWriteRequest(str.substr(static_cast<std::string>(CAN_WRITE_HEADER).length()+1), false);
+            substringResult = substring(str, strlen(CAN_WRITE_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            canWriteRequest(substringResult, false);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }     
     } else if (startsWith(str, CAN_LIVE_UPDATE_HEADER)) {
         if (checkValidRequestString(CAN_LIVE_UPDATE_HEADER, str)) {
-            canLiveUpdateRequest(str.substr(static_cast<std::string>(CAN_LIVE_UPDATE_HEADER).length()+1));
+            substringResult = substring(str, strlen(CAN_LIVE_UPDATE_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            canLiveUpdateRequest(substringResult);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
     } else if (startsWith(str, CLEAR_CAN_MESSAGE_BY_ID_HEADER)) {
         if (checkValidRequestString(CLEAR_CAN_MESSAGE_BY_ID_HEADER, str)) {
-            clearCurrentMessageByIdRequest(str.substr(static_cast<std::string>(CLEAR_CAN_MESSAGE_BY_ID_HEADER).length()+1));
+            substringResult = substring(str, strlen(CLEAR_CAN_MESSAGE_BY_ID_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            clearCurrentMessageByIdRequest(substringResult);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }   
     } else if (startsWith(str, CURRENT_CAN_MESSAGE_BY_ID_HEADER)) {
         if (checkValidRequestString(CURRENT_CAN_MESSAGE_BY_ID_HEADER, str)) {
-            currentCachedCanMessageByIdRequest(str.substr(static_cast<std::string>(CURRENT_CAN_MESSAGE_BY_ID_HEADER).length()+1));
+            substringResult = substring(str, strlen(CURRENT_CAN_MESSAGE_BY_ID_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            currentCachedCanMessageByIdRequest(substringResult);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
     } else if (startsWith(str, REMOVE_NEGATIVE_CAN_MASK_HEADER)) {
         if (checkValidRequestString(REMOVE_NEGATIVE_CAN_MASK_HEADER, str)) {
-            removeNegativeCanMaskRequest(str.substr(static_cast<std::string>(REMOVE_NEGATIVE_CAN_MASK_HEADER).length()+1));
+            substringResult = substring(str, strlen(REMOVE_NEGATIVE_CAN_MASK_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            removeNegativeCanMaskRequest(substringResult);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
     } else if (startsWith(str, REMOVE_POSITIVE_CAN_MASK_HEADER)) {
         if (checkValidRequestString(REMOVE_POSITIVE_CAN_MASK_HEADER, str)) {
-            removePositiveCanMaskRequest(str.substr(static_cast<std::string>(REMOVE_POSITIVE_CAN_MASK_HEADER).length()+1));
+            substringResult = substring(str, strlen(REMOVE_POSITIVE_CAN_MASK_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            removePositiveCanMaskRequest(substringResult);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
     } else if (startsWith(str, ADD_POSITIVE_CAN_MASK_HEADER)) {
         if (checkValidRequestString(ADD_POSITIVE_CAN_MASK_HEADER, str)) {
-            addPositiveCanMaskRequest(str.substr(static_cast<std::string>(ADD_POSITIVE_CAN_MASK_HEADER).length()+1));
+            substringResult = substring(str, strlen(ADD_POSITIVE_CAN_MASK_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            addPositiveCanMaskRequest(substringResult);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
     } else if (startsWith(str, ADD_NEGATIVE_CAN_MASK_HEADER)) {
         if (checkValidRequestString(ADD_NEGATIVE_CAN_MASK_HEADER, str)) {
-            addNegativeCanMaskRequest(str.substr(static_cast<std::string>(ADD_NEGATIVE_CAN_MASK_HEADER).length()+1));
+            substringResult = substring(str, strlen(ADD_NEGATIVE_CAN_MASK_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            addNegativeCanMaskRequest(substringResult);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
@@ -542,7 +569,7 @@ void handleSerialString(const char *str)
 
 void addSoftwareSerialRequest(const char *str)
 {
-    size_t foundPosition{str.find(":")};
+    size_t foundPosition{str.find(ITEM_SEPARATOR)};
     std::string maybeRxPin{str.substr(0, foundPosition).c_str()};
     int rxPinNumber{parsePin(maybeRxPin)};
     if (rxPinNumber == INVALID_PIN) {
@@ -667,7 +694,7 @@ void removeHardwareSerialRequest(const char *str)
 
 bool isValidSoftwareSerialAddition(int rxPinNumber, int txPinNumber)
 {
-    if (softwareSerialPorts.size() == MAXIMUM_SOFTWARE_SERIAL_PORTS) {
+    if (ARRAY_SIZE(softwareSerialPorts) >= MAXIMUM_SOFTWARE_SERIAL_PORTS) {
         return false;
     }
     if (pinInUseBySerialPort(rxPinNumber) || pinInUseBySerialPort(txPinNumber)) {
@@ -760,9 +787,18 @@ void ioReportRequest()
             state = gpioPin->g_softAnalogRead();
         }
         if (isValidAnalogInputPin(gpioPin->pinNumber())) {
-            *getCurrentValidOutputStream() << '{' << analogPinFromNumber(gpioPin->pinNumber()) << ITEM_SEPARATOR << getIOTypeString(gpioPin->ioType()) << ITEM_SEPARATOR << state << "};";
+            char analogPinString[SMALL_BUFFER_SIZE];
+            char ioTypeString[SMALL_BUFFER_SIZE];
+            int result{analogPinFromNumber(gpioPin->pinNumber(), analogPinString, SMALL_BUFFER_SIZE)};
+            int secondResult{getIOTypeString(gpioPin->pinNumber(), ioTypeString, SMALL_BUFFER_SIZE)};
+            (void)result;
+            (void)secondResult;
+            *getCurrentValidOutputStream() << OPENING_CHARACTER << analogPinString << ITEM_SEPARATOR << ioTypeString << ITEM_SEPARATOR << state << CLOSING_CHARACTER;
         } else {
-            *getCurrentValidOutputStream() << '{' << gpioPin->pinNumber() << ITEM_SEPARATOR << getIOTypeString(gpioPin->ioType()) << ITEM_SEPARATOR << state << "};";
+            char ioTypeString[SMALL_BUFFER_SIZE];
+            int result{getIOTypeString(gpioPin->pinNumber(), ioTypeString, SMALL_BUFFER_SIZE};
+            (void)result;
+            *getCurrentValidOutputStream() << OPENING_CHARACTER << gpioPin->pinNumber() << ITEM_SEPARATOR << ioTypeString << ITEM_SEPARATOR << state << CLOSING_CHARACTER;
         }
     }
     *getCurrentValidOutputStream() << IO_REPORT_END_HEADER << CLOSING_CHARACTER << LINE_ENDING;
@@ -789,8 +825,10 @@ void digitalReadRequest(const char *str, bool soft)
 
 void digitalWriteRequest(const char *str)
 {
-    size_t foundPosition{str.find(ITEM_SEPARATOR)};
-    std::string maybePin{str.substr(0, foundPosition).c_str()};
+    size_t foundPosition{positionOfSubstring(str, ITEM_SEPARATOR)};
+    char maybePin[SMALL_BUFFER_SIZE];
+    int result{FirmwareUtilities::substring(str, 0, foundPosition, maybePin, SMALL_BUFFER_SIZE)};
+    (void)result;
     int pinNumber{parsePin(maybePin)};
     if (pinNumber == INVALID_PIN) {
         printResult(DIGITAL_WRITE_HEADER, maybePin, STATE_FAILURE, OPERATION_FAILURE);
@@ -804,7 +842,8 @@ void digitalWriteRequest(const char *str)
         printResult(DIGITAL_WRITE_HEADER, maybePin, STATE_FAILURE, OPERATION_FAILURE);
         return;
     }
-    std::string maybeState{str.substr(foundPosition+1).c_str()};
+    char maybeState[SMALL_BUFFER_SIZE];
+    result = FirmwareUtilities::substring(str, foundPosition+1, maybeState, SMALL_BUFFER_SIZE);
     int state{parseToDigitalState(maybeState)};
     if (state == OPERATION_FAILURE) {
         printResult(DIGITAL_WRITE_HEADER, maybePin, maybeState, OPERATION_FAILURE);
@@ -817,22 +856,32 @@ void digitalWriteRequest(const char *str)
 void digitalWriteAllRequest(const char *str)
 {
     *getCurrentValidOutputStream() << DIGITAL_WRITE_ALL_HEADER;
-    size_t foundPosition{str.find(ITEM_SEPARATOR)};
-    std::string maybeState{str.substr(0, foundPosition).c_str()};
+    
+    size_t foundPosition{positionOfSubstring(str, ITEM_SEPARATOR)};
+    char maybeState[SMALL_BUFFER_SIZE];
+    int result{FirmwareUtilities::substring(str, 0, foundPosition, maybeState, SMALL_BUFFER_SIZE)};
+    (void)result;
+
     int state{parseToDigitalState(maybeState)};
     if (state == OPERATION_FAILURE) {
         printTypeResult(DIGITAL_WRITE_ALL_HEADER, maybeState, OPERATION_FAILURE);
         return;
     }
-    for (auto &it : gpioPins) {
-        GPIO *gpioPin{it.second};
-        if (gpioPin->ioType() == IOType::DIGITAL_OUTPUT) {
-            gpioPin->g_digitalWrite(state);
-            if (isValidAnalogInputPin(gpioPin->pinNumber())) {
-                *getCurrentValidOutputStream() << ITEM_SEPARATOR << analogPinFromNumber(gpioPin->pinNumber());
-            } else {
-                *getCurrentValidOutputStream() << ITEM_SEPARATOR << gpioPin->pinNumber();
-        
+    for (int i = 0; i < NUMBER_OF_PINS; i++) {
+        if (gpioPins + i) {
+            if (gpioPins[i]) {
+                GPIO *gpioPin{gpioPins[i]};
+                if (gpioPin->ioType() == IOType::DIGITAL_OUTPUT) {
+                    gpioPin->g_digitalWrite(state);
+                    if (isValidAnalogInputPin(gpioPin->pinNumber())) {
+                        char analogPinString[SMALL_BUFFER_SIZE];
+                        int result{analogPinFromNumber(gpioPin->pinNumber(), analogPinString, SMALL_BUFFER_SIZE)};
+                        (void)result;
+                        *getCurrentValidOutputStream() << ITEM_SEPARATOR << analogPinString;
+                    } else {
+                        *getCurrentValidOutputStream() << ITEM_SEPARATOR << gpioPin->pinNumber();
+                    }
+                }
             }
         }
     }
@@ -859,8 +908,10 @@ void analogReadRequest(const char *str)
 
 void analogWriteRequest(const char *str)
 {
-    size_t foundPosition{str.find(ITEM_SEPARATOR)};
-    std::string maybePin{str.substr(0, foundPosition).c_str()};
+    size_t foundPosition{positionOfSubstring(str, ITEM_SEPARATOR)};
+    char maybePin[SMALL_BUFFER_SIZE];
+    int result{FirmwareUtilities::substring(str, 0, foundPosition, maybePin, SMALL_BUFFER_SIZE)};
+    (void)result;
     int pinNumber{parsePin(maybePin)};
 
     if (pinNumber == INVALID_PIN) {
@@ -875,7 +926,9 @@ void analogWriteRequest(const char *str)
         printResult(ANALOG_WRITE_HEADER, maybePin, STATE_FAILURE, OPERATION_FAILURE);
         return;
     }
-    std::string maybeState{str.substr(foundPosition+1).c_str()};
+    
+    char maybeState[SMALL_BUFFER_SIZE];
+    result = FirmwareUtilities::substring(str, foundPosition+1, maybeState, SMALL_BUFFER_SIZE);
     int state{parseToAnalogState(maybeState)};
     if (state == OPERATION_FAILURE) {
         printResult(ANALOG_WRITE_HEADER, maybePin, maybeState, OPERATION_FAILURE);
@@ -901,14 +954,19 @@ void pinTypeRequest(const char *str)
         }
         return;
     }
-    printResult(PIN_TYPE_HEADER, str, getIOTypeString(gpioPinByPinNumber(pinNumber)->ioType()), OPERATION_SUCCESS);
+    char ioTypeString[SMALL_BUFFER_SIZE];
+    int result{getIOTypeString(gpioPinByPinNumber(pinNumber)->ioType(), ioTypeString, SMALL_BUFFER_SIZE)};
+    (void)result;
+    printResult(PIN_TYPE_HEADER, str, ioTypeString, OPERATION_SUCCESS);
 }
 
 void pinTypeChangeRequest(const char *str)
 {   
 
-    size_t foundPosition{str.find(ITEM_SEPARATOR)};
-    std::string maybePin{str.substr(0, foundPosition)};
+    size_t foundPosition{positionOfSubstring(str, ITEM_SEPARATOR)};
+    char maybePin[SMALL_BUFFER_SIZE];
+    int result{FirmwareUtilities::substring(str, 0, foundPosition, maybePin, SMALL_BUFFER_SIZE)};
+    (void)result;
     int pinNumber{parsePin(maybePin)};
 
     if (pinNumber == INVALID_PIN) {
@@ -916,22 +974,26 @@ void pinTypeChangeRequest(const char *str)
         return;
     }
 
-    std::string maybeType{str.substr(foundPosition+1)};
+    char maybeType[SMALL_BUFFER_SIZE];
+    result = FirmwareUtilities::substring(str, foundPosition+1, maybeType, SMALL_BUFFER_SIZE);
     IOType type{parseIOType(maybeType)};
     if (type == IOType::UNSPECIFIED) {
         printResult(PIN_TYPE_CHANGE_HEADER, maybePin, maybeType, OPERATION_FAILURE);
         return;
     }
+
+    char ioTypeString[SMALL_BUFFER_SIZE];
+    result = getIOTypeString(type, ioTypeString, SMALL_BUFFER_SIZE);
     if (pinInUseBySerialPort(pinNumber)) {
-        printResult(DIGITAL_WRITE_HEADER, maybePin, getIOTypeString(type), OPERATION_PIN_USED_BY_SERIAL_PORT);
+        printResult(DIGITAL_WRITE_HEADER, maybePin, ioTypeString, OPERATION_PIN_USED_BY_SERIAL_PORT);
         return;
     }
     if (!checkValidIOChangeRequest(type, pinNumber)) {
-        printResult(PIN_TYPE_CHANGE_HEADER, maybePin, getIOTypeString(type), OPERATION_FAILURE);
+        printResult(PIN_TYPE_CHANGE_HEADER, maybePin, ioTypeString, OPERATION_FAILURE);
         return;
     }
     gpioPinByPinNumber(pinNumber)->setIOType(type);
-    printResult(PIN_TYPE_CHANGE_HEADER, maybePin, getIOTypeString(type), OPERATION_SUCCESS);
+    printResult(PIN_TYPE_CHANGE_HEADER, maybePin, ioTypeString, OPERATION_SUCCESS);
 }
 
 void softAnalogReadRequest(const char *str)
@@ -951,7 +1013,10 @@ void softAnalogReadRequest(const char *str)
 
 void heartbeatRequest()
 {
-    printString(static_cast<std::string>(HEARTBEAT_HEADER) + "}");
+    char stringToPrint[SMALL_BUFFER_SIZE];
+    strcpy(stringToPrint, HEARTBEAT_HEADER);
+    strcat(stringToPrint, CLOSING_CHARACTER);
+    printString(stringToPrint);
 }
 
 void arduinoTypeRequest()
@@ -981,7 +1046,7 @@ void populateGpioMap()
         if (pinNumber < 0) {
             break;
         }
-        gpioPins.insert(std::pair<int, GPIO*>(pinNumber, new GPIO(pinNumber, IOType::DIGITAL_INPUT_PULLUP)));
+        gpioPins[pinNumber] = new GPIO(pinNumber, IOType::DIGITAL_INPUT_PULLUP);
     } while (true);
     i = 0;
     do {
@@ -989,7 +1054,7 @@ void populateGpioMap()
         if (pinNumber < 0) {
             break;
         }
-        gpioPins.insert(std::pair<int, GPIO*>(pinNumber, new GPIO(pinNumber, IOType::ANALOG_INPUT)));
+        gpioPins[pinNumber] = new GPIO(pinNumber, IOType::ANALOG_INPUT);
     } while (true);
     i = 0;
     do {
@@ -997,13 +1062,16 @@ void populateGpioMap()
         if (pinNumber < 0) {
             break;
         }
-        gpioPins.insert(std::pair<int, GPIO*>(pinNumber, new GPIO(pinNumber, IOType::DIGITAL_INPUT_PULLUP)));
+        gpioPins[pinNumber] = new GPIO(pinNumber, IOType::DIGITAL_INPUT_PULLUP);
     } while (true);
 }
 
 bool checkValidRequestString(const char *header, const char *checkStr)
 {
-    return (checkStr.length() > (static_cast<std::string>(header).length() + 1));
+    if ((!header) || (!checkStr)) {
+        return false;
+    }
+    return (strlen(checkStr) > (strlen(header) + 1));
 }
 
 
@@ -1014,9 +1082,11 @@ bool isValidDigitalOutputPin(int pinNumber)
         return false;
     }
 #endif
-    for (auto &it : gpioPins) {
-        if (pinNumber == it.first) {
-            return true;
+    for (int i = 0; i < ARRAY_SIZE(gpioPins); i++) {
+        if (gpioPins[i]) {
+            if (pinNumber == gpioPins[i]->pinNumber()) {
+                return true;
+            }
         }
     }
     return false;
@@ -1024,17 +1094,7 @@ bool isValidDigitalOutputPin(int pinNumber)
 
 bool isValidDigitalInputPin(int pinNumber)
 {
-#if defined(ARDUINO_AVR_NANO)
-    if ((pinNumber == A6) || (pinNumber == A7)) {
-        return false;
-    }
-#endif
-    for (auto &it : gpioPins) {
-        if (pinNumber == it.first) {
-            return true;
-        }
-    }
-    return false;
+    return isValidDigitalOutputPin(pinNumber);
 }
 
 bool isValidAnalogOutputPin(int pinNumber)
@@ -1080,29 +1140,35 @@ bool checkValidIOChangeRequest(IOType ioType, int pinNumber)
     }
 }
 
-std::string getIOTypeString(IOType ioType)
+int getIOTypeString(IOType ioType, char *out, size_t maximumSize)
 {
     if (ioType == IOType::DIGITAL_INPUT) {
-        return DIGITAL_INPUT_IDENTIFIER;
+        strncpy(out, DIGITAL_INPUT_IDENTIFIER, maximumSize);
+        return strlen(out);
     } else if (ioType == IOType::DIGITAL_OUTPUT) {
-        return DIGITAL_OUTPUT_IDENTIFIER;
+        strncpy(out, DIGITAL_OUTPUT_IDENTIFIER, maximumSize);
+        return strlen(out);
     } else if (ioType == IOType::ANALOG_INPUT) {
-        return ANALOG_INPUT_IDENTIFIER;
+        strncpy(out, ANALOG_INPUT_IDENTIFIER, maximumSize);
+        return strlen(out);
     } else if (ioType == IOType::ANALOG_OUTPUT) {
-        return ANALOG_OUTPUT_IDENTIFIER;
+        strncpy(out, ANALOG_OUTPUT_IDENTIFIER, maximumSize);
+        return strlen(out);
     } else if (ioType == IOType::DIGITAL_INPUT_PULLUP) {
-        return DIGITAL_INPUT_PULLUP_IDENTIFIER;
+        strncpy(out, DIGITAL_INPUT_PULLUP_IDENTIFIER, maximumSize);
+        return strlen(out);
     } else {
-        return UNSPECIFIED_IO_TYPE_IDENTIFIER;
+        strncpy(out, UNSPECIFIED_IO_TYPE_IDENTIFIER, maximumSize);
+        return OPERATION_FAILURE;
     }
 }
 
 int parsePin(const char *str)
 {
-    if (FirmwareUtilities::substringExists(str, "A")) {
+    if (FirmwareUtilities::startsWith(str, ANALOG_IDENTIFIER_CHAR)) {
         return parseAnalogPin(str);
     } else if (isValidPinIdentifier(str)) {
-        return atoi(str.c_str());
+        return atoi(str);
     } else {
         return INVALID_PIN;
     }
@@ -1110,15 +1176,15 @@ int parsePin(const char *str)
 
 IOType parseIOType(const char *str)
 {
-    if (str == DIGITAL_INPUT_IDENTIFIER) {
+    if (strcmp(str, DIGITAL_INPUT_IDENTIFIER) == 0) {
         return IOType::DIGITAL_INPUT;
-    } else if (str == DIGITAL_OUTPUT_IDENTIFIER) {
+    } else if (strcmp(str, DIGITAL_OUTPUT_IDENTIFIER) == 0) {
         return IOType::DIGITAL_OUTPUT;
-    } else if (str == ANALOG_INPUT_IDENTIFIER) {
+    } else if (strcmp(str, ANALOG_INPUT_IDENTIFIER) == 0) {
         return IOType::ANALOG_INPUT;
-    } else if (str == ANALOG_OUTPUT_IDENTIFIER) {
+    } else if (strcmp(str, ANALOG_OUTPUT_IDENTIFIER) == 0) {
         return IOType::ANALOG_OUTPUT;
-    } else if (str == DIGITAL_INPUT_PULLUP_IDENTIFIER) {
+    } else if (strcmp(str, DIGITAL_INPUT_PULLUP_IDENTIFIER) == 0) {
         return IOType::DIGITAL_INPUT_PULLUP;
     } else {
         return IOType::UNSPECIFIED;
@@ -1127,23 +1193,39 @@ IOType parseIOType(const char *str)
 
 bool isValidAnalogStateIdentifier(const char *str)
 {
-    if (str == "0") {
-        return true;
+    if (!str) {
+        return false;
     }
-    int returnVal{atoi(str.c_str())};
+    if (strlen(str) == 1) {
+        if (str[0] == DIGITAL_STATE_HIGH_IDENTIFIER) {
+            return true;
+        }
+    }
+    int returnVal{atoi(str)};
     return (returnVal != 0); 
 }
 
 bool isValidDigitalStateIdentifier(const char *str)
 {   
-    return (str == "1") || (str == "0");
+    if (!str) {
+        return false;
+    }
+    if (strlen(str) == 1) {
+        return ((str[0] == DIGITAL_STATE__IDENTIFIER) || (str[0] == DIGITAL_STATE_HIGH_IDENTIFIER)); 
+    } else {
+        return false;
+    }
 }
 
 int parseToDigitalState(const char *str)
 {
-    if (str == "1") {
-        return HIGH; 
-    } else if (str == "0") {
+    if (!str) {
+        return false;
+    } else if (!isValidDigitalStateIdentifier(str)) {
+        return OPERATION_FAILURE;
+    } else if (str[0] == DIGITAL_STATE_HIGH_IDENTIFIER) {
+        return HIGH;
+    } else if (str[0] == DIGITAL_STATE_LOW_IDENTIFIER) {
         return LOW;
     } else {
         return OPERATION_FAILURE;
@@ -1155,11 +1237,10 @@ int parseToAnalogState(const char *str)
     if (!isValidAnalogStateIdentifier(str)) {
         return OPERATION_FAILURE;
     } else {
-        int temp{atoi(str.c_str())};
+        int temp{atoi(str)};
         if (temp > GPIO::ANALOG_MAX) {
             temp = GPIO::ANALOG_MAX;
-        }
-        if (temp < 0) {
+        } else if (temp < 0) {
             return OPERATION_FAILURE;
         }
         return temp;
@@ -1168,13 +1249,28 @@ int parseToAnalogState(const char *str)
 
 bool isValidPinIdentifier(const char *str)
 {
+
     for (auto &it : gpioPins) {
         if (atoi(str.c_str()) == static_cast<int>(it.first)) {
             return true;
         }
     }
+
     for (unsigned int i =  0; i < ARRAY_SIZE(AVAILABLE_ANALOG_PINS)-1; i++) {
-        if (FirmwareUtilities::substringExists(str, "A")) {
+        if (FirmwareUtilities::startsWith(pinAlias, ANALOG_IDENTIFIER_CHAR)) {
+            buffer[0] = DIGITAL_STATE_LOW_IDENTIFIER;
+            if (atoi(buffer) == static_cast<int>(i)) {
+                return ANALOG_PIN_OFFSET + i + 1;
+            }
+        }
+    }
+    char buffer[strlen(str) + 1];
+    memset(buffer, 0, sizeof buffer);
+    strncpy(buffer, pinAlias, sizeof(buffer) - 1);
+    
+
+    for (unsigned int i =  0; i < ARRAY_SIZE(AVAILABLE_ANALOG_PINS)-1; i++) {
+        if (FirmwareUtilities::startsWith(str, ANALOG_IDENTIFIER_CHAR)) {
             if (atoi(str.substr(1).c_str()) == static_cast<int>(i)) {
                 return true;
             }
@@ -1211,7 +1307,7 @@ bool isValidAnalogPinIdentifier(const char *str)
     } while (true);
 
     for (unsigned int j = 0; j < ARRAY_SIZE(AVAILABLE_ANALOG_PINS)-1; j++) {
-        if (strstr(str, "A") != NULL) {
+        if (FirmwareUtilities::startsWith(str, ANALOG_IDENTIFIER_CHAR) != NULL) {
             if (atoi(str.substr(1).c_str()) == static_cast<int>(j)) {
                 return true;
             }
@@ -1241,15 +1337,23 @@ void initializeSerialPorts()
 void broadcastString(const char *str)
 {
     for (int i = 0; i < NUMBER_OF_HARDWARE_SERIAL_PORTS-1; i++) {
-        if (hardwareSerialPorts[i]->isEnabled()) {
-            *(hardwareSerialPorts[i]) << str << LINE_ENDING;
+        if (hardwareSerialPorts + i) {
+            if (hardwareSerialPorts[i]) {
+                if (hardwareSerialPorts[i]->isEnabled()) {
+                    *(hardwareSerialPorts[i]) << str << LINE_ENDING;
+                }
+            }
         }
     }
-    for (auto &it : hardwareSerialPorts) {
-        if (it->isEnabled()) {
-            *it << str << LINE_ENDING;            
+    for (int i = 0; i < MAXIMUM_SOFTWARE_SERIAL_PORTS - 1; i++) {
+        if (softwareSerialPorts + i) {
+            if (softwareSerialPorts[i]) {
+                if (softwareSerialPorts[i]->isEnabled()) {
+                    *(softwareSerialPorts[i]) << str << LINE_ENDING;
+                }
+            }
         }
-    }    
+    }
 }
 
 void announceStartup()
@@ -1266,12 +1370,16 @@ void announceStartup()
 
 GPIO *gpioPinByPinNumber(int pinNumber)
 {
-    int foundPosition{findInArray(pinNumber, gpioPins, NUMBER_OF_PINS)};
-    if (foundPosition == -1) {
-        return nullptr;
-    } else {
-        return gpioPins[foundPosition];
+    for (int i = 0; i < NUMBER_OF_PINS; i++) {
+        if (gpioPins + i) {
+            if (gpioPins[i]) {
+                if (gpioPins[i]->pinNumber() == pinNumber) {
+                    return gpioPins[i];
+                }
+            }
+        }
     }
+    return nullptr;
 }
 int parseAnalogPin(const char *pinAlias)
 {
@@ -1282,8 +1390,8 @@ int parseAnalogPin(const char *pinAlias)
     memset(buffer, 0, sizeof buffer);
     strncpy(buffer, pinAlias, sizeof(buffer) - 1);
     for (unsigned int i =  0; i < ARRAY_SIZE(AVAILABLE_ANALOG_PINS)-1; i++) {
-        if (FirmwareUtilities::substringExists(pinAlias, "A")) {
-            buffer[0] = '0';
+        if (FirmwareUtilities::startsWith(pinAlias, ANALOG_IDENTIFIER_CHAR)) {
+            buffer[0] = DIGITAL_STATE_LOW_IDENTIFIER;
             if (atoi(buffer) == static_cast<int>(i)) {
                 return ANALOG_PIN_OFFSET + i + 1;
             }
@@ -1322,7 +1430,7 @@ int analogPinFromNumber(int pinNumber, char *out, size_t maximumSize)
             if (!FirmwareUtilities::toDecString(i-1, tempNumber)) {
                 return 0;
             }
-            strcpy(out, "A");
+            strcpy(out,ANALOG_IDENTIFIER_CHAR);
             strcat(out, tempNumber);
             return strlen(out);
         }
@@ -1357,8 +1465,31 @@ bool pinInUseBySerialPort(int pinNumber)
     return false;
 }
 
-std::string getSerialPinIOTypeString(int pinNumber)
+int getSerialPinIOTypeString(int pinNumber, char *out, size_t maximumSize)
 {
+    for (int i = 0; i < NUMBER_OF_HARDWARE_SERIAL_PORTS-1; i++) {
+        if (hardwareSerialPorts + i) {
+            if (hardwareSerialPorts[i]) {
+                if (hardwareSerialPorts[i]->isEnabled()) {
+                    if (hardwareSerialPorts[i]->rxPin()) {
+                        strncpy(out, HARDWARE_SERIAL_RX_PIN_TYPE, maximumSize);
+                    } else {
+
+                    }
+                }
+            }
+        }
+    }
+    for (int i = 0; i < MAXIMUM_SOFTWARE_SERIAL_PORTS - 1; i++) {
+        if (softwareSerialPorts + i) {
+            if (softwareSerialPorts[i]) {
+                if (softwareSerialPorts[i]->isEnabled()) {
+                    *(softwareSerialPorts[i]) << str << LINE_ENDING;
+                }
+            }
+        }
+    }
+
     for (auto &it : hardwareSerialPorts) {
         if (it->isEnabled()) {
             if (pinNumber == it->rxPin()) {

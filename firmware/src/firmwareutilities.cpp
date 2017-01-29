@@ -191,6 +191,12 @@ namespace FirmwareUtilities
         return (strstr(first, second) != NULL);
     }
 
+    bool substringExists(const char *first, char second)
+    {
+        char temp[1]{second};
+        return (substringExists(first, temp));
+    }
+
     int positionOfSubtring(const char *first, const char *second)
     {
         if ((!first) || (!second)) {
@@ -201,6 +207,12 @@ namespace FirmwareUtilities
             return -1;
         }
         return (pos - first);
+    }
+
+    int positionOfSubtring(const char *first, char second)
+    {
+        char temp[1]{second};
+        return positionOfSubtring(first, temp);
     }
 
     int substring(const char *str, size_t startPosition, char *out, size_t maximumLength)
