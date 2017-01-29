@@ -17,6 +17,7 @@ class GPIO
 {
 public:
     GPIO(int pinNumber, IOType ioType);
+    GPIO();
     bool g_digitalRead();
     bool g_softDigitalRead();
     void g_digitalWrite(bool logicState);

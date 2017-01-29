@@ -12,6 +12,13 @@ GPIO::GPIO(int pinNumber, IOType ioType) :
     setIOType(this->m_ioType);
 }
 
+GPIO::GPIO() :
+    GPIO(0, IOType::DIGITAL_INPUT_PULLUP)
+{
+
+}
+
+
 void GPIO::setAnalogToDigitalThreshold(int threshold)
 {
     using namespace FirmwareUtilities;

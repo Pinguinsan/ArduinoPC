@@ -1,7 +1,5 @@
 #include "../include/firmwareutilities.h"
 
-volatile unsigned long timer0_millis = 0;
-
 namespace FirmwareUtilities
 {
     bool isEvenlyDivisibleBy(int numberToCheck, int divisor)
@@ -26,6 +24,12 @@ namespace FirmwareUtilities
     {
         return (strncmp(str, compare, strlen(compare)) == 0);
     }
+
+    bool startsWith(const char *str, char compare)
+    {
+        return (FirmwareUtilities::startsWith(str, &compare));
+    }
+
 
     bool endsWith(const char *str, const char *compare)
     {
@@ -170,18 +174,6 @@ namespace FirmwareUtilities
     {
         return (lhs <= rhs) ? lhs : rhs;
     }
-    
-    unsigned long tMillis()
-    {   
-        unsigned long m;
-        uint8_t oldSREG = SREG;
-        // disable interrupts while we read timer0_millis or we might get an
-        // inconsistent value (e.g. in the middle of a write to timer0_millis)
-        cli();
-        m = timer0_millis;
-        SREG = oldSREG;
-        return m;
-    }
 
     bool substringExists(const char *first, const char *second)
     {
@@ -193,7 +185,10 @@ namespace FirmwareUtilities
 
     bool substringExists(const char *first, char second)
     {
-        return (substringExists(first, &second));
+        char temp[2];
+        temp[0] = second;
+        temp[1] = '\0';
+        return (substringExists(first, temp));
     }
 
     int positionOfSubstring(const char *first, const char *second)
@@ -210,7 +205,10 @@ namespace FirmwareUtilities
 
     int positionOfSubstring(const char *first, char second)
     {
-        return positionOfSubstring(first, &second);
+        char temp[2];
+        temp[0] = second;
+        temp[1] = '\0';
+        return positionOfSubstring(first, temp);
     }
 
     int substring(const char *str, size_t startPosition, char *out, size_t maximumLength)

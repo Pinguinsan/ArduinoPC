@@ -5,12 +5,15 @@
 #include <HardwareSerial.h>
 
 #include "firmwareutilities.h"
+#include "Arduino.h"
 
 #ifndef SMALL_BUFFER_SIZE
     #define SMALL_BUFFER_SIZE 255
 #endif
 
-#define SERIAL_PORT_BUFFER_MAX 4096
+#define SERIAL_PORT_BUFFER_MAX 1024
+#define MAXIMUM_LINE_ENDING_STRING 5
+#define MAXIMUM_STRING_COUNT 10
 
 class SerialPortBase
 {
@@ -60,17 +63,15 @@ public:
         m_isEnabled{enabled},
         m_stringQueueIndex{0}
     {
-        this->m_lineEnding = (char *)malloc(strlen(lineEnding) * sizeof(char));
+        this->m_lineEnding = new char[MAXIMUM_LINE_ENDING_STRING];
         strcpy(this->m_lineEnding, lineEnding);
-        this->m_stringBuilderQueue = (char *)malloc(SERIAL_PORT_BUFFER_MAX * sizeof(char));
-        this->initialize();
+        this->m_stringBuilderQueue = new char[MAXIMUM_LINE_ENDING_STRING];
     }
 
     ~HardwareSerialPort()
     {
-        free(this->m_lineEnding);
-        free(this->m_stringBuilderQueue);
-        free(this->m_stringQueue);
+        delete this->m_lineEnding;
+        delete this->m_stringBuilderQueue;
     }
 
 
@@ -230,22 +231,22 @@ private:
     size_t m_stringQueueIndex;
     char *m_lineEnding;
     char *m_stringBuilderQueue;
-    char *m_stringQueue[SERIAL_PORT_BUFFER_MAX];
+    char *m_stringQueue[MAXIMUM_STRING_COUNT];
 
 
     void syncStringListener()
     {
-        long long int startTime = FirmwareUtilities::tMillis();
-        long long int endTime = FirmwareUtilities::tMillis();
+        long long int startTime = millis();
+        long long int endTime = millis();
         do {
             char byteRead{static_cast<char>(this->m_serialPort->read())};
             if (FirmwareUtilities::isValidByte(byteRead)) {
                 addToStringBuilderQueue(byteRead);
-                startTime = FirmwareUtilities::tMillis();
+                startTime = millis();
             } else {
                 break;
             }
-            endTime = FirmwareUtilities::tMillis();
+            endTime = millis();
         } while ((endTime - startTime) <= this->m_timeout);
     }
 
@@ -284,17 +285,15 @@ public:
         m_isEnabled{enabled},
         m_stringQueueIndex{0}
     {
-        this->m_lineEnding = (char *)malloc(strlen(lineEnding) * sizeof(char));
+        this->m_lineEnding = new char[MAXIMUM_LINE_ENDING_STRING];
         strcpy(this->m_lineEnding, lineEnding);
-        this->m_stringBuilderQueue = (char *)malloc(SERIAL_PORT_BUFFER_MAX * sizeof(char));
-        this->initialize();
+        this->m_stringBuilderQueue = new char[MAXIMUM_STRING_COUNT];
     }
 
     ~SoftwareSerialPort()
     {
-        free(this->m_lineEnding);
-        free(this->m_stringBuilderQueue);
-        free(this->m_stringQueue);
+        delete this->m_lineEnding;
+        delete this->m_stringBuilderQueue;
     }
 
 
@@ -313,11 +312,11 @@ public:
         if (!readUntilString) {
             return 0;
         }
-        char tempLineEnding[SMALL_BUFFER_SIZE];
-        strncpy(tempLineEnding, this->m_lineEnding, SMALL_BUFFER_SIZE); 
-        strncpy(this->m_lineEnding, readUntilString, SMALL_BUFFER_SIZE);
+        char tempLineEnding[MAXIMUM_LINE_ENDING_STRING];
+        strncpy(tempLineEnding, this->m_lineEnding, MAXIMUM_LINE_ENDING_STRING); 
+        strncpy(this->m_lineEnding, readUntilString, MAXIMUM_LINE_ENDING_STRING);
         int readStuff{this->readLine(out, maximumReadSize)};
-        strncpy(this->m_lineEnding, tempLineEnding, SMALL_BUFFER_SIZE);
+        strncpy(this->m_lineEnding, tempLineEnding, MAXIMUM_LINE_ENDING_STRING);
         return readStuff;
     }
 
@@ -454,22 +453,22 @@ private:
     size_t m_stringQueueIndex;
     char *m_lineEnding;
     char *m_stringBuilderQueue;
-    char *m_stringQueue[SERIAL_PORT_BUFFER_MAX];
+    char *m_stringQueue[MAXIMUM_STRING_COUNT];
 
 
     void syncStringListener()
     {
-        long long int startTime = FirmwareUtilities::tMillis();
-        long long int endTime = FirmwareUtilities::tMillis();
+        long long int startTime = millis();
+        long long int endTime = millis();
         do {
             char byteRead{static_cast<char>(this->m_serialPort->read())};
             if (FirmwareUtilities::isValidByte(byteRead)) {
                 addToStringBuilderQueue(byteRead);
-                startTime = FirmwareUtilities::tMillis();
+                startTime = millis();
             } else {
                 break;
             }
-            endTime = FirmwareUtilities::tMillis();
+            endTime = millis();
         } while ((endTime - startTime) <= this->m_timeout);
     }
 
