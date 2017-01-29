@@ -244,11 +244,6 @@ namespace FirmwareUtilities
 
     bool isValidByte(char byteToCheck)
     {
-        Serial.print("byteToCheck = '");
-        Serial.print(byteToCheck);
-        Serial.print("' (");
-        Serial.print(static_cast<int>(byteToCheck));
-        Serial.println(")");
         return (isPrintable(byteToCheck) || (byteToCheck == '\r') || (byteToCheck == '\n'));
     }
 /*
