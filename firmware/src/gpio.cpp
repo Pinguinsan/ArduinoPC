@@ -40,15 +40,15 @@ void GPIO::setIOType(IOType ioType)
 {
     this->m_ioType = ioType;
     if (this->m_ioType == IOType::DIGITAL_OUTPUT) {
-        pinModeFast(this->m_pinNumber, OUTPUT);
+        pinMode(this->m_pinNumber, OUTPUT);
     } else if (this->m_ioType == IOType::ANALOG_OUTPUT) {
-        pinModeFast(this->m_pinNumber, OUTPUT);
+        pinMode(this->m_pinNumber, OUTPUT);
     } else if (this->m_ioType == IOType::DIGITAL_INPUT) {
-        pinModeFast(this->m_pinNumber, INPUT);
+        pinMode(this->m_pinNumber, INPUT);
     } else if (this->m_ioType == IOType::ANALOG_INPUT) {
-        pinModeFast(this->m_pinNumber, INPUT);
+        pinMode(this->m_pinNumber, INPUT);
     } else if (this->m_ioType == IOType::DIGITAL_INPUT_PULLUP) {
-        pinModeFast(this->m_pinNumber, INPUT_PULLUP);
+        pinMode(this->m_pinNumber, INPUT_PULLUP);
     }
     this->m_analogState = 0;
     this->m_logicState = false;
@@ -59,7 +59,7 @@ bool GPIO::g_digitalRead()
     if ((this->m_ioType != IOType::DIGITAL_INPUT) && (this->m_ioType != IOType::DIGITAL_INPUT_PULLUP)) {
         setIOType(IOType::DIGITAL_INPUT);
     }
-    return (this->m_logicState = digitalReadFast(this->m_pinNumber));
+    return (this->m_logicState = digitalRead(this->m_pinNumber));
 }
 
 bool GPIO::g_softDigitalRead()
@@ -96,7 +96,7 @@ void GPIO::g_digitalWrite(bool logicState)
     if (this->m_ioType != IOType::DIGITAL_OUTPUT) {
         setIOType(IOType::DIGITAL_OUTPUT);
     }
-    digitalWriteFast(this->m_pinNumber, logicState);
+    digitalWrite(this->m_pinNumber, logicState);
     this->m_logicState = logicState;
 } 
 

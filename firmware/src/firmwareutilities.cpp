@@ -34,8 +34,9 @@ namespace FirmwareUtilities
         }
         size_t stringLength = strlen(str);
         size_t endingStringLength = strlen(compare);
-        if (endingStringLength > stringLength)
+        if (endingStringLength > stringLength) {
             return 0;
+        }
         return strncmp(str + stringLength - endingStringLength, compare, endingStringLength) == 0;
     }
 
@@ -53,7 +54,7 @@ namespace FirmwareUtilities
         if (!stringToCheck) {
             return false;
         }
-        for (int i = 0; i < strlen(stringToCheck); i++) {
+        for (unsigned int i = 0; i < strlen(stringToCheck); i++) {
             char tempChar{*(stringToCheck + i)};
             if ((tempChar > ASCII_WHITESPACE_MAXIMUM_VALUE) || (tempChar == '\r') || (tempChar == '\n')) {
                 return false;
@@ -64,17 +65,17 @@ namespace FirmwareUtilities
 
     bool isWhitespace(char charToCheck)
     {
-        return ((charToCheck < ASCII_WHITESPACE_MAXIMUM_VALUE) || (charToCheck == '\r') || (charToCheck == '\n')) 
+        return ((charToCheck < ASCII_WHITESPACE_MAXIMUM_VALUE) || (charToCheck == '\r') || (charToCheck == '\n')); 
     }
 
-    int whitespace(size_t howMuch, char *out) 
+    int whitespace(char *out, size_t howMuch) 
     {
         if (!out) {
-            return;
+            return -1;
         }
         char temp[howMuch + 1]{' '};
-        strncopy(out, temp, howMuch);
-        return 0;
+        strncpy(out, temp, howMuch);
+        return strlen(out);
     }
 
     int charToInt(char charToConvert)
@@ -116,15 +117,14 @@ namespace FirmwareUtilities
         return ((charToCheck == '0') || (charToCheck == '1') || (charToCheck == '2') || (charToCheck == '3') || (charToCheck == '4') || (charToCheck == '5') || (charToCheck == '6') || (charToCheck == '7') || (charToCheck == '8') || (charToCheck == '9'));
     }
 
-    int toFixedWidth(const char *inputString, unsigned int fixedWidth, char *out)
+    int toFixedWidth(const char *inputString, char *out, size_t fixedWidth)
     {
         size_t ssize = strlen(inputString);
         size_t bits = fixedWidth * 8;
-        out = (const char *) malloc(bits + 1);
-        assert(ssize < bits);
+        out = (char *) malloc(bits + 1);
         memset(out, '0', bits - ssize);
-        strcpy(out + bits - ssize, string);
-        strlen(out);
+        strcpy(out + bits - ssize, inputString);
+        return strlen(out);
     }
 
     uint32_t hexStringToUInt(const char *str)
@@ -133,7 +133,7 @@ namespace FirmwareUtilities
             return 0;
         };
         int base{16};
-        if (startsWith(str, "0x")) {
+        if (FirmwareUtilities::startsWith(str, "0x")) {
             base = 0;
         }
         return (int)strtol(str, NULL, base);
@@ -193,11 +193,10 @@ namespace FirmwareUtilities
 
     bool substringExists(const char *first, char second)
     {
-        char temp[1]{second};
-        return (substringExists(first, temp));
+        return (substringExists(first, &second));
     }
 
-    int positionOfSubtring(const char *first, const char *second)
+    int positionOfSubstring(const char *first, const char *second)
     {
         if ((!first) || (!second)) {
             return -1;
@@ -209,10 +208,9 @@ namespace FirmwareUtilities
         return (pos - first);
     }
 
-    int positionOfSubtring(const char *first, char second)
+    int positionOfSubstring(const char *first, char second)
     {
-        char temp[1]{second};
-        return positionOfSubtring(first, temp);
+        return positionOfSubstring(first, &second);
     }
 
     int substring(const char *str, size_t startPosition, char *out, size_t maximumLength)
@@ -236,6 +234,7 @@ namespace FirmwareUtilities
             return -1;
         }
         size_t stringLength{strlen(str)};
+        (void)stringLength;
         size_t numberToCopy{length};
         if (numberToCopy > maximumLength) {
             return -1;
@@ -243,6 +242,11 @@ namespace FirmwareUtilities
         memcpy(out, &(*(str + startPosition)), numberToCopy);
         *(out + numberToCopy) = '\0';
         return numberToCopy;
+    }
+
+    bool isValidByte(char byteToCheck)
+    {
+        return ((byteToCheck > ASCII_WHITESPACE_MAXIMUM_VALUE) || (byteToCheck == '\r') || (byteToCheck == '\n'));
     }
 /*
     char subbuff[5];

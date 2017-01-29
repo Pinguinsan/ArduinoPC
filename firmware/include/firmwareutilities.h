@@ -2,6 +2,11 @@
 #define ARDUINOPC_FIRMWAREUTILITIES_H
 
 #include <string.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <avr/interrupt.h>
 
 namespace FirmwareUtilities
 {
@@ -16,32 +21,39 @@ namespace FirmwareUtilities
     bool endsWith(const char *str, char compare);
     bool isWhitespace(const char *str);
     bool isWhitespace(char charToCheck);
-    int whitespace(unsigned int howMuch, char *out);
+    int whitespace(char *out, size_t howMuch);
     int charToInt(char charToConvert);
     char intToChar (int intToConvert);
     bool isDigit(char charToCheck);
-    int toFixedWidth(const String &inputString, unsigned int fixedWidth);
-    uint32_t parseCanID(char *str);
-    uint8_t parseCanByte(char *str);
-    uint32_t hexStringToUInt(char *str);
-    uint8_t hexStringToUChar(char *str);
+    int toFixedWidth(const char *input, char *out, size_t fixedWidth);
+    uint32_t parseCanID(const char *str);
+    uint8_t parseCanByte(const char *str);
+    uint32_t hexStringToUInt(const char *str);
+    uint8_t hexStringToUChar(const char *str);
     int intExp(int base, int super);
     int tAbs(int lhs, int rhs);
     int tMax(int lhs, int rhs);
     int tMin(int lhs, int rhs);
     bool substringExists(const char *first, const char *second);
+    bool substringExists(const char *first, char second);
+    int positionOfSubstring(const char *first, const char *second);
+    int positionOfSubstring(const char *first, char second);
+    int substring(const char *str, size_t startPosition, char *out, size_t maximumLength);
+    int substring(const char *str, size_t startPosition, size_t length, char *out, size_t maximumLength);
+    bool isValidByte(char byteToCheck);
+   
     unsigned long tMillis();
 
     template <typename T>
-    int toDecString(T number, char *out)
+    int toDecString(T number, char *out, size_t maximumLength)
     {
-        return (sprintf(out, "%i", number));
+        return (snprintf(out, maximumLength, "%i", static_cast<unsigned int>(number)));
     }
 
     template <typename T>
-    int toHexString(T number, char *out)
+    int toHexString(T number, char *out, size_t maximumLength)
     {
-        return (sprintf(out, "%02X", number)); 
+        return (snprintf(out, maximumLength, "%02X", static_cast<unsigned int>(number))); 
     }
 
     /*
@@ -60,7 +72,6 @@ namespace FirmwareUtilities
     int toBinaryString(bool number);
     int toDecString(bool number);
     int toHexString(bool number);
-    */
     std::string stripFromString(const std::string &stringToStrip, const std::string &whatToStrip);
     std::string stripFromString(const std::string &stringToStrip, char whatToStrip);
     std::string stripAllFromString(const std::string &stringToStrip, const std::string &whatToStrip);

@@ -2,10 +2,11 @@
 //#include "include/arduinoinit.h"
 #include <avr/pgmspace.h>
 #include "include/gpio.h"
-#include "include/SerialPort.h"
+#include "include/serialportbase.h"
 #include "include/firmwareutilities.h"
 #include "include/arduinopcstrings.h"
 #include <string.h>
+#include <stdlib.h>
 
 #define ARRAY_SIZE(x) (sizeof(x)/sizeof(x[0]))
 
@@ -17,6 +18,26 @@
 
 using namespace ArduinoPCStrings;
 using namespace FirmwareUtilities;
+
+char *strcpy(char *first, char second)
+{
+    return strcpy(first, &second);
+}
+
+char *strncpy(char *first, char second, size_t maximumSize)
+{
+    return strncpy(first, &second, maximumSize);
+}
+
+char *strcat(char *first, char second)
+{
+    return strcat(first, &second);
+}
+
+char *strncat(char *first, char second, size_t maximumSize)
+{
+    return strncat(first, &second, maximumSize);
+}
 
 #define ID_WIDTH 3
 #define MESSAGE_WIDTH 2
@@ -42,8 +63,8 @@ static const char OPENING_CHARACTER{'{'};
 static const char CLOSING_CHARACTER{'}'};
 static const char LINE_ENDING{'\r'};
 static const char ITEM_SEPARATOR{':'}; 
-static const char DIGITAL_LOW_IDENTIFIER{'0'};
-static const char DIGITAL_HIGH_IDENTIFIER{'1'};
+static const char DIGITAL_STATE_LOW_IDENTIFIER{'0'};
+static const char DIGITAL_STATE_HIGH_IDENTIFIER{'1'};
 static const char ANALOG_IDENTIFIER_CHAR{'A'};
 
 void broadcastString(const char *str);
@@ -80,7 +101,7 @@ void firmwareVersionRequest();
 void canBusEnabledRequest();
 void ioReportRequest();
 
-SerialPort *getCurrentValidOutputStream();
+SerialPortBase *getCurrentValidOutputStream();
 
 bool isValidAnalogPinIdentifier(const char *str);
 bool isValidPinIdentifier(const char *str);
@@ -110,7 +131,6 @@ int getSerialPinIOTypeString(int pinNumber, char *out, size_t maximumSize);
 int analogPinFromNumber(int number, char *out, size_t maximumSize);
 GPIO *gpioPinByPinNumber(int pinNumber);
 bool pinInUseBySerialPort(int pinNumber);
-int nextAvailableSerialSlotNumber();
 
 #if defined(ARDUINO_AVR_UNO)
     static const PROGMEM int AVAILABLE_ANALOG_PINS[]{A0, A1, A2, A3, A4, A5, -1};
@@ -204,14 +224,14 @@ int nextAvailableSerialSlotNumber();
     #define NUMBER_OF_HARDWARE_SERIAL_PORTS 4
     #define MAXIMUM_SOFTWARE_SERIAL_PORTS 4
 
-    static SerialPort *hardwareSerialPorts[NUMBER_OF_HARDWARE_SERIAL_PORTS] {
-        new SerialPort{&Serial,   0,   1,  SERIAL_BAUD, SERIAL_TIMEOUT, true, LINE_ENDING},
-        new SerialPort{&Serial1,  19,  18, SERIAL_BAUD, SERIAL_TIMEOUT, true, LINE_ENDING},
-        new SerialPort{&Serial2,  17,  16, SERIAL_BAUD, SERIAL_TIMEOUT, true, LINE_ENDING},
-        new SerialPort{&Serial3,  15,  14, SERIAL_BAUD, SERIAL_TIMEOUT, true, LINE_ENDING}
+    static SerialPortBase *hardwareSerialPorts[NUMBER_OF_HARDWARE_SERIAL_PORTS] {
+        new HardwareSerialPort{&Serial,   0,   1,  SERIAL_BAUD, SERIAL_TIMEOUT, true, &LINE_ENDING},
+        new HardwareSerialPort{&Serial1,  19,  18, SERIAL_BAUD, SERIAL_TIMEOUT, true, &LINE_ENDING},
+        new HardwareSerialPort{&Serial2,  17,  16, SERIAL_BAUD, SERIAL_TIMEOUT, true, &LINE_ENDING},
+        new HardwareSerialPort{&Serial3,  15,  14, SERIAL_BAUD, SERIAL_TIMEOUT, true, &LINE_ENDING}
     };
     
-    static SerialPort *softwareSerialPorts[MAXIMUM_SOFTWARE_SERIAL_PORTS] {
+    static SerialPortBase *softwareSerialPorts[MAXIMUM_SOFTWARE_SERIAL_PORTS] {
         nullptr,
         nullptr,
         nullptr,
@@ -223,18 +243,18 @@ int nextAvailableSerialSlotNumber();
     #define NUMBER_OF_HARDWARE_SERIAL_PORTS 1
     #define MAXIMUM_SOFTWARE_SERIAL_PORTS 1
 
-    static SerialPort *hardwareSerialPorts[NUMBER_OF_HARDWARE_SERIAL_PORTS] {
-        new SerialPort{&Serial, 0,  1, SERIAL_BAUD, SERIAL_TIMEOUT, true, LINE_ENDING}
+    static SerialPortBase *hardwareSerialPorts[NUMBER_OF_HARDWARE_SERIAL_PORTS] {
+        new HardwareSerialPort{&Serial, 0,  1, SERIAL_BAUD, SERIAL_TIMEOUT, true, &LINE_ENDING}
     };
     
-    static SerialPort *softwareSerialPorts[MAXIMUM_SOFTWARE_SERIAL_PORTS] {
+    static SerialPortBase *softwareSerialPorts[MAXIMUM_SOFTWARE_SERIAL_PORTS] {
         nullptr
     };
 
 #endif
-
-static *GPIO gpioPins[NUMBER_OF_PINS-1];
-
+static int softwareSerialPortIndex{0};
+static GPIO *gpioPins[NUMBER_OF_PINS-1];
+/*
 template <typename T>
 int findInArray(T itemToFind, T *arrayToLook, size_t sizeOfArray)
 {
@@ -247,13 +267,14 @@ int findInArray(T itemToFind, T *arrayToLook, size_t sizeOfArray)
     }
     return -1; 
 } 
+*/
 
 void initializeSerialPorts();
 void announceStartup();
-SerialPort *getHardwareCout(int coutIndex);
-SerialPort *getSoftwareCout(int coutIndex);
-static SerialPort *currentSerialStream{hardwareSerialPorts[0]};
-SerialPort *defaultNativePort{hardwareSerialPorts[0]};
+SerialPortBase *getHardwareCout(int coutIndex);
+SerialPortBase *getSoftwareCout(int coutIndex);
+static SerialPortBase *currentSerialStream{hardwareSerialPorts[0]};
+SerialPortBase *defaultNativePort{hardwareSerialPorts[0]};
 
 template <typename Header, typename PinNumber, typename State, typename ResultCode> inline void printResult(const Header &header, PinNumber pinNumber, State state, ResultCode resultCode)
 {    
@@ -283,7 +304,7 @@ int main()
 
     while (true) {
         for (int i = 0; i < NUMBER_OF_HARDWARE_SERIAL_PORTS-1; i++) {
-            SerialPort *it{hardwareSerialPorts[i]};
+            SerialPortBase *it{hardwareSerialPorts[i]};
             if (it == nullptr) {
                 continue;
             }
@@ -297,7 +318,7 @@ int main()
             }
         }
         for (int i = 0; i < NUMBER_OF_HARDWARE_SERIAL_PORTS-1; i++) {
-            SerialPort *it{softwareSerialPorts[i]};
+            SerialPortBase *it{softwareSerialPorts[i]};
             if (it == nullptr) {
                 continue;
             }
@@ -335,7 +356,7 @@ int main()
         #endif
         if (serialEventRun) serialEventRun();
     }
-    for (int i = 0; i < ARRAY_SIZE(gpioPins); i++) {
+    for (unsigned int i = 0; i < ARRAY_SIZE(gpioPins); i++) {
         if (gpioPins + i) {
             if (gpioPins[i]) {
                 delete gpioPins[i];
@@ -371,101 +392,102 @@ void handleSerialString(const char *str)
     }
     char requestString[SMALL_BUFFER_SIZE];
     int substringResult{0};
+    (void)substringResult;
     if (startsWith(str, ANALOG_READ_HEADER)) {
         if (checkValidRequestString(ANALOG_READ_HEADER, str)) {
-            substringResult = substring(str, strlen(ANALOG_READ_HEADER)+1, requestString, SMALL_BUFFER_SIZE); 
+            substringResult = FirmwareUtilities::substring(str, strlen(ANALOG_READ_HEADER)+1, requestString, SMALL_BUFFER_SIZE); 
             analogReadRequest(requestString);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
     } else if (startsWith(str, ANALOG_WRITE_HEADER)) {
         if (checkValidRequestString(ANALOG_WRITE_HEADER, str)) {
-            substringResult = substring(str, strlen(ANALOG_WRITE_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
-            analogWriteRequest(substringResult);
+            substringResult = FirmwareUtilities::substring(str, strlen(ANALOG_WRITE_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            analogWriteRequest(requestString);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
     } else if (startsWith(str, CHANGE_A_TO_D_THRESHOLD_HEADER)) {
         if (checkValidRequestString(CHANGE_A_TO_D_THRESHOLD_HEADER, str)) {
-            substringResult = substring(str, strlen(CHANGE_A_TO_D_THRESHOLD_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
-            changeAToDThresholdRequest(substringResult);
+            substringResult = FirmwareUtilities::substring(str, strlen(CHANGE_A_TO_D_THRESHOLD_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            changeAToDThresholdRequest(requestString);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
     } else if (startsWith(str, ADD_SOFTWARE_SERIAL_HEADER)) {
         if (checkValidRequestString(ADD_SOFTWARE_SERIAL_HEADER, str)) {
-            substringResult = substring(str, strlen(ADD_SOFTWARE_SERIAL_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
-            addSoftwareSerialRequest(substringResult);
+            substringResult = FirmwareUtilities::substring(str, strlen(ADD_SOFTWARE_SERIAL_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            addSoftwareSerialRequest(requestString);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
     } else if (startsWith(str, ADD_HARDWARE_SERIAL_HEADER)) {
         if (checkValidRequestString(ADD_HARDWARE_SERIAL_HEADER, str)) {
-            substringResult = substring(str, strlen(ADD_HARDWARE_SERIAL_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
-            addHardwareSerialRequest(substringResult);
+            substringResult = FirmwareUtilities::substring(str, strlen(ADD_HARDWARE_SERIAL_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            addHardwareSerialRequest(requestString);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }  
     } else if (startsWith(str, DIGITAL_READ_HEADER)) {
         if (checkValidRequestString(DIGITAL_READ_HEADER, str)) {
-            substringResult = substring(str, strlen(DIGITAL_READ_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
-            digitalReadRequest(substringResult, false);
+            substringResult = FirmwareUtilities::substring(str, strlen(DIGITAL_READ_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            digitalReadRequest(requestString, false);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
     } else if (startsWith(str, DIGITAL_WRITE_ALL_HEADER)) {
         if (checkValidRequestString(DIGITAL_WRITE_ALL_HEADER, str)) {
-            substringResult = substring(str, strlen(DIGITAL_WRITE_ALL_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
-            digitalWriteAllRequest(substringResult);
+            substringResult = FirmwareUtilities::substring(str, strlen(DIGITAL_WRITE_ALL_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            digitalWriteAllRequest(requestString);
         } else {
             printTypeResult(DIGITAL_WRITE_ALL_HEADER, str, OPERATION_FAILURE);
         }
     } else if (startsWith(str, DIGITAL_WRITE_HEADER)) {
         if (checkValidRequestString(DIGITAL_WRITE_HEADER, str)) {
-            substringResult = substring(str, strlen(DIGITAL_WRITE_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
-            digitalWriteRequest(substringResult);
+            substringResult = FirmwareUtilities::substring(str, strlen(DIGITAL_WRITE_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            digitalWriteRequest(requestString);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
     } else if (startsWith(str, PIN_TYPE_HEADER)) {
         if (checkValidRequestString(PIN_TYPE_HEADER, str)) {
-            substringResult = substring(str, strlen(PIN_TYPE_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            substringResult = FirmwareUtilities::substring(str, strlen(PIN_TYPE_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
             pinTypeRequest(requestString);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
     } else if (startsWith(str, PIN_TYPE_CHANGE_HEADER)) {
         if (checkValidRequestString(PIN_TYPE_CHANGE_HEADER, str)) {
-            substringResult = substring(str, strlen(PIN_TYPE_CHANGE_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
-            pinTypeChangeRequest(substringResult);
+            substringResult = FirmwareUtilities::substring(str, strlen(PIN_TYPE_CHANGE_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            pinTypeChangeRequest(requestString);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
     } else if (startsWith(str, REMOVE_SOFTWARE_SERIAL_HEADER)) {
         if (checkValidRequestString(REMOVE_SOFTWARE_SERIAL_HEADER, str)) {
-            substringResult = substring(str, strlen(REMOVE_SOFTWARE_SERIAL_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
-            removeSoftwareSerialRequest(substringResult);
+            substringResult = FirmwareUtilities::substring(str, strlen(REMOVE_SOFTWARE_SERIAL_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            removeSoftwareSerialRequest(requestString);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
     } else if (startsWith(str, REMOVE_HARDWARE_SERIAL_HEADER)) {
         if (checkValidRequestString(REMOVE_HARDWARE_SERIAL_HEADER, str)) {
-            substringResult = substring(str, strlen(REMOVE_HARDWARE_SERIAL_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
-            removeHardwareSerialRequest(substringResult);
+            substringResult = FirmwareUtilities::substring(str, strlen(REMOVE_HARDWARE_SERIAL_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            removeHardwareSerialRequest(requestString);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }   
     } else if (startsWith(str, SOFT_DIGITAL_READ_HEADER)) {
         if (checkValidRequestString(SOFT_DIGITAL_READ_HEADER, str)) {
-            substringResult = substring(str, strlen(SOFT_DIGITAL_READ_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
-            digitalReadRequest(substringResult);
+            substringResult = FirmwareUtilities::substring(str, strlen(SOFT_DIGITAL_READ_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            digitalReadRequest(requestString, true);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
     } else if (startsWith(str, SOFT_ANALOG_READ_HEADER)) {
         if (checkValidRequestString(SOFT_ANALOG_READ_HEADER, str)) {
-            substringResult = substring(str, strlen(SOFT_ANALOG_READ_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
-            softAnalogReadRequest(substringResult);
+            substringResult = FirmwareUtilities::substring(str, strlen(SOFT_ANALOG_READ_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            softAnalogReadRequest(requestString);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
@@ -486,64 +508,64 @@ void handleSerialString(const char *str)
         canReadRequest(false);
     } else if (startsWith(str, CAN_WRITE_ONCE_HEADER)) {
         if (checkValidRequestString(CAN_WRITE_ONCE_HEADER, str)) {
-            substringResult = substring(str, strlen(CAN_WRITE_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
-            canWriteRequest(substringResult, true);
+            substringResult = FirmwareUtilities::substring(str, strlen(CAN_WRITE_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            canWriteRequest(requestString, true);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
     } else if (startsWith(str, CAN_WRITE_HEADER)) {
         if (checkValidRequestString(CAN_WRITE_HEADER, str)) {
-            substringResult = substring(str, strlen(CAN_WRITE_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
-            canWriteRequest(substringResult, false);
+            substringResult = FirmwareUtilities::substring(str, strlen(CAN_WRITE_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            canWriteRequest(requestString, false);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }     
     } else if (startsWith(str, CAN_LIVE_UPDATE_HEADER)) {
         if (checkValidRequestString(CAN_LIVE_UPDATE_HEADER, str)) {
-            substringResult = substring(str, strlen(CAN_LIVE_UPDATE_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
-            canLiveUpdateRequest(substringResult);
+            substringResult = FirmwareUtilities::substring(str, strlen(CAN_LIVE_UPDATE_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            canLiveUpdateRequest(requestString);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
     } else if (startsWith(str, CLEAR_CAN_MESSAGE_BY_ID_HEADER)) {
         if (checkValidRequestString(CLEAR_CAN_MESSAGE_BY_ID_HEADER, str)) {
-            substringResult = substring(str, strlen(CLEAR_CAN_MESSAGE_BY_ID_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
-            clearCurrentMessageByIdRequest(substringResult);
+            substringResult = FirmwareUtilities::substring(str, strlen(CLEAR_CAN_MESSAGE_BY_ID_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            clearCurrentMessageByIdRequest(requestString);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }   
     } else if (startsWith(str, CURRENT_CAN_MESSAGE_BY_ID_HEADER)) {
         if (checkValidRequestString(CURRENT_CAN_MESSAGE_BY_ID_HEADER, str)) {
-            substringResult = substring(str, strlen(CURRENT_CAN_MESSAGE_BY_ID_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
-            currentCachedCanMessageByIdRequest(substringResult);
+            substringResult = FirmwareUtilities::substring(str, strlen(CURRENT_CAN_MESSAGE_BY_ID_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            currentCachedCanMessageByIdRequest(requestString);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
     } else if (startsWith(str, REMOVE_NEGATIVE_CAN_MASK_HEADER)) {
         if (checkValidRequestString(REMOVE_NEGATIVE_CAN_MASK_HEADER, str)) {
-            substringResult = substring(str, strlen(REMOVE_NEGATIVE_CAN_MASK_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
-            removeNegativeCanMaskRequest(substringResult);
+            substringResult = FirmwareUtilities::substring(str, strlen(REMOVE_NEGATIVE_CAN_MASK_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            removeNegativeCanMaskRequest(requestString);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
     } else if (startsWith(str, REMOVE_POSITIVE_CAN_MASK_HEADER)) {
         if (checkValidRequestString(REMOVE_POSITIVE_CAN_MASK_HEADER, str)) {
-            substringResult = substring(str, strlen(REMOVE_POSITIVE_CAN_MASK_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
-            removePositiveCanMaskRequest(substringResult);
+            substringResult = FirmwareUtilities::substring(str, strlen(REMOVE_POSITIVE_CAN_MASK_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            removePositiveCanMaskRequest(requestString);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
     } else if (startsWith(str, ADD_POSITIVE_CAN_MASK_HEADER)) {
         if (checkValidRequestString(ADD_POSITIVE_CAN_MASK_HEADER, str)) {
-            substringResult = substring(str, strlen(ADD_POSITIVE_CAN_MASK_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
-            addPositiveCanMaskRequest(substringResult);
+            substringResult = FirmwareUtilities::substring(str, strlen(ADD_POSITIVE_CAN_MASK_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            addPositiveCanMaskRequest(requestString);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
     } else if (startsWith(str, ADD_NEGATIVE_CAN_MASK_HEADER)) {
         if (checkValidRequestString(ADD_NEGATIVE_CAN_MASK_HEADER, str)) {
-            substringResult = substring(str, strlen(ADD_NEGATIVE_CAN_MASK_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
-            addNegativeCanMaskRequest(substringResult);
+            substringResult = FirmwareUtilities::substring(str, strlen(ADD_NEGATIVE_CAN_MASK_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            addNegativeCanMaskRequest(requestString);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
@@ -569,7 +591,7 @@ void handleSerialString(const char *str)
 
 void addSoftwareSerialRequest(const char *str)
 {
-    size_t foundPosition{positionOfSubstring(str, ITEM_SEPARATOR)};
+    int foundPosition{FirmwareUtilities::positionOfSubstring(str, ITEM_SEPARATOR)};
     char maybeRxPin[SMALL_BUFFER_SIZE];
     int result{FirmwareUtilities::substring(str, 0, foundPosition, maybeRxPin, SMALL_BUFFER_SIZE)};
     (void)result;
@@ -605,9 +627,7 @@ void addSoftwareSerialRequest(const char *str)
         }
     }
     if (isValidSoftwareSerialAddition(rxPinNumber, txPinNumber)) {
-        SWSerial *swSerialTemp{ new SWSerial{rxPinNumber, txPinNumber, SERIAL_BAUD, SERIAL_TIMEOUT, true, LINE_ENDING} };
-        softwareSerialPorts.push_back(swSerialTemp);
-        swSerialTemp->initialize();
+        softwareSerialPorts[softwareSerialPortIndex++] = new SoftwareSerialPort{rxPinNumber, txPinNumber, SERIAL_BAUD, SERIAL_TIMEOUT, true, &LINE_ENDING};
         printResult(ADD_SOFTWARE_SERIAL_HEADER, maybeRxPin, maybeTxPin, OPERATION_SUCCESS);
     } else {
         printResult(ADD_SOFTWARE_SERIAL_HEADER, maybeRxPin, maybeTxPin, OPERATION_FAILURE);
@@ -616,7 +636,7 @@ void addSoftwareSerialRequest(const char *str)
 
 void addHardwareSerialRequest(const char *str)
 {
-    size_t foundPosition{positionOfSubstring(str, ITEM_SEPARATOR)};
+    int foundPosition{FirmwareUtilities::positionOfSubstring(str, ITEM_SEPARATOR)};
     char maybeRxPin[SMALL_BUFFER_SIZE];
     int result{FirmwareUtilities::substring(str, 0, foundPosition, maybeRxPin, SMALL_BUFFER_SIZE)};
     (void)result;
@@ -647,7 +667,7 @@ void addHardwareSerialRequest(const char *str)
 
 void removeSoftwareSerialRequest(const char *str)
 {
-    size_t foundPosition{positionOfSubstring(str, ITEM_SEPARATOR)};
+    int foundPosition{FirmwareUtilities::positionOfSubstring(str, ITEM_SEPARATOR)};
     char maybeRxPin[SMALL_BUFFER_SIZE];
     int result{FirmwareUtilities::substring(str, 0, foundPosition, maybeRxPin, SMALL_BUFFER_SIZE)};
     (void)result;
@@ -681,7 +701,7 @@ void removeSoftwareSerialRequest(const char *str)
 
 void removeHardwareSerialRequest(const char *str)
 {
-    size_t foundPosition{positionOfSubstring(str, ITEM_SEPARATOR)};
+    int foundPosition{FirmwareUtilities::positionOfSubstring(str, ITEM_SEPARATOR)};
     char maybeRxPin[SMALL_BUFFER_SIZE];
     int result{FirmwareUtilities::substring(str, 0, foundPosition, maybeRxPin, SMALL_BUFFER_SIZE)};
     (void)result;
@@ -795,8 +815,18 @@ void currentAToDThresholdRequest()
 void ioReportRequest()
 {
     *getCurrentValidOutputStream() << IO_REPORT_HEADER << CLOSING_CHARACTER;
-    for (int i = 0; i < NUMBER_OF_PINS : gpioPins) {
-        GPIO *gpioPin{it.second};
+    for (int i = 0; i < NUMBER_OF_PINS; i++) {
+        GPIO *gpioPin{nullptr};
+        if (gpioPins + i) {
+            if (gpioPins[i]) {
+                gpioPin = gpioPins[i];
+            } else {
+                continue;
+            }
+        } else {
+            continue;
+        }
+
         int state{0};
         if ((gpioPin->ioType() == IOType::DIGITAL_INPUT) || (gpioPin->ioType() == IOType::DIGITAL_INPUT_PULLUP)) {
             state = gpioPin->g_digitalRead();
@@ -811,13 +841,13 @@ void ioReportRequest()
             char analogPinString[SMALL_BUFFER_SIZE];
             char ioTypeString[SMALL_BUFFER_SIZE];
             int result{analogPinFromNumber(gpioPin->pinNumber(), analogPinString, SMALL_BUFFER_SIZE)};
-            int secondResult{getIOTypeString(gpioPin->pinNumber(), ioTypeString, SMALL_BUFFER_SIZE)};
+            int secondResult{getIOTypeString(gpioPin->ioType(), ioTypeString, SMALL_BUFFER_SIZE)};
             (void)result;
             (void)secondResult;
             *getCurrentValidOutputStream() << OPENING_CHARACTER << analogPinString << ITEM_SEPARATOR << ioTypeString << ITEM_SEPARATOR << state << CLOSING_CHARACTER;
         } else {
             char ioTypeString[SMALL_BUFFER_SIZE];
-            int result{getIOTypeString(gpioPin->pinNumber(), ioTypeString, SMALL_BUFFER_SIZE};
+            int result{getIOTypeString(gpioPin->ioType(), ioTypeString, SMALL_BUFFER_SIZE)};
             (void)result;
             *getCurrentValidOutputStream() << OPENING_CHARACTER << gpioPin->pinNumber() << ITEM_SEPARATOR << ioTypeString << ITEM_SEPARATOR << state << CLOSING_CHARACTER;
         }
@@ -846,7 +876,7 @@ void digitalReadRequest(const char *str, bool soft)
 
 void digitalWriteRequest(const char *str)
 {
-    size_t foundPosition{positionOfSubstring(str, ITEM_SEPARATOR)};
+    int foundPosition{FirmwareUtilities::positionOfSubstring(str, ITEM_SEPARATOR)};
     char maybePin[SMALL_BUFFER_SIZE];
     int result{FirmwareUtilities::substring(str, 0, foundPosition, maybePin, SMALL_BUFFER_SIZE)};
     (void)result;
@@ -878,7 +908,7 @@ void digitalWriteAllRequest(const char *str)
 {
     *getCurrentValidOutputStream() << DIGITAL_WRITE_ALL_HEADER;
     
-    size_t foundPosition{positionOfSubstring(str, ITEM_SEPARATOR)};
+    int foundPosition{FirmwareUtilities::positionOfSubstring(str, ITEM_SEPARATOR)};
     char maybeState[SMALL_BUFFER_SIZE];
     int result{FirmwareUtilities::substring(str, 0, foundPosition, maybeState, SMALL_BUFFER_SIZE)};
     (void)result;
@@ -929,7 +959,7 @@ void analogReadRequest(const char *str)
 
 void analogWriteRequest(const char *str)
 {
-    size_t foundPosition{positionOfSubstring(str, ITEM_SEPARATOR)};
+    int foundPosition{FirmwareUtilities::positionOfSubstring(str, ITEM_SEPARATOR)};
     char maybePin[SMALL_BUFFER_SIZE];
     int result{FirmwareUtilities::substring(str, 0, foundPosition, maybePin, SMALL_BUFFER_SIZE)};
     (void)result;
@@ -984,7 +1014,7 @@ void pinTypeRequest(const char *str)
 void pinTypeChangeRequest(const char *str)
 {   
 
-    size_t foundPosition{positionOfSubstring(str, ITEM_SEPARATOR)};
+    int foundPosition{FirmwareUtilities::positionOfSubstring(str, ITEM_SEPARATOR)};
     char maybePin[SMALL_BUFFER_SIZE];
     int result{FirmwareUtilities::substring(str, 0, foundPosition, maybePin, SMALL_BUFFER_SIZE)};
     (void)result;
@@ -1103,7 +1133,7 @@ bool isValidDigitalOutputPin(int pinNumber)
         return false;
     }
 #endif
-    for (int i = 0; i < ARRAY_SIZE(gpioPins); i++) {
+    for (unsigned int i = 0; i < ARRAY_SIZE(gpioPins) - 1; i++) {
         if (gpioPins[i]) {
             if (pinNumber == gpioPins[i]->pinNumber()) {
                 return true;
@@ -1232,7 +1262,7 @@ bool isValidDigitalStateIdentifier(const char *str)
         return false;
     }
     if (strlen(str) == 1) {
-        return ((str[0] == DIGITAL_STATE__IDENTIFIER) || (str[0] == DIGITAL_STATE_HIGH_IDENTIFIER)); 
+        return ((str[0] == DIGITAL_STATE_LOW_IDENTIFIER) || (str[0] == DIGITAL_STATE_HIGH_IDENTIFIER)); 
     } else {
         return false;
     }
@@ -1251,6 +1281,7 @@ int parseToDigitalState(const char *str)
     } else {
         return OPERATION_FAILURE;
     }
+    return false;
 }
 
 int parseToAnalogState(const char *str)
@@ -1270,29 +1301,35 @@ int parseToAnalogState(const char *str)
 
 bool isValidPinIdentifier(const char *str)
 {
-
-    for (auto &it : gpioPins) {
-        if (atoi(str.c_str()) == static_cast<int>(it.first)) {
-            return true;
+    for (int i = 0; i < (NUMBER_OF_PINS - 1); i++) {
+        if (gpioPins + i) {
+            if (gpioPins[i]) {
+                if (atoi(str) == static_cast<int>(gpioPins[i]->pinNumber())) {
+                    return true;
+                }
+            }
         }
     }
 
+    char buffer[strlen(str) + 1];
+    memset(buffer, 0, sizeof buffer);
+    strncpy(buffer, str, sizeof(buffer) - 1);
+
     for (unsigned int i =  0; i < ARRAY_SIZE(AVAILABLE_ANALOG_PINS)-1; i++) {
-        if (FirmwareUtilities::startsWith(pinAlias, ANALOG_IDENTIFIER_CHAR)) {
+        if (FirmwareUtilities::startsWith(str, ANALOG_IDENTIFIER_CHAR)) {
             buffer[0] = DIGITAL_STATE_LOW_IDENTIFIER;
             if (atoi(buffer) == static_cast<int>(i)) {
                 return ANALOG_PIN_OFFSET + i + 1;
             }
         }
     }
-    char buffer[strlen(str) + 1];
-    memset(buffer, 0, sizeof buffer);
-    strncpy(buffer, pinAlias, sizeof(buffer) - 1);
+    memset(buffer, 0, strlen(buffer) + 1);
+    strncpy(buffer, str, sizeof(buffer) - 1);
     
-
     for (unsigned int i =  0; i < ARRAY_SIZE(AVAILABLE_ANALOG_PINS)-1; i++) {
         if (FirmwareUtilities::startsWith(str, ANALOG_IDENTIFIER_CHAR)) {
-            if (atoi(str.substr(1).c_str()) == static_cast<int>(i)) {
+            buffer[0] = DIGITAL_STATE_LOW_IDENTIFIER;
+            if (atoi(buffer) == static_cast<int>(i)) {
                 return true;
             }
         }
@@ -1308,7 +1345,7 @@ bool isValidPwmPinIdentifier(const char *str)
         if (tempPinNumber < 0) {
             return false;
         }
-        if (tempPinNumber == atoi(str.c_str())) {
+        if (tempPinNumber == atoi(str)) {
             return true;
         }
     } while (true);
@@ -1322,14 +1359,19 @@ bool isValidAnalogPinIdentifier(const char *str)
         if (tempPinNumber < 0) {
             break;
         }
-        if (tempPinNumber == atoi(str.c_str())) {
+        if (tempPinNumber == atoi(str)) {
             return true;
         }
     } while (true);
 
+    char buffer[strlen(str) + 1];
+    memset(buffer, 0, sizeof buffer);
+    strncpy(buffer, str, sizeof(buffer) - 1);
+
     for (unsigned int j = 0; j < ARRAY_SIZE(AVAILABLE_ANALOG_PINS)-1; j++) {
-        if (FirmwareUtilities::startsWith(str, ANALOG_IDENTIFIER_CHAR) != NULL) {
-            if (atoi(str.substr(1).c_str()) == static_cast<int>(j)) {
+        if (FirmwareUtilities::startsWith(str, ANALOG_IDENTIFIER_CHAR)) {
+            buffer[0] = DIGITAL_STATE_LOW_IDENTIFIER;
+            if (atoi(buffer) == static_cast<int>(j)) {
                 return true;
             }
         }
@@ -1339,11 +1381,11 @@ bool isValidAnalogPinIdentifier(const char *str)
 
 bool isValidPinTypeIdentifier(const char *str)
 {
-    return (strcmp(str, DIGITAL_INPUT_IDENTIFIER) == 0) ||
-           (strcmp(str, DIGITAL_OUTPUT_IDENTIFIER) == 0) ||
-           (strcmp(str, ANALOG_INPUT_IDENTIFIER) == 0) ||
-           (strcmp(str, ANALOG_OUTPUT_IDENTIFIER) == 0) ||
-           (strcmp(str, DIGITAL_INPUT_PULLUP_IDENTIFIER) == 0));
+    return ((strcmp(str, DIGITAL_INPUT_IDENTIFIER) == 0) ||
+            (strcmp(str, DIGITAL_OUTPUT_IDENTIFIER) == 0) ||
+            (strcmp(str, ANALOG_INPUT_IDENTIFIER) == 0) ||
+            (strcmp(str, ANALOG_OUTPUT_IDENTIFIER) == 0) ||
+            (strcmp(str, DIGITAL_INPUT_PULLUP_IDENTIFIER) == 0));
 }
 
 void initializeSerialPorts()
@@ -1448,23 +1490,14 @@ int analogPinFromNumber(int pinNumber, char *out, size_t maximumSize)
         }
         if (tempPinNumber == pinNumber) {
             char tempNumber[255];
-            if (!FirmwareUtilities::toDecString(i-1, tempNumber)) {
+            if (!FirmwareUtilities::toDecString(i-1, tempNumber, maximumSize)) {
                 return 0;
             }
-            strcpy(out,ANALOG_IDENTIFIER_CHAR);
+            strncpy(out, ANALOG_IDENTIFIER_CHAR, maximumSize);
             strcat(out, tempNumber);
             return strlen(out);
         }
     } while (true);
-}
-
-int nextAvailableSerialSlotNumber()
-{
-    if (softwareSerialPorts.size() == MAXIMUM_SOFTWARE_SERIAL_PORTS) {
-        return NEXT_SERIAL_PORT_UNAVAILABLE;
-    } else {
-        return softwareSerialPorts.size();
-    }
 }
 
 bool pinInUseBySerialPort(int pinNumber)
@@ -1533,41 +1566,42 @@ int getSerialPinIOTypeString(int pinNumber, char *out, size_t maximumSize)
     return -1;
 }
 
-SerialPort *getCurrentValidOutputStream()
+SerialPortBase *getCurrentValidOutputStream()
 {
     return (currentSerialStream != nullptr ? currentSerialStream : defaultNativePort);
 }
 
-SerialPort *getHardwareCout(int coutIndex)
+SerialPortBase *getHardwareCout(int coutIndex)
 {
     if (coutIndex < 0) {
         return nullptr;
     }
-    if (static_cast<unsigned int>(coutIndex) > hardwareSerialPorts.size()-1) {
+    if (static_cast<unsigned int>(coutIndex) > (ARRAY_SIZE(hardwareSerialPorts)-1)) {
         return nullptr;
     } else {
-        if (hardwareSerialPorts.at(coutIndex)->isEnabled()) {
-            return hardwareSerialPorts.at(coutIndex);
+        if (hardwareSerialPorts[coutIndex]->isEnabled()) {
+            return hardwareSerialPorts[coutIndex];
         } else {
             return nullptr;
         }
     }
 }
 
-SerialPort *getSoftwareCout(int coutIndex)
+SerialPortBase *getSoftwareCout(int coutIndex)
 {
     if (coutIndex < 0) {
         return nullptr;
     }
-    if (static_cast<unsigned int>(coutIndex) > softwareSerialPorts.size()-1) {
+    if (static_cast<unsigned int>(coutIndex) > (ARRAY_SIZE(softwareSerialPorts)-1)) {
         return nullptr;
     } else {
-        if (softwareSerialPorts.at(coutIndex)->isEnabled()) {
-            return softwareSerialPorts.at(coutIndex);
+        if (softwareSerialPorts[coutIndex]->isEnabled()) {
+            return softwareSerialPorts[coutIndex];
         } else {
             return nullptr;
         }
     }
+    return nullptr;
 }
 
 

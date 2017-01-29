@@ -2,7 +2,6 @@
 #define ARDUINOPC_GPIO_H
 
 #include "firmwareutilities.h"
-#include "fastio.h"
 #include <Arduino.h>
 
 #ifndef HIGH
