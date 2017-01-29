@@ -317,7 +317,6 @@ int main()
     initializeSerialPorts();
     announceStartup();
     populateGpioMap();
-    debug.println("Hello, World!");
     while (true) {
         for (unsigned int i = 0; i < ARRAY_SIZE(hardwareSerialPorts); i++) {
             SerialPortBase *it{nullptr};
@@ -326,32 +325,27 @@ int main()
                     it = hardwareSerialPorts[i];
                 }
             }
-            debug.print("hardware serial port at i = ");
-            debug.print(i);
-            debug.println(" is assigned ");
             if (!it) {
                 continue;
             }
-            debug.print("hardware serial port at i = ");
-            debug.print(i);
-            debug.println(" is not null");
-            //if ((it->isEnabled()) && (it->available())) {
-                debug.print("hardware serial port at i = ");
-                debug.print(i);
-                debug.println(" is enabled and available ");
-                char buffer[MAXIMUM_SERIAL_READ_SIZE];
-                //int serialRead{it->readLine(buffer, MAXIMUM_SERIAL_READ_SIZE)};
-                int serialRead{0};
-                debug.print("hardware serial port at i = ");
-                debug.print(i);
-                debug.print(" read ");
-                debug.print(serialRead);
-                debug.println(" bytes");
-                if (serialRead > 0) {
-                    currentSerialStream = it;
-                    handleSerialString(buffer);
+            if (it->isEnabled()) {
+                if (it->available() != 0) {
+                    debug.print("hardware serial port at i = ");
+                    debug.print(i);
+                    debug.println(" is enabled and available ");
+                    char buffer[MAXIMUM_SERIAL_READ_SIZE];
+                    int serialRead{it->readLine(buffer, MAXIMUM_SERIAL_READ_SIZE)};
+                    debug.print("hardware serial port at i = ");
+                    debug.print(i);
+                    debug.print(" read ");
+                    debug.print(serialRead);
+                    debug.println(" bytes");
+                    if (serialRead > 0) {
+                        currentSerialStream = it;
+                        //handleSerialString(buffer);
+                    }
                 }
-            //}
+            }
             debug.print("hardware serial port at i = ");
             debug.print(i);
             debug.println(" has no data available");
@@ -1458,17 +1452,7 @@ void initializeSerialPorts()
         if (hardwareSerialPorts + i) {
             if (hardwareSerialPorts[i]) {
                 if (hardwareSerialPorts[i]->isEnabled()) {
-                    debug.print("Initializing serial port at i = ");
-                    debug.println(i);
-                    if (!hardwareSerialPorts[i]->initialize()) {
-                        debug.print("Serial port at i = ");
-                        debug.print(i);
-                        debug.println(" was NOT initialized");
-                    } else {
-                        debug.print("Serial port at i = ");
-                        debug.print(i);
-                        debug.println(" was initialized");
-                    }
+                    (void)hardwareSerialPorts[i]->initialize();
                 }
             }
         }

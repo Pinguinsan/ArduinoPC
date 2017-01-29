@@ -244,7 +244,12 @@ namespace FirmwareUtilities
 
     bool isValidByte(char byteToCheck)
     {
-        return ((byteToCheck > ASCII_WHITESPACE_MAXIMUM_VALUE) || (byteToCheck == '\r') || (byteToCheck == '\n'));
+        Serial.print("byteToCheck = '");
+        Serial.print(byteToCheck);
+        Serial.print("' (");
+        Serial.print(static_cast<int>(byteToCheck));
+        Serial.println(")");
+        return (isPrintable(byteToCheck) || (byteToCheck == '\r') || (byteToCheck == '\n'));
     }
 /*
     char subbuff[5];

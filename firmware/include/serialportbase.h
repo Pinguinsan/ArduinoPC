@@ -64,7 +64,7 @@ public:
         m_stringQueueIndex{0}
     {
         this->m_lineEnding = new char[MAXIMUM_LINE_ENDING_STRING];
-        strcpy(this->m_lineEnding, lineEnding);
+        strncpy(this->m_lineEnding, lineEnding, MAXIMUM_LINE_ENDING_STRING);
         this->m_stringBuilderQueue = new char[MAXIMUM_LINE_ENDING_STRING];
     }
 
@@ -101,12 +101,23 @@ public:
     int readLine(char *out, size_t maximumReadSize)
     {
         this->syncStringListener();
+        Serial.println("Exited syncStringListener()");
+        delay(1000);
         if (this->m_stringQueueIndex == 0) {
+            Serial.println("this->m_stringQueueIndex == 0");
+            delay(1000);
             return 0;
+        } else {
+            Serial.println("this->m_stringQueueIndex != 0");
+            delay(1000);
+            Serial.print("this->m_stringQueue[0] = ");
+            Serial.println(this->m_stringQueue[0]);
+            delay(1000);
+            strncpy(out, this->m_stringQueue[0], maximumReadSize);
+            memmove(this->m_stringQueue, this->m_stringQueue+1, (MAXIMUM_STRING_COUNT - 1)*sizeof(this->m_stringQueue[0]));
+            return strlen(out);
         }
-        strncpy(out, this->m_stringQueue[0], maximumReadSize);
-        memmove(this->m_stringQueue, this->m_stringQueue+1, (SERIAL_PORT_BUFFER_MAX - 1)*sizeof(this->m_stringQueue[0]));
-        return strlen(out);
+        return 0;
     }
 
     void setEnabled(bool enabled) 
@@ -236,15 +247,12 @@ private:
 
     void syncStringListener()
     {
-        Serial.println("Entering syncStringListener()");
-        delay(2000);
-
-        Serial.println("Entering syncStringListener()");
-        delay(2000);
         long long int startTime = millis();
         long long int endTime = millis();
         do {
             char byteRead{static_cast<char>(this->m_serialPort->read())};
+            Serial.print("SerialPort read byte ");
+            Serial.println(byteRead);
             if (FirmwareUtilities::isValidByte(byteRead)) {
                 addToStringBuilderQueue(byteRead);
                 startTime = millis();
@@ -253,23 +261,49 @@ private:
             }
             endTime = millis();
         } while ((endTime - startTime) <= this->m_timeout);
+        Serial.println("Exiting syncStringListener()");
+        delay(1000);
     }
 
     void addToStringBuilderQueue(char byte)
     {
+        using namespace FirmwareUtilities;
+        Serial.print("Entering addToStringBuilderQueue(");
+        Serial.print(byte);
+        Serial.println(")");
         if (strlen(this->m_stringBuilderQueue) >= SERIAL_PORT_BUFFER_MAX) {
-            (void)FirmwareUtilities::substring(this->m_stringBuilderQueue, 1, this->m_stringBuilderQueue, SERIAL_PORT_BUFFER_MAX);
+            (void)substring(this->m_stringBuilderQueue, 1, this->m_stringBuilderQueue, SERIAL_PORT_BUFFER_MAX);
         }
-        strcat(this->m_stringBuilderQueue, &byte); 
-        while (FirmwareUtilities::substringExists(this->m_stringBuilderQueue, this->m_lineEnding)) {
-            char stringToAdd[SMALL_BUFFER_SIZE];
-            (void)FirmwareUtilities::substring(this->m_stringBuilderQueue, 0, FirmwareUtilities::positionOfSubstring(this->m_stringBuilderQueue, this->m_lineEnding), this->m_stringBuilderQueue, SERIAL_PORT_BUFFER_MAX);
-            char newStringBuilderQueue[SERIAL_PORT_BUFFER_MAX];
-            (void)FirmwareUtilities::substring(this->m_stringBuilderQueue, FirmwareUtilities::positionOfSubstring(this->m_stringBuilderQueue, this->m_lineEnding) + 1, this->m_stringBuilderQueue, SERIAL_PORT_BUFFER_MAX);
-            
-            strcpy(this->m_stringQueue[this->m_stringQueueIndex++], stringToAdd);
-            strcpy(this->m_stringBuilderQueue, newStringBuilderQueue);
+        char temp[2];
+        temp[0] = byte;
+        temp[1] = '\0';
+        strcat(this->m_stringBuilderQueue, temp); 
+        while (substringExists(this->m_stringBuilderQueue, this->m_lineEnding)) {
+            Serial.println("Line ending found in this->m_stringBuilderQueue");
+            char tempString[SMALL_BUFFER_SIZE];
+            (void)substring(this->m_stringBuilderQueue,
+                            0, 
+                            positionOfSubstring(this->m_stringBuilderQueue, this->m_lineEnding), 
+                            tempString,
+                            SMALL_BUFFER_SIZE);
+/*
+            (void)substring(this->m_stringBuilderQueue,
+                            0, 
+                            positionOfSubstring(this->m_stringBuilderQueue, this->m_lineEnding), 
+                            this->m_stringQueue[this->m_stringQueueIndex++],
+                            SMALL_BUFFER_SIZE);
+*/
+            strncpy(this->m_stringQueue[0], tempString, SMALL_BUFFER_SIZE);
+            this->m_stringQueueIndex++;
+            Serial.print("tempString = ");
+            Serial.println(tempString);
+            delay(1000);
+            (void)substring(this->m_stringBuilderQueue,
+                            positionOfSubstring(this->m_stringBuilderQueue, this->m_lineEnding) + 1,
+                            this->m_stringBuilderQueue,
+                            strlen(this->m_stringBuilderQueue) + 1);
         }
+        Serial.println("Exiting addToStringBuilderQueue()");
     }  
 };
 
@@ -291,7 +325,7 @@ public:
         m_stringQueueIndex{0}
     {
         this->m_lineEnding = new char[MAXIMUM_LINE_ENDING_STRING];
-        strcpy(this->m_lineEnding, lineEnding);
+        strncpy(this->m_lineEnding, lineEnding, MAXIMUM_LINE_ENDING_STRING);
         this->m_stringBuilderQueue = new char[MAXIMUM_STRING_COUNT];
     }
 
