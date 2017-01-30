@@ -12,7 +12,6 @@
 namespace FirmwareUtilities
 {
     const int constexpr ASCII_WHITESPACE_MAXIMUM_VALUE{32};
-    
     bool isEvenlyDivisibleBy(int numberToCheck, int divisor);
     bool isEven(int numberToCheck);
     bool isOdd(int numberToCheck);
@@ -108,6 +107,10 @@ namespace FirmwareUtilities
     {
         return "\"" + toString(convert) + "\"";
     }
+    char *strcpy(char *first, char second);
+    char *strncpy(char *first, char second, size_t maximumSize);
+    char *strcat(char *first, char second);
+    char *strncat(char *first, char second, size_t maximumSize);
     */
 
 }

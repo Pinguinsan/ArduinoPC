@@ -7,6 +7,10 @@
 #include "firmwareutilities.h"
 #include "Arduino.h"
 
+#ifndef ARRAY_SIZE
+    #define ARRAY_SIZE(x) (sizeof(x)/sizeof(x[0]))
+#endif
+
 #ifndef SMALL_BUFFER_SIZE
     #define SMALL_BUFFER_SIZE 255
 #endif
@@ -66,8 +70,11 @@ public:
         this->m_lineEnding = new char[MAXIMUM_LINE_ENDING_STRING];
         strncpy(this->m_lineEnding, lineEnding, MAXIMUM_LINE_ENDING_STRING);
         this->m_stringBuilderQueue = new char[SERIAL_PORT_BUFFER_MAX];
+        this->m_stringBuilderQueue[0] = '\0';
+        this->m_stringQueue = new char*[MAXIMUM_STRING_COUNT];
         for (int i = 0; i < MAXIMUM_STRING_COUNT - 1; i++) {
             this->m_stringQueue[i] = new char[SMALL_BUFFER_SIZE];
+            this->m_stringQueue[i][0] = '\0';
         }
     }
 
@@ -78,6 +85,7 @@ public:
         for (int i = 0; i < MAXIMUM_STRING_COUNT - 1; i++) {
             delete[] this->m_stringQueue[i];
         }
+        delete[] this->m_stringQueue;
     }
 
 
@@ -110,8 +118,13 @@ public:
         if (this->m_stringQueueIndex == 0) {
             return 0;
         } else {
-            strncpy(out, this->m_stringQueue[--this->m_stringQueueIndex], maximumReadSize);
-            memmove(this->m_stringQueue, this->m_stringQueue+1, (sizeof(this->m_stringQueue) - sizeof(this->m_stringQueue[0])));
+            this->m_stringQueueIndex--;
+            strncpy(out, this->m_stringQueue[0], maximumReadSize);
+            for (unsigned int i = 0; i < MAXIMUM_STRING_COUNT-1; i++){   
+                strcpy(this->m_stringQueue[i], this->m_stringQueue[i+1]);
+            }
+            this->m_stringQueue[MAXIMUM_STRING_COUNT - 1] = new char[SMALL_BUFFER_SIZE];
+            this->m_stringQueue[MAXIMUM_STRING_COUNT - 1][0] = '\0';
             return strlen(out);
         }
         return 0;
@@ -239,7 +252,7 @@ private:
     size_t m_stringQueueIndex;
     char *m_lineEnding;
     char *m_stringBuilderQueue;
-    char *m_stringQueue[MAXIMUM_STRING_COUNT];
+    char **m_stringQueue;
 
 
     void syncStringListener()
@@ -264,8 +277,9 @@ private:
         if (strlen(this->m_stringBuilderQueue) >= SERIAL_PORT_BUFFER_MAX) {
             (void)substring(this->m_stringBuilderQueue, 1, this->m_stringBuilderQueue, SERIAL_PORT_BUFFER_MAX);
         }
-        char temp[2] = {byte, '\0'};
-        strncat(this->m_stringBuilderQueue, temp, SERIAL_PORT_BUFFER_MAX);             
+        size_t stringLength{strlen(this->m_stringBuilderQueue)};
+        this->m_stringBuilderQueue[stringLength] = byte;
+        this->m_stringBuilderQueue[stringLength+1] = '\0'; 
         while (substringExists(this->m_stringBuilderQueue, this->m_lineEnding)) {
             (void)substring(this->m_stringBuilderQueue,
                             0, 
@@ -300,8 +314,10 @@ public:
         this->m_lineEnding = new char[MAXIMUM_LINE_ENDING_STRING];
         strncpy(this->m_lineEnding, lineEnding, MAXIMUM_LINE_ENDING_STRING);
         this->m_stringBuilderQueue = new char[SERIAL_PORT_BUFFER_MAX];
+        this->m_stringQueue = new char*[MAXIMUM_STRING_COUNT];
         for (int i = 0; i < MAXIMUM_STRING_COUNT - 1; i++) {
             this->m_stringQueue[i] = new char[SMALL_BUFFER_SIZE];
+            this->m_stringQueue[i][0] = '\0';
         }
     }
 
@@ -312,6 +328,7 @@ public:
         for (int i = 0; i < MAXIMUM_STRING_COUNT - 1; i++) {
             delete[] this->m_stringQueue[i];
         }
+        delete[] this->m_stringQueue;
     }
 
 
@@ -344,8 +361,13 @@ public:
         if (this->m_stringQueueIndex == 0) {
             return 0;
         } else {
-            strncpy(out, this->m_stringQueue[--this->m_stringQueueIndex], maximumReadSize);
-            memmove(this->m_stringQueue, this->m_stringQueue+1, (sizeof(this->m_stringQueue) - sizeof(this->m_stringQueue[0])));
+            this->m_stringQueueIndex--;
+            strncpy(out, this->m_stringQueue[0], maximumReadSize);
+            for (unsigned int i = 0; i < MAXIMUM_STRING_COUNT-1; i++){   
+                strcpy(this->m_stringQueue[i], this->m_stringQueue[i+1]);
+            }
+            this->m_stringQueue[MAXIMUM_STRING_COUNT - 1] = new char[SMALL_BUFFER_SIZE];
+            this->m_stringQueue[MAXIMUM_STRING_COUNT - 1][0] = '\0';
             return strlen(out);
         }
         return 0;
@@ -473,7 +495,7 @@ private:
     size_t m_stringQueueIndex;
     char *m_lineEnding;
     char *m_stringBuilderQueue;
-    char *m_stringQueue[MAXIMUM_STRING_COUNT];
+    char **m_stringQueue;
 
 
     void syncStringListener()
@@ -498,8 +520,9 @@ private:
         if (strlen(this->m_stringBuilderQueue) >= SERIAL_PORT_BUFFER_MAX) {
             (void)substring(this->m_stringBuilderQueue, 1, this->m_stringBuilderQueue, SERIAL_PORT_BUFFER_MAX);
         }
-        char temp[2] = {byte, '\0'};
-        strncat(this->m_stringBuilderQueue, temp, SERIAL_PORT_BUFFER_MAX);             
+        size_t stringLength{strlen(this->m_stringBuilderQueue)};
+        this->m_stringBuilderQueue[stringLength] = byte;
+        this->m_stringBuilderQueue[stringLength + 1] = '\0';
         while (substringExists(this->m_stringBuilderQueue, this->m_lineEnding)) {
             (void)substring(this->m_stringBuilderQueue,
                             0, 

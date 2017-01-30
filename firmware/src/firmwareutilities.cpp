@@ -2,6 +2,7 @@
 
 namespace FirmwareUtilities
 {
+
     bool isEvenlyDivisibleBy(int numberToCheck, int divisor)
     {
         if ((numberToCheck == 0) || (divisor == 0)) {
@@ -22,12 +23,29 @@ namespace FirmwareUtilities
 
     bool startsWith(const char *str, const char *compare)
     {
+        Serial.print("str = ");
+        Serial.print(str);
+        Serial.print(", compare = ");
+        Serial.println(compare);
+        delay(1000);
+        return true;
         return (strncmp(str, compare, strlen(compare)) == 0);
     }
 
     bool startsWith(const char *str, char compare)
     {
-        return (FirmwareUtilities::startsWith(str, &compare));
+        Serial.print("str = ");
+        Serial.print(str);
+        Serial.print(", compare = ");
+        Serial.println(compare);
+        delay(1000);
+        return true;
+        if (strlen(str) == 0) {
+            return false;
+        } else {
+            return (str[0] == compare);
+        }
+        return false;
     }
 
 
@@ -185,9 +203,7 @@ namespace FirmwareUtilities
 
     bool substringExists(const char *first, char second)
     {
-        char temp[2];
-        temp[0] = second;
-        temp[1] = '\0';
+        char temp[2]{second, '\0'};
         return (substringExists(first, temp));
     }
 
@@ -205,9 +221,7 @@ namespace FirmwareUtilities
 
     int positionOfSubstring(const char *first, char second)
     {
-        char temp[2];
-        temp[0] = second;
-        temp[1] = '\0';
+        char temp[2]{second, '\0'};
         return positionOfSubstring(first, temp);
     }
 
@@ -246,12 +260,43 @@ namespace FirmwareUtilities
     {
         return (isPrintable(byteToCheck) || (byteToCheck == '\r') || (byteToCheck == '\n'));
     }
-/*
+    /*
     char subbuff[5];
     memcpy( subbuff, &buff[10], 4 );
     subbuff[4] = '\0';
-*/
-    /*
+    
+    char *strcpy(char *first, char second)
+    {
+        char *temp[2];
+        temp[0] = second;
+        temp[1] = '\0';
+        return strcpy(first, temp);
+    }
+
+    char *strncpy(char *first, char second, size_t maximumSize)
+    {
+        char temp[2];
+        temp[0] = second;
+        temp[1] = '\0';
+        return strncpy(first, temp, maximumSize);
+    }
+
+    char *strcat(char *first, char second)
+    {
+        char temp[2];
+        temp[0] = second;
+        temp[1] = '\0';
+        return strcat(first, temp);
+    }
+
+    char *strncat(char *first, char second, size_t maximumSize)
+    {
+        char temp[2];
+        temp[0] = second;
+        temp[1] = '\0';
+        return strncat(first, temp, maximumSize);
+    }
+    
     std::string stripFromString(const std::string &stringToStrip, const std::string &whatToStrip)
     {
         std::string returnString{stringToStrip};

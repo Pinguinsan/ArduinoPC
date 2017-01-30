@@ -23,38 +23,6 @@ static Debug debug{__DEBUG__};
 using namespace ArduinoPCStrings;
 using namespace FirmwareUtilities;
 
-char *strcpy(char *first, char second)
-{
-    char temp[2];
-    temp[0] = second;
-    temp[1] = '\0';
-    return strcpy(first, temp);
-}
-
-char *strncpy(char *first, char second, size_t maximumSize)
-{
-    char temp[2];
-    temp[0] = second;
-    temp[1] = '\0';
-    return strncpy(first, temp, maximumSize);
-}
-
-char *strcat(char *first, char second)
-{
-    char temp[2];
-    temp[0] = second;
-    temp[1] = '\0';
-    return strcat(first, temp);
-}
-
-char *strncat(char *first, char second, size_t maximumSize)
-{
-    char temp[2];
-    temp[0] = second;
-    temp[1] = '\0';
-    return strncat(first, temp, maximumSize);
-}
-
 #define ID_WIDTH 3
 #define MESSAGE_WIDTH 2
 #define MAXIMUM_SERIAL_READ_SIZE 175
@@ -317,6 +285,16 @@ int main()
     initializeSerialPorts();
     announceStartup();
     populateGpioMap();
+
+    bool ledState{true};
+    pinMode(13, OUTPUT);
+    digitalWrite(13, ledState);
+    long long blinkStartTime{millis()};
+    long long blinkEndTime{millis()};
+    long long blinkElapsedTime{blinkEndTime - blinkStartTime};
+    int blinkCountThreshold{4};
+    int blinkCounter{0};
+    int blinkTimeout{500};
     while (true) {
         for (unsigned int i = 0; i < ARRAY_SIZE(hardwareSerialPorts); i++) {
             SerialPortBase *it{nullptr};
@@ -328,27 +306,21 @@ int main()
             if (!it) {
                 continue;
             }
-            if (it->isEnabled()) {
-                if (it->available() != 0) {
+            if ((it->isEnabled()) && (it->available() != 0)) {
+                char buffer[MAXIMUM_SERIAL_READ_SIZE];
+                int serialRead{it->readLine(buffer, MAXIMUM_SERIAL_READ_SIZE)};
+                if (serialRead > 0) {
                     debug.print("hardware serial port at i = ");
                     debug.print(i);
-                    debug.println(" is enabled and available ");
-                    char buffer[MAXIMUM_SERIAL_READ_SIZE];
-                    int serialRead{it->readLine(buffer, MAXIMUM_SERIAL_READ_SIZE)};
-                    if (serialRead > 0) {
-                        debug.print("hardware serial port at i = ");
-                        debug.print(i);
-                        debug.print(" read ");
-                        debug.print(serialRead);
-                        debug.println(" bytes");
-                        currentSerialStream = it;
-                        handleSerialString(buffer);
-                    }
+                    debug.print(" read ");
+                    debug.print(serialRead);
+                    debug.print(" bytes (read '");
+                    debug.print(buffer);
+                    debug.println("')");
+                    //currentSerialStream = it;
+                    handleSerialString(buffer);
                 }
             }
-            debug.print("hardware serial port at i = ");
-            debug.print(i);
-            debug.println(" has no data available");
         }
         for (unsigned int i = 0; i < ARRAY_SIZE(softwareSerialPorts); i++) {
             SerialPortBase *it{nullptr};
@@ -360,27 +332,21 @@ int main()
             if (!it) {
                 continue;
             }
-            if (it->isEnabled()) {
-                if (it->available() != 0) {
-                    debug.print("software serial port at i = ");
+            if ((it->isEnabled()) && (it->available() != 0)) {
+                char buffer[MAXIMUM_SERIAL_READ_SIZE];
+                int serialRead{it->readLine(buffer, MAXIMUM_SERIAL_READ_SIZE)};
+                if (serialRead > 0) {
+                    debug.print("hardware serial port at i = ");
                     debug.print(i);
-                    debug.println(" is enabled and available ");
-                    char buffer[MAXIMUM_SERIAL_READ_SIZE];
-                    int serialRead{it->readLine(buffer, MAXIMUM_SERIAL_READ_SIZE)};
-                    if (serialRead > 0) {
-                        debug.print("software serial port at i = ");
-                        debug.print(i);
-                        debug.print(" read ");
-                        debug.print(serialRead);
-                        debug.println(" bytes");
-                        currentSerialStream = it;
-                        handleSerialString(buffer);
-                    }
+                    debug.print(" read ");
+                    debug.print(serialRead);
+                    debug.print(" bytes (read '");
+                    debug.print(buffer);
+                    debug.println("')");
+                    currentSerialStream = it;
+                    //handleSerialString(buffer);
                 }
             }
-            debug.print("software serial port at i = ");
-            debug.print(i);
-            debug.println(" has no data available");
         }
         #if defined(__HAVE_CAN_BUS__)
             if (canLiveUpdate) {
@@ -405,6 +371,19 @@ int main()
                 }
             }
         #endif
+
+        blinkEndTime = millis();
+        blinkElapsedTime = (blinkEndTime - blinkStartTime);
+        if (blinkElapsedTime >= blinkTimeout) {
+            blinkCounter++;
+            blinkElapsedTime = 0;
+            blinkStartTime = millis();
+            if (blinkCounter >= blinkCountThreshold) {
+                ledState = !ledState;
+                digitalWrite(13, ledState);
+            }
+        }
+
         if (serialEventRun) serialEventRun();
     }
     for (unsigned int i = 0; i < ARRAY_SIZE(gpioPins); i++) {
@@ -436,17 +415,24 @@ int main()
 
 void handleSerialString(const char *str)
 {
-    Serial.print("str = ");
-    Serial.println(str);
+    debug.print("str = ");
+    debug.println(str);
+    return;
+    /*
     if (!str) {
         return;
     } else if (strlen(str) == 0) {
         return;
     }
+    */
     char requestString[SMALL_BUFFER_SIZE];
     int substringResult{0};
     (void)substringResult;
     if (startsWith(str, ANALOG_READ_HEADER)) {
+        debug.print("Serial string starts with '");
+        debug.print(ANALOG_READ_HEADER);
+        debug.println("'");
+        delay(1000);
         if (checkValidRequestString(ANALOG_READ_HEADER, str)) {
             substringResult = FirmwareUtilities::substring(str, strlen(ANALOG_READ_HEADER)+1, requestString, SMALL_BUFFER_SIZE); 
             analogReadRequest(requestString);
@@ -454,6 +440,10 @@ void handleSerialString(const char *str)
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
     } else if (startsWith(str, ANALOG_WRITE_HEADER)) {
+        debug.print("Serial string starts with '");
+        debug.print(ANALOG_WRITE_HEADER);
+        debug.println("'");
+        delay(1000);
         if (checkValidRequestString(ANALOG_WRITE_HEADER, str)) {
             substringResult = FirmwareUtilities::substring(str, strlen(ANALOG_WRITE_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
             analogWriteRequest(requestString);
@@ -461,6 +451,10 @@ void handleSerialString(const char *str)
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
     } else if (startsWith(str, CHANGE_A_TO_D_THRESHOLD_HEADER)) {
+        debug.print("Serial string starts with '");
+        debug.print(CHANGE_A_TO_D_THRESHOLD_HEADER);
+        debug.println("'");
+        delay(1000);
         if (checkValidRequestString(CHANGE_A_TO_D_THRESHOLD_HEADER, str)) {
             substringResult = FirmwareUtilities::substring(str, strlen(CHANGE_A_TO_D_THRESHOLD_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
             changeAToDThresholdRequest(requestString);
@@ -468,6 +462,10 @@ void handleSerialString(const char *str)
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
     } else if (startsWith(str, ADD_SOFTWARE_SERIAL_HEADER)) {
+        debug.print("Serial string starts with '");
+        debug.print(ADD_SOFTWARE_SERIAL_HEADER);
+        debug.println("'");
+        delay(1000);
         if (checkValidRequestString(ADD_SOFTWARE_SERIAL_HEADER, str)) {
             substringResult = FirmwareUtilities::substring(str, strlen(ADD_SOFTWARE_SERIAL_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
             addSoftwareSerialRequest(requestString);
@@ -475,6 +473,10 @@ void handleSerialString(const char *str)
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
     } else if (startsWith(str, ADD_HARDWARE_SERIAL_HEADER)) {
+        debug.print("Serial string starts with '");
+        debug.print(ADD_HARDWARE_SERIAL_HEADER);
+        debug.println("'");
+        delay(1000);
         if (checkValidRequestString(ADD_HARDWARE_SERIAL_HEADER, str)) {
             substringResult = FirmwareUtilities::substring(str, strlen(ADD_HARDWARE_SERIAL_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
             addHardwareSerialRequest(requestString);
@@ -482,6 +484,10 @@ void handleSerialString(const char *str)
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }  
     } else if (startsWith(str, DIGITAL_READ_HEADER)) {
+        debug.print("Serial string starts with '");
+        debug.print(DIGITAL_READ_HEADER);
+        debug.println("'");
+        delay(1000);
         if (checkValidRequestString(DIGITAL_READ_HEADER, str)) {
             substringResult = FirmwareUtilities::substring(str, strlen(DIGITAL_READ_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
             digitalReadRequest(requestString, false);
@@ -489,6 +495,10 @@ void handleSerialString(const char *str)
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
     } else if (startsWith(str, DIGITAL_WRITE_ALL_HEADER)) {
+        debug.print("Serial string starts with '");
+        debug.print(DIGITAL_WRITE_ALL_HEADER);
+        debug.println("'");
+        delay(1000);
         if (checkValidRequestString(DIGITAL_WRITE_ALL_HEADER, str)) {
             substringResult = FirmwareUtilities::substring(str, strlen(DIGITAL_WRITE_ALL_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
             digitalWriteAllRequest(requestString);
@@ -496,6 +506,10 @@ void handleSerialString(const char *str)
             printTypeResult(DIGITAL_WRITE_ALL_HEADER, str, OPERATION_FAILURE);
         }
     } else if (startsWith(str, DIGITAL_WRITE_HEADER)) {
+        debug.print("Serial string starts with '");
+        debug.print(DIGITAL_WRITE_HEADER);
+        debug.println("'");
+        delay(1000);
         if (checkValidRequestString(DIGITAL_WRITE_HEADER, str)) {
             substringResult = FirmwareUtilities::substring(str, strlen(DIGITAL_WRITE_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
             digitalWriteRequest(requestString);
@@ -503,6 +517,10 @@ void handleSerialString(const char *str)
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
     } else if (startsWith(str, PIN_TYPE_HEADER)) {
+        debug.print("Serial string starts with '");
+        debug.print(PIN_TYPE_HEADER);
+        debug.println("'");
+        delay(1000);
         if (checkValidRequestString(PIN_TYPE_HEADER, str)) {
             substringResult = FirmwareUtilities::substring(str, strlen(PIN_TYPE_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
             pinTypeRequest(requestString);
@@ -510,6 +528,10 @@ void handleSerialString(const char *str)
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
     } else if (startsWith(str, PIN_TYPE_CHANGE_HEADER)) {
+        debug.print("Serial string starts with '");
+        debug.print(PIN_TYPE_CHANGE_HEADER);
+        debug.println("'");
+        delay(1000);
         if (checkValidRequestString(PIN_TYPE_CHANGE_HEADER, str)) {
             substringResult = FirmwareUtilities::substring(str, strlen(PIN_TYPE_CHANGE_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
             pinTypeChangeRequest(requestString);
@@ -517,6 +539,10 @@ void handleSerialString(const char *str)
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
     } else if (startsWith(str, REMOVE_SOFTWARE_SERIAL_HEADER)) {
+        debug.print("Serial string starts with '");
+        debug.print(REMOVE_SOFTWARE_SERIAL_HEADER);
+        debug.println("'");
+        delay(1000);
         if (checkValidRequestString(REMOVE_SOFTWARE_SERIAL_HEADER, str)) {
             substringResult = FirmwareUtilities::substring(str, strlen(REMOVE_SOFTWARE_SERIAL_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
             removeSoftwareSerialRequest(requestString);
@@ -524,6 +550,10 @@ void handleSerialString(const char *str)
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
     } else if (startsWith(str, REMOVE_HARDWARE_SERIAL_HEADER)) {
+        debug.print("Serial string starts with '");
+        debug.print(REMOVE_HARDWARE_SERIAL_HEADER);
+        debug.println("'");
+        delay(1000);
         if (checkValidRequestString(REMOVE_HARDWARE_SERIAL_HEADER, str)) {
             substringResult = FirmwareUtilities::substring(str, strlen(REMOVE_HARDWARE_SERIAL_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
             removeHardwareSerialRequest(requestString);
@@ -531,6 +561,10 @@ void handleSerialString(const char *str)
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }   
     } else if (startsWith(str, SOFT_DIGITAL_READ_HEADER)) {
+        debug.print("Serial string starts with '");
+        debug.print(SOFT_DIGITAL_READ_HEADER);
+        debug.println("'");
+        delay(1000);
         if (checkValidRequestString(SOFT_DIGITAL_READ_HEADER, str)) {
             substringResult = FirmwareUtilities::substring(str, strlen(SOFT_DIGITAL_READ_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
             digitalReadRequest(requestString, true);
@@ -538,6 +572,10 @@ void handleSerialString(const char *str)
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
     } else if (startsWith(str, SOFT_ANALOG_READ_HEADER)) {
+        debug.print("Serial string starts with '");
+        debug.print(SOFT_ANALOG_READ_HEADER);
+        debug.println("'");
+        delay(1000);
         if (checkValidRequestString(SOFT_ANALOG_READ_HEADER, str)) {
             substringResult = FirmwareUtilities::substring(str, strlen(SOFT_ANALOG_READ_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
             softAnalogReadRequest(requestString);
@@ -545,14 +583,34 @@ void handleSerialString(const char *str)
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
     } else if (startsWith(str, FIRMWARE_VERSION_HEADER)) {
+        debug.print("Serial string starts with '");
+        debug.print(FIRMWARE_VERSION_HEADER);
+        debug.println("'");
+        delay(1000);
         firmwareVersionRequest();
     } else if (startsWith(str, IO_REPORT_HEADER)) {
+        debug.print("Serial string starts with '");
+        debug.print(IO_REPORT_HEADER);
+        debug.println("'");
+        delay(1000);
         ioReportRequest();
     } else if (startsWith(str, CURRENT_A_TO_D_THRESHOLD_HEADER)) {
+        debug.print("Serial string starts with '");
+        debug.print(CURRENT_A_TO_D_THRESHOLD_HEADER);
+        debug.println("'");
+        delay(1000);
         currentAToDThresholdRequest();
     } else if (startsWith(str, ARDUINO_TYPE_HEADER)) {
+        debug.print("Serial string starts with '");
+        debug.print(ARDUINO_TYPE_HEADER);
+        debug.println("'");
+        delay(1000);
         arduinoTypeRequest();
     } else if (startsWith(str, CAN_BUS_ENABLED_HEADER)) {
+        debug.print("Serial string starts with '");
+        debug.print(CAN_BUS_ENABLED_HEADER);
+        debug.println("'");
+        delay(1000);
         canBusEnabledRequest();
 #if defined(__HAVE_CAN_BUS__)
     } else if (startsWith(str, CAN_INIT_HEADER)) {
@@ -638,6 +696,8 @@ void handleSerialString(const char *str)
         clearAllCanMasksRequest();
 #endif
     } else {
+        debug.println("Serial string is invalid");
+        delay(1000);
         printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
     }
 }
@@ -1131,8 +1191,13 @@ void heartbeatRequest()
 {
     char stringToPrint[SMALL_BUFFER_SIZE];
     strcpy(stringToPrint, HEARTBEAT_HEADER);
-    strcat(stringToPrint, CLOSING_CHARACTER);
+
+    size_t stringLength{strlen(stringToPrint)};
+    stringToPrint[stringLength] = CLOSING_CHARACTER;
+    stringToPrint[stringLength + 1] = '\0';
+
     printString(stringToPrint);
+    
 }
 
 void arduinoTypeRequest()
@@ -1495,13 +1560,28 @@ void announceStartup()
 {
     char str[SMALL_BUFFER_SIZE];
     strcpy (str, INITIALIZATION_HEADER);
-    strcat (str, ITEM_SEPARATOR);
+
+    size_t stringLength{strlen(str)};
+    str[stringLength] = ITEM_SEPARATOR;
+    str[stringLength + 1] = '\0';
+
     strcat (str, ARDUINO_TYPE);
-    strcat (str, ITEM_SEPARATOR);
+
+    stringLength = strlen(str);
+    str[stringLength] = ITEM_SEPARATOR;
+    str[stringLength + 1] = '\0';
+
     strcat (str, FIRMWARE_VERSION);
-    strcat (str, CLOSING_CHARACTER);
+
+    stringLength = strlen(str);
+    str[stringLength] = CLOSING_CHARACTER;
+    str[stringLength + 1] = '\0';
+
+    strcat (str, LINE_ENDING);
+
     broadcastString(str);
 }
+
 
 GPIO *gpioPinByPinNumber(int pinNumber)
 {
@@ -1565,7 +1645,10 @@ int analogPinFromNumber(int pinNumber, char *out, size_t maximumSize)
             if (!FirmwareUtilities::toDecString(i-1, tempNumber, maximumSize)) {
                 return 0;
             }
-            strncpy(out, ANALOG_IDENTIFIER_CHAR, maximumSize);
+            char temp[SMALL_BUFFER_SIZE];
+            temp[0] = ANALOG_IDENTIFIER_CHAR;
+            temp[1] = '\0';
+            strncpy(out, temp, maximumSize);
             strcat(out, tempNumber);
             return strlen(out);
         }
