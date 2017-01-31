@@ -1,5 +1,4 @@
 #include "include/debug.h"
-#include "include/arduinoinit.h"
 #include "include/gpio.h"
 #include "include/serialportbase.h"
 #include "include/firmwareutilities.h"
