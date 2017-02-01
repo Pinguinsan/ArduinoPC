@@ -1,7 +1,19 @@
 #include "bytestream.h"
     
-ByteStream::ByteStream(long long timeout, const char *lineEnding) :
-    m_timeout{timeout}
+ByteStream::ByteStream(Stream *stream,
+                       uint8_t rxPin,
+                       uint8_t txPin,
+                       long long baudRate,
+                       long long timeout,
+                       bool enabled,
+                       const char *lineEnding) :
+    m_serialPort{stream},
+    m_rxPin{rxPin},
+    m_txPin{txPin},
+    m_baudRate{baudRate},
+    m_timeout{timeout},
+    m_isEnabled{enabled},
+    m_stringQueueIndex{0}
 {
     this->m_lineEnding = new char[MAXIMUM_LINE_ENDING_STRING];
     strncpy(this->m_lineEnding, lineEnding, MAXIMUM_LINE_ENDING_STRING);
@@ -40,11 +52,12 @@ int ByteStream::readUntil(const char *readUntilString, char *out, size_t maximum
     if (!readUntilString) {
         return 0;
     }
-    char *tempLineEnding[SMALL_BUFFER_SIZE];
+    char *tempLineEnding = new char[SMALL_BUFFER_SIZE];
     strncpy(tempLineEnding, this->m_lineEnding, SMALL_BUFFER_SIZE); 
     strncpy(this->m_lineEnding, readUntilString, SMALL_BUFFER_SIZE);
     int readStuff{this->readLine(out, maximumReadSize)};
     strncpy(this->m_lineEnding, tempLineEnding, SMALL_BUFFER_SIZE);
+    delete tempLineEnding;
     return readStuff;
 }
 
@@ -71,12 +84,12 @@ void ByteStream::setEnabled(bool enabled)
     this->m_isEnabled = enabled; 
 }
 
-int ByteStream::rxPin() const 
+uint8_t ByteStream::rxPin() const 
 { 
     return this->m_rxPin; 
 }
 
-int ByteStream::txPin() const 
+uint8_t ByteStream::txPin() const 
 { 
     return this->m_txPin; 
 }
@@ -99,17 +112,6 @@ bool ByteStream::serialPortIsNull() const
 bool ByteStream::isEnabled() const 
 { 
     return this->m_isEnabled; 
-}
-
-bool ByteStream::initialize()
-{
-    if (this->m_serialPort) {
-        this->m_serialPort->begin(this->m_baudRate);
-        return true;
-    } else {
-        return false;
-    }
-    return false;
 }
 
 const char *ByteStream::lineEnding() const
@@ -137,9 +139,39 @@ void ByteStream::print(short shortToPrint)
     this->m_serialPort->print(shortToPrint);
 }
 
+void ByteStream::print(unsigned short ushortToPrint)
+{
+    this->m_serialPort->print(ushortToPrint);
+}
+
 void ByteStream::print(int intToPrint)
 {
     this->m_serialPort->print(intToPrint);
+}
+
+void ByteStream::print(unsigned int uintToPrint)
+{
+    this->m_serialPort->print(uintToPrint);
+}
+
+void ByteStream::print(long longToPrint)
+{
+    this->m_serialPort->print(longToPrint);
+}
+
+void ByteStream::print(unsigned long ulongToPrint)
+{
+    this->m_serialPort->print(ulongToPrint);
+}
+
+void ByteStream::print(long long longLongToPrint)
+{
+    this->m_serialPort->print((long)longLongToPrint);
+}
+
+void ByteStream::print(unsigned long long ulongLongToPrint)
+{
+    this->m_serialPort->print((unsigned long)ulongLongToPrint);
 }
 
 void ByteStream::print(bool boolToPrint)
@@ -150,88 +182,183 @@ void ByteStream::print(bool boolToPrint)
 void ByteStream::println(const char *stringToPrint)
 {
     char *temp = new char[SERIAL_PORT_BUFFER_MAX];
-    strncpy(temp, stringToPrint);
-    strncpy(temp, this->m_lineEnding);
-    this->m_serialPort->print(temp);
+    strncpy(temp, stringToPrint, SERIAL_PORT_BUFFER_MAX);
+    strncpy(temp, this->m_lineEnding, SERIAL_PORT_BUFFER_MAX);
+    this->print(temp);
     delete temp;
 }
 
 void ByteStream::println(char *stringToPrint)
 {
     char *temp = new char[SERIAL_PORT_BUFFER_MAX];
-    strncpy(temp, stringToPrint);
-    strncpy(temp, this->m_lineEnding);
-    this->m_serialPort->print(temp);
+    strncpy(temp, stringToPrint, SERIAL_PORT_BUFFER_MAX);
+    strncpy(temp, this->m_lineEnding, SERIAL_PORT_BUFFER_MAX);
+    this->print(temp);
     delete temp;
 }
 
 void ByteStream::println(char charToPrint)
 {
-    char *temp = new char[SERIAL_PORT_BUFFER_MAX];
+    char *temp = new char[2];
     temp[0] = charToPrint;
     temp[1] = '\0';
-    strncpy(temp, this->m_lineEnding);
-    this->m_serialPort->print(temp);
+    strncpy(temp, this->m_lineEnding, SERIAL_PORT_BUFFER_MAX);
+    this->print(temp);
     delete temp;
 }
+
+void ByteStream::println(unsigned short ushortToPrint)
+{
+    char *temp = new char[SERIAL_PORT_BUFFER_MAX];
+    snprintf(temp, SERIAL_PORT_BUFFER_MAX, "%i%s", (int)ushortToPrint, this->m_lineEnding);
+    this->print(temp);
+    delete temp;
+}
+
 
 void ByteStream::println(short shortToPrint)
 {
     char *temp = new char[SERIAL_PORT_BUFFER_MAX];
-    snprintf("%i%s", (int)shortToPrint, this->m_lineEnding);
-    this->m_serialPort->print(temp);
+    snprintf(temp, SERIAL_PORT_BUFFER_MAX, "%i%s", (int)shortToPrint, this->m_lineEnding);
+    this->print(temp);
     delete temp;
 }
 
 void ByteStream::println(int intToPrint)
 {
     char *temp = new char[SERIAL_PORT_BUFFER_MAX];
-    snprintf("%i%s", intToPrint, this->m_lineEnding);
-    this->m_serialPort->print(temp);
+    snprintf(temp, SERIAL_PORT_BUFFER_MAX, "%i%s", intToPrint, this->m_lineEnding);
+    this->print(temp);
+    delete temp;
+}
+
+void ByteStream::println(unsigned int uintToPrint)
+{
+    char *temp = new char[SERIAL_PORT_BUFFER_MAX];
+    snprintf(temp, SERIAL_PORT_BUFFER_MAX, "%i%s", uintToPrint, this->m_lineEnding);
+    this->print(temp);
+    delete temp;
+}
+
+void ByteStream::println(long longToPrint)
+{
+    char *temp = new char[SERIAL_PORT_BUFFER_MAX];
+    snprintf(temp, SERIAL_PORT_BUFFER_MAX, "%li%s", longToPrint, this->m_lineEnding);
+    this->print(temp);
+    delete temp;
+}
+
+void ByteStream::println(long long longLongToPrint)
+{
+    char *temp = new char[SERIAL_PORT_BUFFER_MAX];
+    snprintf(temp, SERIAL_PORT_BUFFER_MAX, "%lli%s", longLongToPrint, this->m_lineEnding);
+    this->print(temp);
+    delete temp;
+}
+
+void ByteStream::println(unsigned long ulongToPrint)
+{
+    char *temp = new char[SERIAL_PORT_BUFFER_MAX];
+    snprintf(temp, SERIAL_PORT_BUFFER_MAX, "%li%s", ulongToPrint, this->m_lineEnding);
+    this->print(temp);
+    delete temp;
+}
+
+void ByteStream::println(unsigned long long ulongLongToPrint)
+{
+    char *temp = new char[SERIAL_PORT_BUFFER_MAX];
+    snprintf(temp, SERIAL_PORT_BUFFER_MAX, "%lli%s", ulongLongToPrint, this->m_lineEnding);
+    this->print(temp);
     delete temp;
 }
 
 void ByteStream::println(bool boolToPrint)
 {
     char *temp = new char[SERIAL_PORT_BUFFER_MAX];
-    snprintf("%i%s", (int)boolToPrint, this->m_lineEnding);
-    this->m_serialPort->print(temp);
+    char *boolConvert = new char[6];
+    strcpy(boolConvert, (boolToPrint ? "true" : "false"));
+    snprintf(temp, SERIAL_PORT_BUFFER_MAX, "%s%s", boolConvert, this->m_lineEnding);
+    this->print(temp);
     delete temp;
+    delete boolConvert;
 }
 
 ByteStream &ByteStream::operator<<(const char *rhs)
 {
-    this->m_serialPort->print(rhs);
+    this->print(rhs);
+    return *this;
+}
+
+ByteStream &ByteStream::operator<<(unsigned char *rhs)
+{
+    this->print(rhs);
+    return *this;
+}
+
+ByteStream &ByteStream::operator<<(unsigned char rhs)
+{
+    this->print(rhs);
     return *this;
 }
 
 ByteStream &ByteStream::operator<<(char *rhs)
 {
-    this->m_serialPort->print(rhs);
+    this->print(rhs);
     return *this;
 }
 
 ByteStream &ByteStream::operator<<(char rhs)
 {
-    this->m_serialPort->print(rhs);
+    this->print(rhs);
     return *this;
 }
 
+ByteStream &ByteStream::operator<<(unsigned short rhs)
+{
+    this->print(rhs);
+    return *this;
+}
+
+
 ByteStream &ByteStream::operator<<(short rhs)
 {
-    this->m_serialPort->print(rhs);
+    this->print(rhs);
     return *this;
 }
 
 ByteStream &ByteStream::operator<<(int rhs)
 {
-    this->m_serialPort->print(rhs);
+    this->print(rhs);
+    return *this;
+}
+
+ByteStream &ByteStream::operator<<(unsigned int rhs)
+{
+    this->print(rhs);
+    return *this;
+}
+
+ByteStream &ByteStream::operator<<(long rhs)
+{
+    this->print(rhs);
     return *this;
 }
 
 ByteStream &ByteStream::operator<<(unsigned long rhs)
 {
-    this->m_serialPort->print(rhs);
+    this->print(rhs);
+    return *this;
+}
+
+ByteStream &ByteStream::operator<<(long long rhs)
+{
+    this->print(rhs);
+    return *this;
+}
+
+ByteStream &ByteStream::operator<<(unsigned long long rhs)
+{
+    this->print(rhs);
     return *this;
 }
 
@@ -243,11 +370,12 @@ ByteStream &ByteStream::operator<<(bool rhs)
 
 void ByteStream::syncStringListener()
 {
+    using namespace Utilities;
     long long int startTime = millis();
     long long int endTime = millis();
     do {
         char byteRead{static_cast<char>(this->m_serialPort->read())};
-        if (FirmwareUtilities::isValidByte(byteRead)) {
+        if (isValidByte(byteRead)) {
             addToStringBuilderQueue(byteRead);
             startTime = millis();
         } else {
@@ -259,14 +387,20 @@ void ByteStream::syncStringListener()
 
 void ByteStream::addToStringBuilderQueue(char byte)
 {
-    using namespace FirmwareUtilities;
+    using namespace Utilities;
     if (strlen(this->m_stringBuilderQueue) >= SERIAL_PORT_BUFFER_MAX) {
         (void)substring(this->m_stringBuilderQueue, 1, this->m_stringBuilderQueue, SERIAL_PORT_BUFFER_MAX);
     }
+    Serial.print("Adding byte '");
+    Serial.print(byte);
+    Serial.print("' (");
+    Serial.print((int)byte);
+    Serial.println(") to this->m_stringBuilderQueue");
     size_t stringLength{strlen(this->m_stringBuilderQueue)};
     this->m_stringBuilderQueue[stringLength] = byte;
-    this->m_stringBuilderQueue[stringLength+1] = '\0'; 
+    this->m_stringBuilderQueue[stringLength+1] = '\0';
     while (substringExists(this->m_stringBuilderQueue, this->m_lineEnding)) {
+        Serial.println("this->m_lineEnding found in this->m_stringBuilderQueue");
         (void)substring(this->m_stringBuilderQueue,
                         0, 
                         positionOfSubstring(this->m_stringBuilderQueue, this->m_lineEnding), 

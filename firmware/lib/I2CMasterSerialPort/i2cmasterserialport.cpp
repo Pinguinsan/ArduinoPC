@@ -1,25 +1,15 @@
 #include "i2cmasterserialport.h"
 
-I2CMasterSerialPort::DEFAULT_TARGET_SLAVE{1};
+uint8_t I2CMasterSerialPort::DEFAULT_TARGET_SLAVE{1};
 
-I2CMasterSerialPort::I2CMasterSerialPort(uint16_t targetSlave, long long timeout, bool enabled, const char *lineEnding) :
-    m_serialPort{&Wire}
-    m_timeout{timeout},
-    m_isEnabled{enabled},
-    m_stringQueueIndex{0},
-    m_targetSlave{DEFAULT_TARGET_SLAVE}
+I2CMasterSerialPort::I2CMasterSerialPort(uint8_t targetSlave, long long timeout, bool enabled, const char *lineEnding) :
+    ByteStream(&Wire, 0, 0, 0, timeout, enabled, lineEnding),
+    m_i2cStream{&Wire},
+    m_targetSlave{targetSlave}
 {
-    /*
-    this->m_lineEnding = new char[MAXIMUM_LINE_ENDING_STRING];
-    strncpy(this->m_lineEnding, lineEnding, MAXIMUM_LINE_ENDING_STRING);
-    this->m_stringBuilderQueue = new char[SERIAL_PORT_BUFFER_MAX];
-    this->m_stringBuilderQueue[0] = '\0';
-    this->m_stringQueue = new char*[MAXIMUM_STRING_COUNT];
-    for (int i = 0; i < MAXIMUM_STRING_COUNT - 1; i++) {
-        this->m_stringQueue[i] = new char[SMALL_BUFFER_SIZE];
-        this->m_stringQueue[i][0] = '\0';
+    if (this->m_isEnabled) {
+        this->initialize();
     }
-    */
 }
 
 I2CMasterSerialPort::I2CMasterSerialPort(long long timeout, bool enabled, const char *lineEnding) :
@@ -38,74 +28,101 @@ I2CMasterSerialPort::~I2CMasterSerialPort()
     delete[] this->m_stringQueue;
 }
 
-void I2CMasterSerialPort::setSlave(uint16_t targetSlave)
+void I2CMasterSerialPort::setSlave(uint8_t targetSlave)
 {
     this->m_targetSlave = targetSlave;
 }
 
-uint16_t I2CMasterSerialPort::targetSlave() const
+uint8_t I2CMasterSerialPort::targetSlave() const
 {
     return this->m_targetSlave;
 }
 
 void I2CMasterSerialPort::requestFromSlave(uint8_t howManyBytes)
 {
-    this->m_serialPort->requestFrom(this->m_targetSlave, howManyBytes);
-}
-
-int I2CMasterSerialPort::rxPin() const 
-{ 
-    return 0; 
-}
-
-int I2CMasterSerialPort::txPin() const 
-{ 
-    return 0;
-}
-
-long long I2CMasterSerialPort::baudRate() const
-{
-    return 0;
+    this->m_i2cStream->requestFrom(this->m_targetSlave, howManyBytes);
 }
 
 void I2CMasterSerialPort::print(const char *stringToPrint)
 {
-    this->m_serialPort->beginTransmission(this->m_lineEnding);
-    this->m_serialPort->print(stringToPrint);
-    this->m_serialPort->endTransmission();
+    this->m_i2cStream->beginTransmission(this->m_targetSlave);
+    this->m_i2cStream->print(stringToPrint);
+    this->m_i2cStream->endTransmission();
 }
 
 void I2CMasterSerialPort::print(char *stringToPrint)
 {
-    this->m_serialPort->beginTransmission(this->m_lineEnding);
-    this->m_serialPort->print(stringToPrint);
-    this->m_serialPort->endTransmission();
+    this->m_i2cStream->beginTransmission(this->m_targetSlave);
+    this->m_i2cStream->print(stringToPrint);
+    this->m_i2cStream->endTransmission();
 }
 
 void I2CMasterSerialPort::print(char charToPrint)
 {
-    this->m_serialPort->beginTransmission(this->m_lineEnding);
-    this->m_serialPort->print(charToPrint);
-    this->m_serialPort->endTransmission();
+    this->m_i2cStream->beginTransmission(this->m_targetSlave);
+    this->m_i2cStream->print(charToPrint);
+    this->m_i2cStream->endTransmission();
 }
 
 void I2CMasterSerialPort::print(short shortToPrint)
 {
-    this->m_serialPort->beginTransmission(this->m_lineEnding);
-    this->m_serialPort->print(shortToPrint);
-    this->m_serialPort->endTransmission();    
+    this->m_i2cStream->beginTransmission(this->m_targetSlave);
+    this->m_i2cStream->print(shortToPrint);
+    this->m_i2cStream->endTransmission();    
+}
+
+void I2CMasterSerialPort::print(unsigned short ushortToPrint)
+{
+    this->m_i2cStream->beginTransmission(this->m_targetSlave);
+    this->m_i2cStream->print(ushortToPrint);
+    this->m_i2cStream->endTransmission();    
 }
 
 void I2CMasterSerialPort::print(int intToPrint)
 {
-    this->m_serialPort->beginTransmission(this->m_lineEnding);
-    this->m_serialPort->print(intToPrint);
-    this->m_serialPort->endTransmission();
+    this->m_i2cStream->beginTransmission(this->m_targetSlave);
+    this->m_i2cStream->print(intToPrint);
+    this->m_i2cStream->endTransmission();
+}
+
+void I2CMasterSerialPort::print(unsigned int uintToPrint)
+{
+    this->m_i2cStream->beginTransmission(this->m_targetSlave);
+    this->m_i2cStream->print(uintToPrint);
+    this->m_i2cStream->endTransmission();
+}
+
+void I2CMasterSerialPort::print(long longToPrint)
+{
+    this->m_i2cStream->beginTransmission(this->m_targetSlave);
+    this->m_i2cStream->print(longToPrint);
+    this->m_i2cStream->endTransmission();
+}
+
+void I2CMasterSerialPort::print(unsigned long ulongToPrint)
+{
+    this->m_i2cStream->beginTransmission(this->m_targetSlave);
+    this->m_i2cStream->print(ulongToPrint);
+    this->m_i2cStream->endTransmission();
+}
+
+void I2CMasterSerialPort::print(long long longLongToPrint)
+{
+    this->m_i2cStream->beginTransmission(this->m_targetSlave);
+    this->m_i2cStream->print((long)longLongToPrint);
+    this->m_i2cStream->endTransmission();
+}
+
+void I2CMasterSerialPort::print(unsigned long long ulongLongToPrint)
+{
+    this->m_i2cStream->beginTransmission(this->m_targetSlave);
+    this->m_i2cStream->print((unsigned long)ulongLongToPrint);
+    this->m_i2cStream->endTransmission();
 }
 
 void I2CMasterSerialPort::print(bool boolToPrint)
 {
-    this->m_serialPort->beginTransmission(this->m_lineEnding);
-    this->m_serialPort->print(boolToPrint);
-    this->m_serialPort->endTransmission();    
+    this->m_i2cStream->beginTransmission(this->m_targetSlave);
+    this->m_i2cStream->print(boolToPrint);
+    this->m_i2cStream->endTransmission();    
 }  

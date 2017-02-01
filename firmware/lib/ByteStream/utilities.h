@@ -9,6 +9,11 @@
 #include <avr/interrupt.h>
 #include <Arduino.h>
 
+#define MAXIMUM_STRING_COUNT 3
+#define SERIAL_PORT_BUFFER_MAX 1024
+#define SMALL_BUFFER_SIZE 255
+#define ARRAY_SIZE(x) (sizeof(x)/sizeof(x[0]))
+
 namespace Utilities
 {
     const int constexpr ASCII_WHITESPACE_MAXIMUM_VALUE{32};

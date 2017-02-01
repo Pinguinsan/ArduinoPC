@@ -4,49 +4,76 @@
 #include <Arduino.h>
 #include "utilities.h"
 
+#define MAXIMUM_LINE_ENDING_STRING 10
+
 class ByteStream
 {
 public:
-    ByteStream(long long timeout, const char *lineEnding);
+    ByteStream(Stream *stream,
+               uint8_t rxPin,
+               uint8_t txPin,
+               long long baudRate,
+               long long timeout,
+               bool enabled,
+               const char *lineEnding);
     virtual ~ByteStream();
 
-    int available();
-    int readUntil(char readUntilByte, char *out, size_t maximumReadSize);
-    int readUntil(const char *readUntilString, char *out, size_t maximumReadSize);
-    int readLine(char *out, size_t maximumReadSize);
-    void setEnabled(bool enabled);
-    int rxPin() const;
-    int txPin() const;
-    long long baudRate() const;
-    long long timeout() const;
-    bool serialPortIsNull() const;
-    bool isEnabled() const;
-    bool initialize();
-    const char *lineEnding() const;
-    void print(const char *stringToPrint);
-    void print(char *stringToPrint);
-    void print(char charToPrint);
-    void print(short shortToPrint);
-    void print(int intToPrint);
-    void print(bool boolToPrint);
-    void println(const char *stringToPrint);
-    void println(char *stringToPrint);
-    void println(char charToPrint);
-    void println(short shortToPrint);
-    void println(int intToPrint);
-    void println(bool boolToPrint);
-    ByteStream &operator<<(const char *rhs);
-    ByteStream &operator<<(char *rhs);
-    ByteStream &operator<<(char rhs);
-    ByteStream &operator<<(short rhs);
-    ByteStream &operator<<(int rhs);
-    ByteStream &operator<<(unsigned long rhs);
-    ByteStream &operator<<(bool rhs);
+    virtual int available();
+    virtual int readUntil(char readUntilByte, char *out, size_t maximumReadSize);
+    virtual int readUntil(const char *readUntilString, char *out, size_t maximumReadSize);
+    virtual int readLine(char *out, size_t maximumReadSize);
+    virtual void setEnabled(bool enabled);
+    virtual uint8_t rxPin() const;
+    virtual uint8_t txPin() const;
+    virtual long long baudRate() const;
+    virtual long long timeout() const;
+    virtual bool serialPortIsNull() const;
+    virtual bool isEnabled() const;
+    virtual const char *lineEnding() const;
+    virtual bool initialize() = 0;
+    virtual void print(const char *stringToPrint);
+    virtual void print(char *stringToPrint);
+    virtual void print(char charToPrint);
+    virtual void print(short shortToPrint);
+    virtual void print(unsigned short ushortToPrint);
+    virtual void print(int intToPrint);
+    virtual void print(unsigned int uintToPrint);
+    virtual void print(long longToPrint);
+    virtual void print(unsigned long ulongToPrint);
+    virtual void print(long long longLongToPrint);
+    virtual void print(unsigned long long ulongLongToPrint);
+    virtual void print(bool boolToPrint);
+    virtual void println(const char *stringToPrint);
+    virtual void println(char *stringToPrint);
+    virtual void println(char charToPrint);
+    virtual void println(unsigned short ushortToPrint);
+    virtual void println(short shortToPrint);
+    virtual void println(int intToPrint);
+    virtual void println(unsigned int uintToPrint);
+    virtual void println(long longToPrint);
+    virtual void println(unsigned long ulongToPrint); 
+    virtual void println(long long longLongToPrint);
+    virtual void println(unsigned long long ulongLongToPrint);     
+    virtual void println(bool boolToPrint);
+    virtual ByteStream &operator<<(const char *rhs);
+    virtual ByteStream &operator<<(char *rhs);
+    virtual ByteStream &operator<<(char rhs);
+    virtual ByteStream &operator<<(unsigned char *rhs);
+    virtual ByteStream &operator<<(unsigned char rhs);
+    virtual ByteStream &operator<<(unsigned short rhs);
+    virtual ByteStream &operator<<(short rhs);
+    virtual ByteStream &operator<<(int rhs);
+    virtual ByteStream &operator<<(unsigned int rhs);
+    virtual ByteStream &operator<<(long rhs);
+    virtual ByteStream &operator<<(unsigned long rhs);
+    virtual ByteStream &operator<<(long long rhs);
+    virtual ByteStream &operator<<(unsigned long long rhs);
+    virtual ByteStream &operator<<(bool rhs);
 
 protected:
     Stream *m_serialPort;
-    int m_rxPin;
-    int m_txPin;
+    uint8_t m_rxPin;
+    uint8_t m_txPin;
     long long m_baudRate;
     long long m_timeout;
     bool m_isEnabled;
@@ -55,8 +82,8 @@ protected:
     char *m_stringBuilderQueue;
     char **m_stringQueue;
 
-    void syncStringListener();
-    void addToStringBuilderQueue(char byte);
+    virtual void syncStringListener();
+    virtual void addToStringBuilderQueue(char byte);
 };
 
 #endif //ARDUINOPC_BYTESTREAM_H

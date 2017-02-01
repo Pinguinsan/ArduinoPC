@@ -9,14 +9,16 @@ class HardwareSerialPort : public ByteStream
 {
 public:
      HardwareSerialPort(HardwareSerial *serialPort, 
-                        int rxPin, 
-                        int txPin, 
+                        uint8_t rxPin, 
+                        uint8_t txPin, 
                         long long baudRate, 
                         long long timeout,
                         bool enabled,
                         const char *lineEnding);
 
     ~HardwareSerialPort();
+
+    virtual bool initialize() override;
 };
 
 #endif //ARDUINOPC_HARDWARESERIALPORT_H
