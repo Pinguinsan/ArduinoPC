@@ -18,7 +18,11 @@ public:
 
     ~HardwareSerialPort();
 
+protected:
     virtual bool initialize() override;
+
+private:
+    HardwareSerial *m_hardwareSerialStream;
 };
 
 #endif //ARDUINOPC_HARDWARESERIALPORT_H

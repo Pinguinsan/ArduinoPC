@@ -8,8 +8,8 @@
 class I2CMasterSerialPort : public ByteStream
 {
 public:
-     I2CMasterSerialPort(uint8_t targetSlave, long long timeout, bool enabled, const char *lineEnding);
-     I2CMasterSerialPort(long long timeout, bool enabled, const char *lineEnding);
+     I2CMasterSerialPort(TwoWire *i2cStream, uint8_t targetSlave, long long timeout, bool enabled, const char *lineEnding);
+     I2CMasterSerialPort(TwoWire *i2cStream, long long timeout, bool enabled, const char *lineEnding);
 
     ~I2CMasterSerialPort();
     void setSlave(uint8_t targetSlave);
@@ -27,6 +27,10 @@ public:
     void print(long long longLongToPrint) override;
     void print(unsigned long long ulongLongToPrint) override;
     void print(bool boolToPrint) override;
+    
+protected:    
+    bool initialize() override;
+
 private:
     TwoWire *m_i2cStream;
     uint8_t m_targetSlave;

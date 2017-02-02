@@ -15,25 +15,23 @@ ByteStream::ByteStream(Stream *stream,
     m_isEnabled{enabled},
     m_stringQueueIndex{0}
 {
-    this->m_lineEnding = new char[MAXIMUM_LINE_ENDING_STRING];
+    this->m_lineEnding = (char *)calloc(MAXIMUM_LINE_ENDING_STRING, sizeof(char));
     strncpy(this->m_lineEnding, lineEnding, MAXIMUM_LINE_ENDING_STRING);
-    this->m_stringBuilderQueue = new char[SERIAL_PORT_BUFFER_MAX];
-    this->m_stringBuilderQueue[0] = '\0';
-    this->m_stringQueue = new char*[MAXIMUM_STRING_COUNT];
+    this->m_stringBuilderQueue = (char *)calloc(MAXIMUM_LINE_ENDING_STRING, sizeof(char));
+    this->m_stringQueue = (char **)calloc(MAXIMUM_STRING_COUNT, sizeof(char *) * MAXIMUM_STRING_COUNT);
     for (int i = 0; i < MAXIMUM_STRING_COUNT - 1; i++) {
-        this->m_stringQueue[i] = new char[SMALL_BUFFER_SIZE];
-        this->m_stringQueue[i][0] = '\0';
+        this->m_stringQueue[i] = (char *)calloc(SMALL_BUFFER_SIZE, sizeof(char));
     }
 }
 
 ByteStream::~ByteStream()
 {
-    delete this->m_lineEnding;
-    delete this->m_stringBuilderQueue;
+    free(this->m_lineEnding);
+    free(this->m_stringBuilderQueue);
     for (int i = 0; i < MAXIMUM_STRING_COUNT - 1; i++) {
-        delete[] this->m_stringQueue[i];
+        free(this->m_stringQueue[i]);
     }
-    delete[] this->m_stringQueue;
+    free(this->m_stringQueue);
 }
 
 
@@ -391,16 +389,10 @@ void ByteStream::addToStringBuilderQueue(char byte)
     if (strlen(this->m_stringBuilderQueue) >= SERIAL_PORT_BUFFER_MAX) {
         (void)substring(this->m_stringBuilderQueue, 1, this->m_stringBuilderQueue, SERIAL_PORT_BUFFER_MAX);
     }
-    Serial.print("Adding byte '");
-    Serial.print(byte);
-    Serial.print("' (");
-    Serial.print((int)byte);
-    Serial.println(") to this->m_stringBuilderQueue");
     size_t stringLength{strlen(this->m_stringBuilderQueue)};
     this->m_stringBuilderQueue[stringLength] = byte;
     this->m_stringBuilderQueue[stringLength+1] = '\0';
     while (substringExists(this->m_stringBuilderQueue, this->m_lineEnding)) {
-        Serial.println("this->m_lineEnding found in this->m_stringBuilderQueue");
         (void)substring(this->m_stringBuilderQueue,
                         0, 
                         positionOfSubstring(this->m_stringBuilderQueue, this->m_lineEnding), 

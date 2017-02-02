@@ -20,14 +20,14 @@ int main()
 {
     arduinoInit();
     serialPort = new HardwareSerialPort{&Serial, 0, 1, SERIAL_BAUD_RATE, SERIAL_TIMEOUT, true, LINE_ENDING};
-    i2cSerialPort = new I2CMasterSerialPort{SLAVE_NUMBER, I2C_TIMEOUT, true, LINE_ENDING};
+    i2cSerialPort = new I2CMasterSerialPort{&Wire, SLAVE_NUMBER, I2C_TIMEOUT, true, LINE_ENDING};
     while (true) {
         if (serialPort->available()) {
             char serialRead[SERIAL_READ_MAX];
             int amountRead{serialPort->readLine(serialRead, SERIAL_READ_MAX)};
             if (amountRead > 0) {
                 *serialPort << "Sending string '" << serialRead << "' over i2c" << LINE_ENDING;
-                i2cSerialPort->println(serialRead);
+                //i2cSerialPort->println(serialRead);
             }
         }
         if (i2cSerialPort->available()) {

@@ -30,7 +30,6 @@ public:
     virtual bool serialPortIsNull() const;
     virtual bool isEnabled() const;
     virtual const char *lineEnding() const;
-    virtual bool initialize() = 0;
     virtual void print(const char *stringToPrint);
     virtual void print(char *stringToPrint);
     virtual void print(char charToPrint);
@@ -82,6 +81,7 @@ protected:
     char *m_stringBuilderQueue;
     char **m_stringQueue;
 
+    virtual bool initialize() = 0;
     virtual void syncStringListener();
     virtual void addToStringBuilderQueue(char byte);
 };
