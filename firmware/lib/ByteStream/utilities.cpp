@@ -261,6 +261,30 @@ namespace Utilities
         return numberToCopy;
     }
 
+    int split(const char *str, char **out, const char *delimiter, size_t maximumElements, size_t maximumLength)
+{
+    char *copyString = (char *)calloc(strlen(str) + 1, sizeof(char));
+    strncpy(copyString, str, strlen(str) + 1);
+    int outLength = 0;
+    while (substringExists (copyString, delimiter)) {
+        if ((unsigned)outLength >= maximumElements) {
+            break;
+        }
+        if (positionOfSubstring(copyString, delimiter) == 0) {
+           substring(copyString, strlen(delimiter), copyString, maximumLength);
+        } else {
+            substring(copyString, 0, positionOfSubstring(copyString, delimiter), out[outLength++], maximumLength);
+            substring(copyString, positionOfSubstring(copyString, delimiter) + strlen(delimiter), copyString, maximumLength);
+        }
+    }
+    if ((strlen(copyString) > 0) && ((unsigned)outLength < maximumLength)) {
+        strncpy(out[outLength++], copyString, maximumLength);
+    }
+    free(copyString);
+    return outLength;
+}
+
+
     bool isValidByte(char byteToCheck)
     {
         return (isPrintable(byteToCheck) || (byteToCheck == '\r') || (byteToCheck == '\n'));
