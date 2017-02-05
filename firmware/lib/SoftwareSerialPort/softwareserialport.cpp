@@ -1,13 +1,13 @@
 #include "softwareserialport.h"
 
-SoftwareSerialPort::SoftwareSerialPort(SoftwareSerial *serialPort
+SoftwareSerialPort::SoftwareSerialPort(SoftwareSerial *serialPort,
                                        uint8_t rxPin, 
                                        uint8_t txPin, 
                                        long long baudRate, 
                                        long long timeout,
                                        bool enabled,
                                        const char *lineEnding) :
-    ByteStream(serialPort}, rxPin, txPin, baudRate, timeout, enabled, lineEnding)
+    ByteStream(serialPort, rxPin, txPin, baudRate, timeout, enabled, lineEnding),
     m_softwareSerialStream{serialPort}
 {
     if (this->m_isEnabled) {
@@ -15,7 +15,7 @@ SoftwareSerialPort::SoftwareSerialPort(SoftwareSerial *serialPort
     }
 }
 
-bool SoftwareSerialPort::~initialize()
+bool SoftwareSerialPort::initialize()
 {
     if (this->m_softwareSerialStream) {
         this->m_softwareSerialStream->begin(this->m_baudRate);
@@ -33,5 +33,4 @@ SoftwareSerialPort::~SoftwareSerialPort()
         free(this->m_stringQueue[i]);
     }
     free(this->m_stringQueue);
-    delete this->m_softwareSerialStream;
 }

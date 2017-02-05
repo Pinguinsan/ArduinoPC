@@ -68,6 +68,7 @@ public:
     virtual ByteStream &operator<<(long long rhs);
     virtual ByteStream &operator<<(unsigned long long rhs);
     virtual ByteStream &operator<<(bool rhs);
+    virtual bool initialize() = 0;
 
 protected:
     Stream *m_serialPort;
@@ -81,7 +82,6 @@ protected:
     char *m_stringBuilderQueue;
     char **m_stringQueue;
 
-    virtual bool initialize() = 0;
     virtual void syncStringListener();
     virtual void addToStringBuilderQueue(char byte);
 };

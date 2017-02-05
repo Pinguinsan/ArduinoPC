@@ -23,13 +23,11 @@ namespace Utilities
 
     bool startsWith(const char *str, const char *compare)
     {
-        return true;
         return (strncmp(str, compare, strlen(compare)) == 0);
     }
 
     bool startsWith(const char *str, char compare)
     {
-        return true;
         if (strlen(str) == 0) {
             return false;
         } else {
@@ -37,7 +35,6 @@ namespace Utilities
         }
         return false;
     }
-
 
     bool endsWith(const char *str, const char *compare)
     {
@@ -51,20 +48,6 @@ namespace Utilities
         } else {
             return strncmp(str + stringLength - endingStringLength, compare, endingStringLength) == 0;
         }
-        /*
-        if ((!str) || (!compare)) {
-            return false;
-        }
-        size_t stringLength{strlen(str)};
-        size_t endingStringLength{strlen(compare)};
-        int index{0};
-        for (int i = stringLength - endingStringLength; i < stringLength; i++) {
-            if (str[i] != compare[index++]) {
-                return false;
-            }
-        }
-        return true;
-        */
     }
 
     bool endsWith(const char *str, char compare)
@@ -262,28 +245,33 @@ namespace Utilities
     }
 
     int split(const char *str, char **out, const char *delimiter, size_t maximumElements, size_t maximumLength)
-{
-    char *copyString = (char *)calloc(strlen(str) + 1, sizeof(char));
-    strncpy(copyString, str, strlen(str) + 1);
-    int outLength = 0;
-    while (substringExists (copyString, delimiter)) {
-        if ((unsigned)outLength >= maximumElements) {
-            break;
+    {
+        char *copyString = (char *)calloc(strlen(str) + 1, sizeof(char));
+        strncpy(copyString, str, strlen(str) + 1);
+        int outLength = 0;
+        while (substringExists (copyString, delimiter)) {
+            if ((unsigned)outLength >= maximumElements) {
+                break;
+            }
+            if (positionOfSubstring(copyString, delimiter) == 0) {
+            substring(copyString, strlen(delimiter), copyString, maximumLength);
+            } else {
+                substring(copyString, 0, positionOfSubstring(copyString, delimiter), out[outLength++], maximumLength);
+                substring(copyString, positionOfSubstring(copyString, delimiter) + strlen(delimiter), copyString, maximumLength);
+            }
         }
-        if (positionOfSubstring(copyString, delimiter) == 0) {
-           substring(copyString, strlen(delimiter), copyString, maximumLength);
-        } else {
-            substring(copyString, 0, positionOfSubstring(copyString, delimiter), out[outLength++], maximumLength);
-            substring(copyString, positionOfSubstring(copyString, delimiter) + strlen(delimiter), copyString, maximumLength);
+        if ((strlen(copyString) > 0) && ((unsigned)outLength < maximumLength)) {
+            strncpy(out[outLength++], copyString, maximumLength);
         }
+        free(copyString);
+        return outLength;
     }
-    if ((strlen(copyString) > 0) && ((unsigned)outLength < maximumLength)) {
-        strncpy(out[outLength++], copyString, maximumLength);
-    }
-    free(copyString);
-    return outLength;
-}
 
+    int split(const char *str, char **out, const char delimiter, size_t maximumElements, size_t maximumLength)
+    {
+        char temp[2]{delimiter, '\0'};
+        return split(str, out, temp, maximumElements, maximumLength);
+    }
 
     bool isValidByte(char byteToCheck)
     {

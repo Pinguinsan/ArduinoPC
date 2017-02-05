@@ -26,9 +26,7 @@ public:
     void print(unsigned long ulongToPrint) override;
     void print(long long longLongToPrint) override;
     void print(unsigned long long ulongLongToPrint) override;
-    void print(bool boolToPrint) override;
-    
-protected:    
+    void print(bool boolToPrint) override; 
     bool initialize() override;
 
 private:

@@ -19,8 +19,6 @@ public:
     void bindRequestCallback(void (*requestCallback)());
     void onDataReceive(int howMuch);
     void onDataRequest();
-    
-protected:    
     bool initialize() override;
 
 private:

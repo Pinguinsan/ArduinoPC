@@ -96,7 +96,7 @@ CanDataPacket CanMessage::dataPacket() const
 
 int CanMessage::toString(char *out, size_t maximumLength) const
 {
-    using namespace FirmwareUtilities;
+    using namespace Utilities;
     if ((this->m_id == 0) &&
         (this->m_frame == 0) &&
         (this->m_length == 0) &&
@@ -105,8 +105,8 @@ int CanMessage::toString(char *out, size_t maximumLength) const
     }
     char tempHexString[SMALL_BUFFER_SIZE];
     char tempFixedWidthString[SMALL_BUFFER_SIZE];
-    FirmwareUtilities::toHexString(this->m_id, tempHexString, SMALL_BUFFER_SIZE);
-    FirmwareUtilities::toFixedWidth(tempHexString, tempFixedWidthString, SMALL_BUFFER_SIZE); 
+    toHexString(this->m_id, tempHexString, SMALL_BUFFER_SIZE);
+    toFixedWidth(tempHexString, tempFixedWidthString, SMALL_BUFFER_SIZE); 
     strcpy(out, "0x");
     strcat(out, tempFixedWidthString);
     strcat(out, ":");
@@ -116,8 +116,8 @@ int CanMessage::toString(char *out, size_t maximumLength) const
     for (int i = 0; i < (NUMBER_OF_BYTES_IN_DATA_PACKET - 1); i++) {
         memset(tempHexString, 0, strlen(tempHexString) + 1);
         memset(tempFixedWidthString, 0, strlen(tempFixedWidthString) + 1);
-        FirmwareUtilities::toHexString(this->m_dataPacket.nthByte(i), tempHexString, SMALL_BUFFER_SIZE);
-        FirmwareUtilities::toFixedWidth(tempHexString, tempFixedWidthString, SMALL_BUFFER_SIZE);
+        toHexString(this->m_dataPacket.nthByte(i), tempHexString, SMALL_BUFFER_SIZE);
+        toFixedWidth(tempHexString, tempFixedWidthString, SMALL_BUFFER_SIZE);
 
         strcat(out, "0x");
         strcat(out, tempFixedWidthString);
@@ -135,10 +135,12 @@ int CanMessage::toString(char *out, size_t maximumLength) const
 
 uint32_t CanMessage::parseCanID(const char *str)
 {
-    return FirmwareUtilities::hexStringToUInt(str);
+    using namespace Utilities;
+    return hexStringToUInt(str);
 }
 
 uint8_t CanMessage::parseCanByte(const char *str)
 {
-    return FirmwareUtilities::hexStringToUChar(str);
+    using namespace Utilities;
+    return hexStringToUChar(str);
 }

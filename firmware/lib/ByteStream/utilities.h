@@ -10,8 +10,8 @@
 #include <Arduino.h>
 
 #define MAXIMUM_STRING_COUNT 3
-#define SERIAL_PORT_BUFFER_MAX 1024
-#define SMALL_BUFFER_SIZE 255
+#define SERIAL_PORT_BUFFER_MAX 50
+#define SMALL_BUFFER_SIZE 50
 #define ARRAY_SIZE(x) (sizeof(x)/sizeof(x[0]))
 
 namespace Utilities
@@ -46,8 +46,18 @@ namespace Utilities
     int substring(const char *str, size_t startPosition, char *out, size_t maximumLength);
     int substring(const char *str, size_t startPosition, size_t length, char *out, size_t maximumLength);
     bool isValidByte(char byteToCheck);
-   
+    int split(const char *str, char **out, const char *delimiter, size_t maximumElements, size_t maximumLength);
+    int split(const char *str, char **out, const char delimiter, size_t maximumElements, size_t maximumLength);
     unsigned long tMillis();
+
+    template <typename Ptr>
+    void free2D(Ptr **out, size_t elements)
+    {
+        for (size_t i = 0; i < elements; i++) {
+            free(out[i]);
+        }
+        free(out);
+    }
 
     template <typename T>
     int toDecString(T number, char *out, size_t maximumLength)

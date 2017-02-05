@@ -16,11 +16,8 @@ public:
                         bool enabled,
                         const char *lineEnding);
 
-    ~HardwareSerialPort();
-
-protected:
     virtual bool initialize() override;
-
+    ~HardwareSerialPort();
 private:
     HardwareSerial *m_hardwareSerialStream;
 };

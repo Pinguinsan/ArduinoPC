@@ -1,7 +1,6 @@
 #ifndef ARDUINOPC_GPIO_H
 #define ARDUINOPC_GPIO_H
 
-#include "firmwareutilities.h"
 #include <Arduino.h>
 
 #ifndef HIGH

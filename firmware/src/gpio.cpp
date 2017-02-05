@@ -21,7 +21,6 @@ GPIO::GPIO() :
 
 void GPIO::setAnalogToDigitalThreshold(int threshold)
 {
-    using namespace FirmwareUtilities;
     if (threshold < 0) {
         threshold = 0;
     }

@@ -1,8 +1,8 @@
 #ifndef ARDUINOPC_CANMESSAGE_H
 #define ARDUINOPC_CANMESSAGE_H
 
+#include <bytestream.h>
 #include "candatapacket.h"
-#include "firmwareutilities.h"
 
 #ifndef SMALL_BUFFER_SIZE
     #define SMALL_BUFFER_SIZE 255
