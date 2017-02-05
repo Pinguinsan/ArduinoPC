@@ -123,10 +123,10 @@ size_t pwmPinArraySize();
     #define NUMBER_OF_ANALOG_PINS 6
     #define ANALOG_PIN_OFFSET 13
     #if defined(__HAVE_CAN_BUS__)
-        #define NUMBER_OF_PINS 17
+        #define NUMBER_OF_PINS 20
         static const PROGMEM int AVAILABLE_PWM_PINS[]{3, 5, 6, 10, 11, -1};
     #else
-        #define NUMBER_OF_PINS 18
+        #define NUMBER_OF_PINS 21
         static const PROGMEM int AVAILABLE_PWM_PINS[]{3, 5, 6, 9, 10, 11, -1};
     #endif
 #elif defined(ARDUINO_AVR_NANO)
@@ -135,10 +135,10 @@ size_t pwmPinArraySize();
     #define NUMBER_OF_ANALOG_PINS 8
     #define ANALOG_PIN_OFFSET 13
     #if defined(__HAVE_CAN_BUS__)
-        #define NUMBER_OF_PINS 19
+        #define NUMBER_OF_PINS 22
         static const PROGMEM int AVAILABLE_PWM_PINS[]{3, 5, 6, 10, 11, -1};
     #else
-        #define NUMBER_OF_PINS 20
+        #define NUMBER_OF_PINS 23
         static const PROGMEM int AVAILABLE_PWM_PINS[]{3, 5, 6, 9, 10, 11, -1};
     #endif
 #elif defined(ARDUINO_AVR_MEGA1280) || defined(ARDUINO_AVR_MEGA2560)
@@ -152,10 +152,10 @@ size_t pwmPinArraySize();
     #define NUMBER_OF_ANALOG_PINS 16
     #define ANALOG_PIN_OFFSET 53
     #if defined(__HAVE_CAN_BUS__)
-        #define NUMBER_OF_PINS 67
+        #define NUMBER_OF_PINS 70
         static const PROGMEM int AVAILABLE_PWM_PINS[]{2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 44, 45, 46, -1};
     #else
-        #define NUMBER_OF_PINS 68
+        #define NUMBER_OF_PINS 71
         static const PROGMEM int AVAILABLE_PWM_PINS[]{2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 44, 45, 46, -1};
     #endif
 #endif
@@ -238,7 +238,7 @@ size_t pwmPinArraySize();
 
 #endif
 static int softwareSerialPortIndex{0};
-static GPIO *gpioPins[NUMBER_OF_PINS*2];
+static GPIO *gpioPins[NUMBER_OF_PINS];
 
 void initializeSerialPorts();
 void announceStartup();
@@ -290,9 +290,6 @@ int main()
                 char buffer[MAXIMUM_SERIAL_READ_SIZE];
                 int serialRead{it->readLine(buffer, MAXIMUM_SERIAL_READ_SIZE)};
                 if (serialRead > 0) {
-                    Serial.print("String read from serial port: '");
-                    Serial.print(buffer);
-                    Serial.println("'");
                     currentSerialStream = it;
                     handleSerialString(buffer);
                 }
@@ -395,10 +392,6 @@ void doImAliveBlink()
 
 void handleSerialString(const char *str)
 {
-    Serial.print("freeMemory() = ");
-    Serial.print(freeMemory());
-    Serial.print(", str = ");
-    Serial.println(str);
     if (!str) {
         return;
     } else if (strlen(str) == 0) {
@@ -861,7 +854,7 @@ void currentAToDThresholdRequest()
 void ioReportRequest()
 {
     *getCurrentValidOutputStream() << IO_REPORT_HEADER << CLOSING_CHARACTER;
-    for (int i = 0; i < (NUMBER_OF_PINS * 2); i++) {
+    for (int i = 0; i < NUMBER_OF_PINS; i++) {
         GPIO *gpioPin{gpioPinByPinNumber(i)};
         if (!gpioPin) {
             continue;
@@ -953,14 +946,9 @@ void digitalWriteAllRequest(const char *str)
 {
     *getCurrentValidOutputStream() << DIGITAL_WRITE_ALL_HEADER;
     
-    int foundPosition{positionOfSubstring(str, ITEM_SEPARATOR)};
-    char maybeState[SMALL_BUFFER_SIZE];
-    int result{substring(str, 0, foundPosition, maybeState, SMALL_BUFFER_SIZE)};
-    (void)result;
-
-    int state{parseToDigitalState(maybeState)};
+    int state{parseToDigitalState(str)};
     if (state == OPERATION_FAILURE) {
-        printTypeResult(DIGITAL_WRITE_ALL_HEADER, maybeState, OPERATION_FAILURE);
+        printTypeResult(DIGITAL_WRITE_ALL_HEADER, str, OPERATION_FAILURE);
         return;
     }
     for (int i = 0; i < NUMBER_OF_PINS; i++) {
@@ -1072,6 +1060,9 @@ void pinTypeChangeRequest(const char *str)
         free2D(splitString, PIN_TYPE_CHANGE_PARAMETER_COUNT);
         return;
     }
+    Serial.print("splitStringSize = ");
+    Serial.println(splitStringSize);
+    return;
     int pinNumber{parsePin(splitString[0])};
     if (pinNumber == INVALID_PIN) {
         printResult(PIN_TYPE_CHANGE_HEADER, splitString[0], STATE_FAILURE, OPERATION_FAILURE);
@@ -1163,6 +1154,9 @@ void canBusEnabledRequest()
 
 void populateGpioMap()
 {
+    for (size_t i = 0; i < NUMBER_OF_PINS; i++) {
+        gpioPins[i] = nullptr;
+    }
     int i{0};
     do {
         int pinNumber{pgm_read_word_near(AVAILABLE_PWM_PINS + i++)};
@@ -1500,9 +1494,6 @@ void announceStartup()
 
     strncat (str, LINE_ENDING, SMALL_BUFFER_SIZE);
     broadcastString(str);
-    char mem[SMALL_BUFFER_SIZE];
-    snprintf(mem, SMALL_BUFFER_SIZE, "%i", freeMemory()); 
-    broadcastString(mem);
     free(str);
 }
 
