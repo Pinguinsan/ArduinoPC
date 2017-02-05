@@ -1060,9 +1060,6 @@ void pinTypeChangeRequest(const char *str)
         free2D(splitString, PIN_TYPE_CHANGE_PARAMETER_COUNT);
         return;
     }
-    Serial.print("splitStringSize = ");
-    Serial.println(splitStringSize);
-    return;
     int pinNumber{parsePin(splitString[0])};
     if (pinNumber == INVALID_PIN) {
         printResult(PIN_TYPE_CHANGE_HEADER, splitString[0], STATE_FAILURE, OPERATION_FAILURE);

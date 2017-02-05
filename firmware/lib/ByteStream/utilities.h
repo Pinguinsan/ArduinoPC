@@ -9,8 +9,8 @@
 #include <avr/interrupt.h>
 #include <Arduino.h>
 
-#define SERIAL_PORT_BUFFER_MAX 56
-#define SMALL_BUFFER_SIZE 56
+#define SERIAL_PORT_BUFFER_MAX 50
+#define SMALL_BUFFER_SIZE 50
 #define ARRAY_SIZE(x) (sizeof(x)/sizeof(x[0]))
 
 namespace Utilities
