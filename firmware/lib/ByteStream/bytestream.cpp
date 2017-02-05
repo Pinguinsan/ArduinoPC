@@ -3,8 +3,8 @@
 ByteStream::ByteStream(Stream *stream,
                        uint8_t rxPin,
                        uint8_t txPin,
-                       long long baudRate,
-                       long long timeout,
+                       uint32_t baudRate,
+                       uint32_t timeout,
                        bool enabled,
                        const char *lineEnding) :
     m_serialPort{stream},
@@ -17,9 +17,9 @@ ByteStream::ByteStream(Stream *stream,
 {
     this->m_lineEnding = (char *)calloc(MAXIMUM_LINE_ENDING_STRING, sizeof(char));
     strncpy(this->m_lineEnding, lineEnding, MAXIMUM_LINE_ENDING_STRING);
-    this->m_stringBuilderQueue = (char *)calloc(MAXIMUM_LINE_ENDING_STRING, sizeof(char));
+    this->m_stringBuilderQueue = (char *)calloc(SMALL_BUFFER_SIZE, sizeof(char));
     this->m_stringQueue = (char **)calloc(MAXIMUM_STRING_COUNT, sizeof(char *) * MAXIMUM_STRING_COUNT);
-    for (int i = 0; i < MAXIMUM_STRING_COUNT - 1; i++) {
+    for (int i = 0; i < MAXIMUM_STRING_COUNT; i++) {
         this->m_stringQueue[i] = (char *)calloc(SMALL_BUFFER_SIZE, sizeof(char));
     }
 }
@@ -28,12 +28,52 @@ ByteStream::~ByteStream()
 {
     free(this->m_lineEnding);
     free(this->m_stringBuilderQueue);
-    for (int i = 0; i < MAXIMUM_STRING_COUNT - 1; i++) {
+    for (int i = 0; i < MAXIMUM_STRING_COUNT; i++) {
         free(this->m_stringQueue[i]);
     }
     free(this->m_stringQueue);
 }
 
+
+
+void ByteStream::syncStringListener()
+{
+    using namespace Utilities;
+    long long int startTime = millis();
+    long long int endTime = millis();
+    do {
+        char byteRead{static_cast<char>(this->m_serialPort->read())};
+        if (isValidByte(byteRead)) {
+            addToStringBuilderQueue(byteRead);
+            startTime = millis();
+        } else {
+            break;
+        }
+        endTime = millis();
+    } while ((endTime - startTime) <= this->m_timeout);
+}
+
+void ByteStream::addToStringBuilderQueue(char byte)
+{
+    using namespace Utilities;
+    if (strlen(this->m_stringBuilderQueue) >= SERIAL_PORT_BUFFER_MAX) {
+        (void)substring(this->m_stringBuilderQueue, 1, this->m_stringBuilderQueue, SERIAL_PORT_BUFFER_MAX);
+    }
+    size_t stringLength{strlen(this->m_stringBuilderQueue)};
+    this->m_stringBuilderQueue[stringLength] = byte;
+    this->m_stringBuilderQueue[stringLength+1] = '\0';
+    while (substringExists(this->m_stringBuilderQueue, this->m_lineEnding)) {
+        (void)substring(this->m_stringBuilderQueue,
+                        0, 
+                        positionOfSubstring(this->m_stringBuilderQueue, this->m_lineEnding), 
+                        this->m_stringQueue[this->m_stringQueueIndex++],
+                        SMALL_BUFFER_SIZE);
+        (void)substring(this->m_stringBuilderQueue,
+                        positionOfSubstring(this->m_stringBuilderQueue, this->m_lineEnding) + 1,
+                        this->m_stringBuilderQueue,
+                        strlen(this->m_stringBuilderQueue) + 1);
+    }
+}  
 
 int ByteStream::available()
 {
@@ -94,12 +134,12 @@ uint8_t ByteStream::txPin() const
     return this->m_txPin; 
 }
 
-long long ByteStream::baudRate() const
+uint32_t ByteStream::baudRate() const
 {
     return this->m_baudRate;
 }
 
-long long ByteStream::timeout() const
+uint32_t ByteStream::timeout() const
 {
     return this->m_timeout;
 }
@@ -367,42 +407,3 @@ ByteStream &ByteStream::operator<<(bool rhs)
     this->m_serialPort->print(rhs);
     return *this;
 }
-
-void ByteStream::syncStringListener()
-{
-    using namespace Utilities;
-    long long int startTime = millis();
-    long long int endTime = millis();
-    do {
-        char byteRead{static_cast<char>(this->m_serialPort->read())};
-        if (isValidByte(byteRead)) {
-            addToStringBuilderQueue(byteRead);
-            startTime = millis();
-        } else {
-            break;
-        }
-        endTime = millis();
-    } while ((endTime - startTime) <= this->m_timeout);
-}
-
-void ByteStream::addToStringBuilderQueue(char byte)
-{
-    using namespace Utilities;
-    if (strlen(this->m_stringBuilderQueue) >= SERIAL_PORT_BUFFER_MAX) {
-        (void)substring(this->m_stringBuilderQueue, 1, this->m_stringBuilderQueue, SERIAL_PORT_BUFFER_MAX);
-    }
-    size_t stringLength{strlen(this->m_stringBuilderQueue)};
-    this->m_stringBuilderQueue[stringLength] = byte;
-    this->m_stringBuilderQueue[stringLength+1] = '\0';
-    while (substringExists(this->m_stringBuilderQueue, this->m_lineEnding)) {
-        (void)substring(this->m_stringBuilderQueue,
-                        0, 
-                        positionOfSubstring(this->m_stringBuilderQueue, this->m_lineEnding), 
-                        this->m_stringQueue[this->m_stringQueueIndex++],
-                        SMALL_BUFFER_SIZE);
-        (void)substring(this->m_stringBuilderQueue,
-                        positionOfSubstring(this->m_stringBuilderQueue, this->m_lineEnding) + 1,
-                        this->m_stringBuilderQueue,
-                        strlen(this->m_stringBuilderQueue) + 1);
-    }
-}  

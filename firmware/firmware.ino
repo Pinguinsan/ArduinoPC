@@ -30,6 +30,7 @@ using namespace Utilities;
 #define ANALOG_WRITE_PARAMETER_COUNT 2
 #define DIGITAL_WRITE_PARAMETER_COUNT 2
 #define SET_IO_THRESHOLD_PARAMETER_COUNT 2
+#define PIN_TYPE_CHANGE_PARAMETER_COUNT 2
 
 #define OPERATION_FAILURE -1
 #define INVALID_PIN -1
@@ -289,6 +290,9 @@ int main()
                 char buffer[MAXIMUM_SERIAL_READ_SIZE];
                 int serialRead{it->readLine(buffer, MAXIMUM_SERIAL_READ_SIZE)};
                 if (serialRead > 0) {
+                    Serial.print("String read from serial port: '");
+                    Serial.print(buffer);
+                    Serial.println("'");
                     currentSerialStream = it;
                     handleSerialString(buffer);
                 }
@@ -410,53 +414,37 @@ void handleSerialString(const char *str)
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
-    } else if (startsWith(str, ANALOG_WRITE_HEADER)) {
-        if (checkValidRequestString(ANALOG_WRITE_HEADER, str)) {
-            substringResult = makeRequestString(str, ANALOG_WRITE_HEADER, requestString, SMALL_BUFFER_SIZE);
-            Serial.print("substringResult = ");
-            Serial.println(substringResult);
-            //analogWriteRequest(requestString);
-        } else {
-            printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
-        }
-    /*} else if (startsWith(str, CHANGE_A_TO_D_THRESHOLD_HEADER)) {
+    } else if (startsWith(str, CHANGE_A_TO_D_THRESHOLD_HEADER)) {
         if (checkValidRequestString(CHANGE_A_TO_D_THRESHOLD_HEADER, str)) {
-            substringResult = substring(str, strlen(CHANGE_A_TO_D_THRESHOLD_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            substringResult = makeRequestString(str, CHANGE_A_TO_D_THRESHOLD_HEADER, requestString, SMALL_BUFFER_SIZE);
             changeAToDThresholdRequest(requestString);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
-    } else if (startsWith(str, ADD_SOFTWARE_SERIAL_HEADER)) {
-        if (checkValidRequestString(ADD_SOFTWARE_SERIAL_HEADER, str)) {
-            substringResult = substring(str, strlen(ADD_SOFTWARE_SERIAL_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
-            addSoftwareSerialRequest(requestString);
+    } else if (startsWith(str, ANALOG_WRITE_HEADER)) {
+        if (checkValidRequestString(ANALOG_WRITE_HEADER, str)) {
+            substringResult = makeRequestString(str, ANALOG_WRITE_HEADER, requestString, SMALL_BUFFER_SIZE);
+            analogWriteRequest(requestString);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
-    } else if (startsWith(str, ADD_HARDWARE_SERIAL_HEADER)) {
-        if (checkValidRequestString(ADD_HARDWARE_SERIAL_HEADER, str)) {
-            substringResult = substring(str, strlen(ADD_HARDWARE_SERIAL_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
-            addHardwareSerialRequest(requestString);
-        } else {
-            printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
-        }  
     } else if (startsWith(str, DIGITAL_READ_HEADER)) {
         if (checkValidRequestString(DIGITAL_READ_HEADER, str)) {
-            substringResult = substring(str, strlen(DIGITAL_READ_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            substringResult = makeRequestString(str, DIGITAL_READ_HEADER, requestString, SMALL_BUFFER_SIZE);
             digitalReadRequest(requestString, false);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
     } else if (startsWith(str, DIGITAL_WRITE_ALL_HEADER)) {
         if (checkValidRequestString(DIGITAL_WRITE_ALL_HEADER, str)) {
-            substringResult = substring(str, strlen(DIGITAL_WRITE_ALL_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            substringResult = makeRequestString(str, DIGITAL_WRITE_ALL_HEADER, requestString, SMALL_BUFFER_SIZE);
             digitalWriteAllRequest(requestString);
         } else {
             printTypeResult(DIGITAL_WRITE_ALL_HEADER, str, OPERATION_FAILURE);
         }
     } else if (startsWith(str, DIGITAL_WRITE_HEADER)) {
         if (checkValidRequestString(DIGITAL_WRITE_HEADER, str)) {
-            substringResult = substring(str, strlen(DIGITAL_WRITE_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            substringResult = makeRequestString(str, DIGITAL_WRITE_HEADER, requestString, SMALL_BUFFER_SIZE);
             digitalWriteRequest(requestString);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
@@ -475,34 +463,22 @@ void handleSerialString(const char *str)
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
-    } else if (startsWith(str, REMOVE_SOFTWARE_SERIAL_HEADER)) {
-        if (checkValidRequestString(REMOVE_SOFTWARE_SERIAL_HEADER, str)) {
-            substringResult = substring(str, strlen(REMOVE_SOFTWARE_SERIAL_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
-            removeSoftwareSerialRequest(requestString);
-        } else {
-            printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
-        }
-    } else if (startsWith(str, REMOVE_HARDWARE_SERIAL_HEADER)) {
-        if (checkValidRequestString(REMOVE_HARDWARE_SERIAL_HEADER, str)) {
-            substringResult = substring(str, strlen(REMOVE_HARDWARE_SERIAL_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
-            removeHardwareSerialRequest(requestString);
-        } else {
-            printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
-        }   
     } else if (startsWith(str, SOFT_DIGITAL_READ_HEADER)) {
         if (checkValidRequestString(SOFT_DIGITAL_READ_HEADER, str)) {
-            substringResult = substring(str, strlen(SOFT_DIGITAL_READ_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            substringResult = makeRequestString(str, SOFT_DIGITAL_READ_HEADER, requestString, SMALL_BUFFER_SIZE);
             digitalReadRequest(requestString, true);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
     } else if (startsWith(str, SOFT_ANALOG_READ_HEADER)) {
         if (checkValidRequestString(SOFT_ANALOG_READ_HEADER, str)) {
-            substringResult = substring(str, strlen(SOFT_ANALOG_READ_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            substringResult = makeRequestString(str, SOFT_ANALOG_READ_HEADER, requestString, SMALL_BUFFER_SIZE);
             softAnalogReadRequest(requestString);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
+    } else if (startsWith(str, HEARTBEAT_HEADER)) {
+        heartbeatRequest();
     } else if (startsWith(str, FIRMWARE_VERSION_HEADER)) {
         firmwareVersionRequest();
     } else if (startsWith(str, IO_REPORT_HEADER)) {
@@ -511,7 +487,24 @@ void handleSerialString(const char *str)
         currentAToDThresholdRequest();
     } else if (startsWith(str, ARDUINO_TYPE_HEADER)) {
         arduinoTypeRequest();
+    } else if (startsWith(str, CAN_BUS_ENABLED_HEADER)) {
         canBusEnabledRequest();
+#if (defined(ARDUINO_AVR_MEGA2560) || defined(ARDUINO_AVR_MEGA1280))
+    } else if (startsWith(str, ADD_HARDWARE_SERIAL_HEADER)) {
+        if (checkValidRequestString(ADD_HARDWARE_SERIAL_HEADER, str)) {
+            substringResult = substring(str, strlen(ADD_HARDWARE_SERIAL_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            addHardwareSerialRequest(requestString);
+        } else {
+            printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
+        }  
+    } else if (startsWith(str, REMOVE_HARDWARE_SERIAL_HEADER)) {
+        if (checkValidRequestString(REMOVE_HARDWARE_SERIAL_HEADER, str)) {
+            substringResult = substring(str, strlen(REMOVE_HARDWARE_SERIAL_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            removeHardwareSerialRequest(requestString);
+        } else {
+            printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
+        }   
+#endif
 #if defined(__HAVE_CAN_BUS__)
     } else if (startsWith(str, CAN_INIT_HEADER)) {
         canInitRequest();
@@ -595,21 +588,29 @@ void handleSerialString(const char *str)
     } else if (startsWith(str, CLEAR_ALL_CAN_MASKS_HEADER)) {
         clearAllCanMasksRequest();
 #endif
+    /*} else if (startsWith(str, ADD_SOFTWARE_SERIAL_HEADER)) {
+        if (checkValidRequestString(ADD_SOFTWARE_SERIAL_HEADER, str)) {
+            substringResult = substring(str, strlen(ADD_SOFTWARE_SERIAL_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            addSoftwareSerialRequest(requestString);
+        } else {
+            printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
+        }
+    } else if (startsWith(str, REMOVE_SOFTWARE_SERIAL_HEADER)) {
+        if (checkValidRequestString(REMOVE_SOFTWARE_SERIAL_HEADER, str)) {
+            substringResult = substring(str, strlen(REMOVE_SOFTWARE_SERIAL_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            removeSoftwareSerialRequest(requestString);
+        } else {
+            printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
+        }
     */
     } else {
         printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
     }
+
 }
 
 size_t makeRequestString(const char *str, const char *header, char *out, size_t maximumSize)
 {
-    Serial.print("makeRequestString called with str = ");
-    Serial.print(str);
-    Serial.print(", header = ");
-    Serial.print(header);
-    Serial.print(", maximumSize = ");
-    Serial.println(maximumSize);
-    //return 0;
     size_t returnLength = substring(str, strlen(header) + 1, out, maximumSize);
     if (out[strlen(out)-1] == CLOSING_CHARACTER) {
         out[strlen(out)-1] = '\0';
@@ -860,18 +861,11 @@ void currentAToDThresholdRequest()
 void ioReportRequest()
 {
     *getCurrentValidOutputStream() << IO_REPORT_HEADER << CLOSING_CHARACTER;
-    for (int i = 0; i < NUMBER_OF_PINS; i++) {
-        GPIO *gpioPin{nullptr};
-        if (gpioPins + i) {
-            if (gpioPins[i]) {
-                gpioPin = gpioPins[i];
-            } else {
-                continue;
-            }
-        } else {
+    for (int i = 0; i < (NUMBER_OF_PINS * 2); i++) {
+        GPIO *gpioPin{gpioPinByPinNumber(i)};
+        if (!gpioPin) {
             continue;
         }
-
         int state{0};
         if ((gpioPin->ioType() == IOType::DIGITAL_INPUT) || (gpioPin->ioType() == IOType::DIGITAL_INPUT_PULLUP)) {
             state = gpioPin->g_digitalRead();
@@ -921,32 +915,38 @@ void digitalReadRequest(const char *str, bool soft)
 
 void digitalWriteRequest(const char *str)
 {
-    int foundPosition{positionOfSubstring(str, ITEM_SEPARATOR)};
-    char maybePin[SMALL_BUFFER_SIZE];
-    int result{substring(str, 0, foundPosition, maybePin, SMALL_BUFFER_SIZE)};
-    (void)result;
-    int pinNumber{parsePin(maybePin)};
+    char **splitString{calloc2D<char>(DIGITAL_WRITE_PARAMETER_COUNT, SMALL_BUFFER_SIZE)};
+    int splitStringSize{split(str, splitString, ITEM_SEPARATOR, DIGITAL_WRITE_PARAMETER_COUNT, SMALL_BUFFER_SIZE)};
+    if (splitStringSize != DIGITAL_WRITE_PARAMETER_COUNT) {
+        printResult(DIGITAL_WRITE_HEADER, INVALID_PIN, STATE_FAILURE, OPERATION_FAILURE);
+        free2D(splitString, DIGITAL_WRITE_PARAMETER_COUNT);
+        return;
+    }
+    int pinNumber{parsePin(splitString[0])};
     if (pinNumber == INVALID_PIN) {
-        printResult(DIGITAL_WRITE_HEADER, maybePin, STATE_FAILURE, OPERATION_FAILURE);
+        printResult(DIGITAL_WRITE_HEADER, splitString[0], STATE_FAILURE, OPERATION_FAILURE);
+        free2D(splitString, DIGITAL_WRITE_PARAMETER_COUNT);
         return;
     }
     if (pinInUseBySerialPort(pinNumber)) {
-        printResult(DIGITAL_WRITE_HEADER, maybePin, STATE_FAILURE, OPERATION_PIN_USED_BY_SERIAL_PORT);
+        printResult(DIGITAL_WRITE_HEADER, splitString[0], STATE_FAILURE, OPERATION_PIN_USED_BY_SERIAL_PORT);
+        free2D(splitString, DIGITAL_WRITE_PARAMETER_COUNT);
         return;
     }
     if (!isValidDigitalOutputPin(pinNumber)) {
-        printResult(DIGITAL_WRITE_HEADER, maybePin, STATE_FAILURE, OPERATION_FAILURE);
+        printResult(DIGITAL_WRITE_HEADER, splitString[0], STATE_FAILURE, OPERATION_FAILURE);
+        free2D(splitString, DIGITAL_WRITE_PARAMETER_COUNT);
         return;
     }
-    char maybeState[SMALL_BUFFER_SIZE];
-    result = substring(str, foundPosition+1, maybeState, SMALL_BUFFER_SIZE);
-    int state{parseToDigitalState(maybeState)};
+    
+    int state{parseToDigitalState(splitString[1])};
     if (state == OPERATION_FAILURE) {
-        printResult(DIGITAL_WRITE_HEADER, maybePin, maybeState, OPERATION_FAILURE);
-        return;
-    } 
-    gpioPinByPinNumber(pinNumber)->g_digitalWrite(state);
-    printResult(DIGITAL_WRITE_HEADER, maybePin, maybeState, OPERATION_SUCCESS);
+        printResult(DIGITAL_WRITE_HEADER, splitString[0], splitString[1], OPERATION_FAILURE);
+    } else {
+        gpioPinByPinNumber(pinNumber)->g_digitalWrite(state);
+        printResult(DIGITAL_WRITE_HEADER, splitString[0], state, OPERATION_SUCCESS);
+    }
+    free2D(splitString, DIGITAL_WRITE_PARAMETER_COUNT);
 }
 
 void digitalWriteAllRequest(const char *str)
@@ -964,19 +964,17 @@ void digitalWriteAllRequest(const char *str)
         return;
     }
     for (int i = 0; i < NUMBER_OF_PINS; i++) {
-        if (gpioPins + i) {
-            if (gpioPins[i]) {
-                GPIO *gpioPin{gpioPins[i]};
-                if (gpioPin->ioType() == IOType::DIGITAL_OUTPUT) {
-                    gpioPin->g_digitalWrite(state);
-                    if (isValidAnalogInputPin(gpioPin->pinNumber())) {
-                        char analogPinString[SMALL_BUFFER_SIZE];
-                        int result{analogPinFromNumber(gpioPin->pinNumber(), analogPinString, SMALL_BUFFER_SIZE)};
-                        (void)result;
-                        *getCurrentValidOutputStream() << ITEM_SEPARATOR << analogPinString;
-                    } else {
-                        *getCurrentValidOutputStream() << ITEM_SEPARATOR << gpioPin->pinNumber();
-                    }
+        GPIO *gpioPin{gpioPinByPinNumber(i)};
+        if (gpioPin) {
+            if (gpioPin->ioType() == IOType::DIGITAL_OUTPUT) {
+                gpioPin->g_digitalWrite(state);
+                if (isValidAnalogInputPin(gpioPin->pinNumber())) {
+                    char analogPinString[SMALL_BUFFER_SIZE];
+                    int result{analogPinFromNumber(gpioPin->pinNumber(), analogPinString, SMALL_BUFFER_SIZE)};
+                    (void)result;
+                    *getCurrentValidOutputStream() << ITEM_SEPARATOR << analogPinString;
+                } else {
+                    *getCurrentValidOutputStream() << ITEM_SEPARATOR << gpioPin->pinNumber();
                 }
             }
         }
@@ -1002,15 +1000,9 @@ void analogReadRequest(const char *str)
     printResult(ANALOG_READ_HEADER, str, gpioPinByPinNumber(pinNumber)->g_analogRead(), OPERATION_SUCCESS);
 }
 
-//int split(const char *str, char **out, const char *delimiter, size_t maximumElements, size_t maximumLength)
-
 void analogWriteRequest(const char *str)
 {
-    char **splitString = (char **)calloc(ANALOG_WRITE_PARAMETER_COUNT, sizeof(char *) * ANALOG_WRITE_PARAMETER_COUNT);
-    for (int i = 0; i < ANALOG_WRITE_PARAMETER_COUNT; i++) {
-        splitString[i] = (char *)calloc(SMALL_BUFFER_SIZE, sizeof(char));
-    }   
-
+    char **splitString{calloc2D<char>(ANALOG_WRITE_PARAMETER_COUNT, SMALL_BUFFER_SIZE)};
     int splitStringSize{split(str, splitString, ITEM_SEPARATOR, ANALOG_WRITE_PARAMETER_COUNT, SMALL_BUFFER_SIZE)};
     if (splitStringSize != ANALOG_WRITE_PARAMETER_COUNT) {
         printResult(ANALOG_WRITE_HEADER, INVALID_PIN, STATE_FAILURE, OPERATION_FAILURE);
@@ -1060,46 +1052,66 @@ void pinTypeRequest(const char *str)
         }
         return;
     }
+    GPIO *tempGpio{gpioPinByPinNumber(pinNumber)};
+    if (!tempGpio) {
+        printResult(PIN_TYPE_HEADER, INVALID_PIN, STATE_FAILURE, OPERATION_FAILURE);
+        return;
+    }
     char ioTypeString[SMALL_BUFFER_SIZE];
-    int result{getIOTypeString(gpioPinByPinNumber(pinNumber)->ioType(), ioTypeString, SMALL_BUFFER_SIZE)};
+    int result{getIOTypeString(tempGpio->ioType(), ioTypeString, SMALL_BUFFER_SIZE)};
     (void)result;
     printResult(PIN_TYPE_HEADER, str, ioTypeString, OPERATION_SUCCESS);
 }
 
 void pinTypeChangeRequest(const char *str)
 {   
-
-    int foundPosition{positionOfSubstring(str, ITEM_SEPARATOR)};
-    char maybePin[SMALL_BUFFER_SIZE];
-    int result{substring(str, 0, foundPosition, maybePin, SMALL_BUFFER_SIZE)};
-    (void)result;
-    int pinNumber{parsePin(maybePin)};
-
+    char **splitString{calloc2D<char>(PIN_TYPE_CHANGE_PARAMETER_COUNT, SMALL_BUFFER_SIZE)}; 
+    int splitStringSize{split(str, splitString, ITEM_SEPARATOR, PIN_TYPE_CHANGE_PARAMETER_COUNT, SMALL_BUFFER_SIZE)};
+    if (splitStringSize != PIN_TYPE_CHANGE_PARAMETER_COUNT) {
+        printResult(PIN_TYPE_CHANGE_HEADER, INVALID_PIN, STATE_FAILURE, OPERATION_FAILURE);
+        free2D(splitString, PIN_TYPE_CHANGE_PARAMETER_COUNT);
+        return;
+    }
+    int pinNumber{parsePin(splitString[0])};
     if (pinNumber == INVALID_PIN) {
-        printResult(PIN_TYPE_CHANGE_HEADER, maybePin, STATE_FAILURE, OPERATION_FAILURE);
+        printResult(PIN_TYPE_CHANGE_HEADER, splitString[0], STATE_FAILURE, OPERATION_FAILURE);
+        free2D(splitString, PIN_TYPE_CHANGE_PARAMETER_COUNT);
+        return;
+    }
+    if (pinInUseBySerialPort(pinNumber)) {
+        printResult(PIN_TYPE_CHANGE_HEADER, splitString[0], STATE_FAILURE, OPERATION_PIN_USED_BY_SERIAL_PORT);
+        free2D(splitString, PIN_TYPE_CHANGE_PARAMETER_COUNT);
         return;
     }
 
-    char maybeType[SMALL_BUFFER_SIZE];
-    result = substring(str, foundPosition+1, maybeType, SMALL_BUFFER_SIZE);
-    IOType type{parseIOType(maybeType)};
+    IOType type{parseIOType(splitString[1])};
     if (type == IOType::UNSPECIFIED) {
-        printResult(PIN_TYPE_CHANGE_HEADER, maybePin, maybeType, OPERATION_FAILURE);
+        printResult(PIN_TYPE_CHANGE_HEADER, splitString[0], splitString[1], OPERATION_FAILURE);
+        free2D(splitString, PIN_TYPE_CHANGE_PARAMETER_COUNT);
         return;
     }
 
     char ioTypeString[SMALL_BUFFER_SIZE];
-    result = getIOTypeString(type, ioTypeString, SMALL_BUFFER_SIZE);
+    (void)getIOTypeString(type, ioTypeString, SMALL_BUFFER_SIZE);
     if (pinInUseBySerialPort(pinNumber)) {
-        printResult(DIGITAL_WRITE_HEADER, maybePin, ioTypeString, OPERATION_PIN_USED_BY_SERIAL_PORT);
+        printResult(DIGITAL_WRITE_HEADER, splitString[0], ioTypeString, OPERATION_PIN_USED_BY_SERIAL_PORT);
+        free2D(splitString, PIN_TYPE_CHANGE_PARAMETER_COUNT);
         return;
     }
     if (!checkValidIOChangeRequest(type, pinNumber)) {
-        printResult(PIN_TYPE_CHANGE_HEADER, maybePin, ioTypeString, OPERATION_FAILURE);
+        printResult(PIN_TYPE_CHANGE_HEADER, splitString[0], ioTypeString, OPERATION_FAILURE);
+        free2D(splitString, PIN_TYPE_CHANGE_PARAMETER_COUNT);
         return;
     }
-    gpioPinByPinNumber(pinNumber)->setIOType(type);
-    printResult(PIN_TYPE_CHANGE_HEADER, maybePin, ioTypeString, OPERATION_SUCCESS);
+    GPIO *tempGpio{gpioPinByPinNumber(pinNumber)};
+    if (!tempGpio) {
+        printResult(PIN_TYPE_CHANGE_HEADER, splitString[0], ioTypeString, OPERATION_FAILURE);
+        free2D(splitString, PIN_TYPE_CHANGE_PARAMETER_COUNT);
+        return;
+    }
+    tempGpio->setIOType(type);
+    printResult(PIN_TYPE_CHANGE_HEADER, splitString[0], ioTypeString, OPERATION_SUCCESS);
+    free2D(splitString, PIN_TYPE_CHANGE_PARAMETER_COUNT);
 }
 
 void softAnalogReadRequest(const char *str)
@@ -1128,7 +1140,6 @@ void heartbeatRequest()
 
     printString(stringToPrint);
     free(stringToPrint);
-    
 }
 
 void arduinoTypeRequest()
@@ -1302,8 +1313,7 @@ bool isValidAnalogStateIdentifier(const char *str)
 {
     if (!str) {
         return false;
-    }
-    if (strlen(str) == 1) {
+    } else if (strlen(str) == 1) {
         if (str[0] == DIGITAL_STATE_HIGH_IDENTIFIER) {
             return true;
         }
@@ -1316,8 +1326,7 @@ bool isValidDigitalStateIdentifier(const char *str)
 {   
     if (!str) {
         return false;
-    }
-    if (strlen(str) == 1) {
+    } else if (strlen(str) == 1) {
         return ((str[0] == DIGITAL_STATE_LOW_IDENTIFIER) || (str[0] == DIGITAL_STATE_HIGH_IDENTIFIER)); 
     } else {
         return false;
@@ -1491,6 +1500,9 @@ void announceStartup()
 
     strncat (str, LINE_ENDING, SMALL_BUFFER_SIZE);
     broadcastString(str);
+    char mem[SMALL_BUFFER_SIZE];
+    snprintf(mem, SMALL_BUFFER_SIZE, "%i", freeMemory()); 
+    broadcastString(mem);
     free(str);
 }
 

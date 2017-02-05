@@ -9,9 +9,8 @@
 #include <avr/interrupt.h>
 #include <Arduino.h>
 
-#define MAXIMUM_STRING_COUNT 3
-#define SERIAL_PORT_BUFFER_MAX 50
-#define SMALL_BUFFER_SIZE 50
+#define SERIAL_PORT_BUFFER_MAX 56
+#define SMALL_BUFFER_SIZE 56
 #define ARRAY_SIZE(x) (sizeof(x)/sizeof(x[0]))
 
 namespace Utilities
@@ -59,6 +58,16 @@ namespace Utilities
         free(out);
     }
 
+    template <typename Ptr>
+    Ptr **calloc2D(size_t elements, size_t maximumLength)
+    {
+        Ptr **out = (Ptr **)calloc(elements, sizeof(Ptr *) * maximumLength);
+        for (size_t i = 0; i < elements; i++) {
+            out[i] = (Ptr *)calloc(maximumLength, sizeof(Ptr));
+        }
+        return out;
+    }
+
     template <typename T>
     int toDecString(T number, char *out, size_t maximumLength)
     {
@@ -70,64 +79,6 @@ namespace Utilities
     {
         return (snprintf(out, maximumLength, "%02X", static_cast<unsigned int>(number))); 
     }
-
-    /*
-    int toBinaryString(int number);
-    int toDecString(int number);
-    int toHexString(int number);
-
-    int toBinaryString(uint32_t number);
-    int toDecString(uint32_t number);
-    int toHexString(uint32_t number);
-
-    int toBinaryString(uint8_t number);
-    int toDecString(uint8_t number);
-    int toHexString(uint8_t number);
-    
-    int toBinaryString(bool number);
-    int toDecString(bool number);
-    int toHexString(bool number);
-    std::string stripFromString(const std::string &stringToStrip, const std::string &whatToStrip);
-    std::string stripFromString(const std::string &stringToStrip, char whatToStrip);
-    std::string stripAllFromString(const std::string &stringToStrip, const std::string &whatToStrip);
-    std::string stripAllFromString(const std::string &stringToStrip, char whatToStrip);
-    template <typename Container, typename InputIter, typename Delimiter>
-    Container parseToContainer(InputIter first, InputIter last, Delimiter delimiter)
-    {
-        Container returnContainer;
-        InputIter it;
-        do {
-            it = std::find(first, last, delimiter);
-            typename Container::value_type tempContainer;
-            std::copy(first, it, std::inserter(tempContainer, tempContainer.end()));
-            if (!tempContainer.empty()) {
-                returnContainer.insert(returnContainer.end(), tempContainer);
-            }
-            first = it+1;
-        } while (it != last);
-        return returnContainer;
-    }
-    template <typename T>
-    std::string toString(const T &convert)
-    {
-        std::string returnString{""};
-        std::stringstream transfer;
-        transfer << convert;
-        transfer >> returnString;
-        return returnString;
-    }
-
-    template <typename T>
-    std::string tQuoted(const T &convert)
-    {
-        return "\"" + toString(convert) + "\"";
-    }
-    char *strcpy(char *first, char second);
-    char *strncpy(char *first, char second, size_t maximumSize);
-    char *strcat(char *first, char second);
-    char *strncat(char *first, char second, size_t maximumSize);
-    */
-
 }
 
 #endif //ARDUINOPC_UTILITIES_H

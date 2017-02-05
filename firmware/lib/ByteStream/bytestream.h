@@ -4,7 +4,8 @@
 #include <Arduino.h>
 #include "utilities.h"
 
-#define MAXIMUM_LINE_ENDING_STRING 10
+#define MAXIMUM_LINE_ENDING_STRING 5
+#define MAXIMUM_STRING_COUNT 1
 
 class ByteStream
 {
@@ -12,8 +13,8 @@ public:
     ByteStream(Stream *stream,
                uint8_t rxPin,
                uint8_t txPin,
-               long long baudRate,
-               long long timeout,
+               uint32_t baudRate,
+               uint32_t timeout,
                bool enabled,
                const char *lineEnding);
     virtual ~ByteStream();
@@ -25,8 +26,8 @@ public:
     virtual void setEnabled(bool enabled);
     virtual uint8_t rxPin() const;
     virtual uint8_t txPin() const;
-    virtual long long baudRate() const;
-    virtual long long timeout() const;
+    virtual uint32_t baudRate() const;
+    virtual uint32_t timeout() const;
     virtual bool serialPortIsNull() const;
     virtual bool isEnabled() const;
     virtual const char *lineEnding() const;
