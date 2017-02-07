@@ -11,11 +11,12 @@ public:
      SoftwareSerialPort(SoftwareSerial *serialPort,
                         uint8_t rxPin, 
                         uint8_t txPin, 
-                        long long baudRate, 
-                        long long timeout,
+                        uint32_t baudRate, 
+                        uint32_t timeout,
                         bool enabled,
                         const char *lineEnding);
 
+    
     ~SoftwareSerialPort();
     virtual bool initialize() override;
 

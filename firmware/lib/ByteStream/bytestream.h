@@ -75,8 +75,8 @@ protected:
     Stream *m_serialPort;
     uint8_t m_rxPin;
     uint8_t m_txPin;
-    long long m_baudRate;
-    long long m_timeout;
+    uint32_t m_baudRate;
+    uint32_t m_timeout;
     bool m_isEnabled;
     size_t m_stringQueueIndex;
     char *m_lineEnding;

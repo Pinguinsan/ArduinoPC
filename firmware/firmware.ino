@@ -2,7 +2,6 @@
 #include "include/arduinopcstrings.h"
 #include <string.h>
 #include <stdlib.h>
-#include <MemoryFree.h>
 #include <avr/pgmspace.h>
 #include <bytestream.h>
 #include <hardwareserialport.h>
@@ -118,45 +117,45 @@ size_t generalPinArraySize();
 size_t pwmPinArraySize();
 
 #if defined(ARDUINO_AVR_UNO)
-    static const PROGMEM int AVAILABLE_ANALOG_PINS[]{A0, A1, A2, A3, A4, A5, -1};
-    static const PROGMEM int AVAILABLE_GENERAL_PINS[]{2, 4, 7, 8, 12, 13, -1};
+    static const PROGMEM int8_t AVAILABLE_ANALOG_PINS[]{A0, A1, A2, A3, A4, A5, -1};
+    static const PROGMEM int8_t AVAILABLE_GENERAL_PINS[]{2, 4, 7, 8, 12, 13, -1};
     #define NUMBER_OF_ANALOG_PINS 6
     #define ANALOG_PIN_OFFSET 13
     #if defined(__HAVE_CAN_BUS__)
         #define NUMBER_OF_PINS 20
-        static const PROGMEM int AVAILABLE_PWM_PINS[]{3, 5, 6, 10, 11, -1};
+        static const PROGMEM int8_t AVAILABLE_PWM_PINS[]{3, 5, 6, 10, 11, -1};
     #else
         #define NUMBER_OF_PINS 21
-        static const PROGMEM int AVAILABLE_PWM_PINS[]{3, 5, 6, 9, 10, 11, -1};
+        static const PROGMEM int8_t AVAILABLE_PWM_PINS[]{3, 5, 6, 9, 10, 11, -1};
     #endif
 #elif defined(ARDUINO_AVR_NANO)
-    static const PROGMEM int AVAILABLE_ANALOG_PINS[]{A0, A1, A2, A3, A4, A5, A6, A7, -1};                                                
-    static const PROGMEM int AVAILABLE_GENERAL_PINS[]{2, 4, 7, 8, 12, 13, -1};
+    static const PROGMEM int8_t AVAILABLE_ANALOG_PINS[]{A0, A1, A2, A3, A4, A5, A6, A7, -1};                                                
+    static const PROGMEM int8_t AVAILABLE_GENERAL_PINS[]{2, 4, 7, 8, 12, 13, -1};
     #define NUMBER_OF_ANALOG_PINS 8
     #define ANALOG_PIN_OFFSET 13
     #if defined(__HAVE_CAN_BUS__)
         #define NUMBER_OF_PINS 22
-        static const PROGMEM int AVAILABLE_PWM_PINS[]{3, 5, 6, 10, 11, -1};
+        static const PROGMEM int8_t AVAILABLE_PWM_PINS[]{3, 5, 6, 10, 11, -1};
     #else
         #define NUMBER_OF_PINS 23
-        static const PROGMEM int AVAILABLE_PWM_PINS[]{3, 5, 6, 9, 10, 11, -1};
+        static const PROGMEM int8_t AVAILABLE_PWM_PINS[]{3, 5, 6, 9, 10, 11, -1};
     #endif
 #elif defined(ARDUINO_AVR_MEGA1280) || defined(ARDUINO_AVR_MEGA2560)
-    static const PROGMEM int AVAILABLE_ANALOG_PINS[]{A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, -1};
-    static const PROGMEM int AVAILABLE_GENERAL_PINS[]{14, 15, 16, 17, 18, 19, 20,21, 22, 23, 24, 
+    static const PROGMEM int8_t AVAILABLE_ANALOG_PINS[]{A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, -1};
+    static const PROGMEM int8_t AVAILABLE_GENERAL_PINS[]{14, 15, 16, 17, 18, 19, 20,21, 22, 23, 24, 
                                                       25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37,
                                                       38, 39, 40, 41, 42, 43, 47, 48, 49, 50, 51, 52, 53,-1};            
 
-    static const int PROGMEM AVAILABLE_SERIAL_RX_PINS[]{10, 11, 12, 13, 14, 15, 50, 51, 52, 53,
-                                                       A8, A9, A10, A11, A12, A13, A14, A15};                                    
+    static const PROGMEM int8_t AVAILABLE_SERIAL_RX_PINS[]{10, 11, 12, 13, 14, 15, 50, 51, 52, 53,
+                                                           A8, A9, A10, A11, A12, A13, A14, A15};                                    
     #define NUMBER_OF_ANALOG_PINS 16
     #define ANALOG_PIN_OFFSET 53
     #if defined(__HAVE_CAN_BUS__)
         #define NUMBER_OF_PINS 70
-        static const PROGMEM int AVAILABLE_PWM_PINS[]{2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 44, 45, 46, -1};
+        static const PROGMEM int8_t AVAILABLE_PWM_PINS[]{2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 44, 45, 46, -1};
     #else
         #define NUMBER_OF_PINS 71
-        static const PROGMEM int AVAILABLE_PWM_PINS[]{2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 44, 45, 46, -1};
+        static const PROGMEM int8_t AVAILABLE_PWM_PINS[]{2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 44, 45, 46, -1};
     #endif
 #endif
 
@@ -237,7 +236,7 @@ size_t pwmPinArraySize();
     };
 
 #endif
-static int softwareSerialPortIndex{0};
+static uint8_t softwareSerialPortIndex{0};
 static GPIO *gpioPins[NUMBER_OF_PINS];
 
 void initializeSerialPorts();
@@ -1491,6 +1490,7 @@ void announceStartup()
 
     strncat (str, LINE_ENDING, SMALL_BUFFER_SIZE);
     broadcastString(str);
+    delay(2000);
     free(str);
 }
 
