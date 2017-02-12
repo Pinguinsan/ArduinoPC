@@ -67,12 +67,27 @@ int main()
     faultTxePinState = digitalRead(FAULT_TXE_PIN);
     Serial.print("initial faultTxePinState: ");
     Serial.println(faultTxePinState ? "HIGH" : "LOW");
+    long long sendStartTime{millis()};
+    long long sendEndTime{millis()};
+    #define CHANGE_TIMEOUT 1000
+    bool sendState{false};
 
     while (true) {
-        uint8_t sendMessage[MESSAGE_LENGTH]{0x00, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00,0x00};
+        uint8_t sendMessageOne[MESSAGE_LENGTH]{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,0x00};
+        uint8_t sendMessageTwo[MESSAGE_LENGTH]{0x00, 0xAF, 0xBD, 0x40, 0x25, 0x38, 0x00 ,0x80};
         uint8_t receivedMessage[MESSAGE_LENGTH]{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-        memset(receivedMessage, 0, sizeof(receivedMessage));
-        linController->sendTo(SEND_ID, sendMessage, MESSAGE_LENGTH, LIN_REVISION);
+
+        sendEndTime = millis();
+        if ((sendEndTime - sendStartTime) >= CHANGE_TIMEOUT) {
+            sendState = !sendState;
+            if (sendState) {
+                linController->sendTo(SEND_ID, sendMessageTwo, MESSAGE_LENGTH, LIN_REVISION);
+            } else {
+                linController->sendTo(SEND_ID, sendMessageOne, MESSAGE_LENGTH, LIN_REVISION);
+            }
+            sendStartTime = millis();
+        }
+        
         uint8_t receivedStatus{linController->receiveFrom(RECEIVE_ID, receivedMessage, MESSAGE_LENGTH, LIN_REVISION)};
         if (receivedStatus == 0xff) {
             Serial.print("Received full ");
