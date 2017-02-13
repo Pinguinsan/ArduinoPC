@@ -129,11 +129,27 @@ namespace Utilities
 
     int toFixedWidth(const char *inputString, char *out, size_t fixedWidth)
     {
-        size_t ssize = strlen(inputString);
-        size_t bits = fixedWidth * 8;
+
+        size_t ssize{strlen(inputString)};
+        size_t bits{fixedWidth * 8};
         out = (char *) malloc(bits + 1);
         memset(out, '0', bits - ssize);
         strcpy(out + bits - ssize, inputString);
+        return strlen(out);
+    }
+
+    int leftPad(const char *inputString, char *out, size_t width, char padChar)
+    {
+        if (strlen(inputString) >= width) {
+            strncpy(out, inputString, strlen(inputString));
+            out[strlen(inputString)] = '\0';
+            return strlen(out);
+        }
+        for (int i = 0; i < width - strlen(inputString); i++) {
+            out[i] = padChar;
+        }
+        out[width - strlen(inputString)] = '\0';
+        strcat(out, inputString);
         return strlen(out);
     }
 
@@ -200,7 +216,7 @@ namespace Utilities
         if ((!first) || (!second)) {
             return -1;
         }
-        char *pos{strstr(first, second)};
+        const char *pos{strstr(first, second)};
         if (!pos) {
             return -1;
         }
@@ -248,19 +264,20 @@ namespace Utilities
     {
         char *copyString = (char *)calloc(strlen(str) + 1, sizeof(char));
         strncpy(copyString, str, strlen(str) + 1);
-        int outLength = 0;
+        int outLength{0};
+        size_t copyStringMaxLength{strlen(str) + 1};
         while (substringExists (copyString, delimiter)) {
             if ((unsigned)outLength >= maximumElements) {
                 break;
             }
             if (positionOfSubstring(copyString, delimiter) == 0) {
-            substring(copyString, strlen(delimiter), copyString, maximumLength);
+                substring(copyString, strlen(delimiter), copyString, maximumLength);
             } else {
                 substring(copyString, 0, positionOfSubstring(copyString, delimiter), out[outLength++], maximumLength);
-                substring(copyString, positionOfSubstring(copyString, delimiter) + strlen(delimiter), copyString, maximumLength);
+                substring(copyString, positionOfSubstring(copyString, delimiter) + strlen(delimiter), copyString, copyStringMaxLength);
             }
         }
-        if ((strlen(copyString) > 0) && ((unsigned)outLength < maximumLength)) {
+        if ((strlen(copyString) > 0) && ((unsigned)outLength < maximumElements)) {
             strncpy(out[outLength++], copyString, maximumLength);
         }
         free(copyString);
@@ -275,6 +292,6 @@ namespace Utilities
 
     bool isValidByte(char byteToCheck)
     {
-        return (isPrintable(byteToCheck) || (byteToCheck == '\r') || (byteToCheck == '\n'));
+        return (isprint(byteToCheck) || (byteToCheck == '\r') || (byteToCheck == '\n'));
     }
 }

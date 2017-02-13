@@ -6,8 +6,9 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <avr/interrupt.h>
-#include <Arduino.h>
+#include <ctype.h>
+//#include <avr/interrupt.h>
+//#include <Arduino.h>
 
 #define SERIAL_PORT_BUFFER_MAX 50
 #define SMALL_BUFFER_SIZE 50
@@ -30,8 +31,8 @@ namespace Utilities
     char intToChar (int intToConvert);
     bool isDigit(char charToCheck);
     int toFixedWidth(const char *input, char *out, size_t fixedWidth);
-    uint32_t parseCanID(const char *str);
-    uint8_t parseCanByte(const char *str);
+    int leftPad(const char *input, char *out, size_t fixedWidth, char padChar = '0');
+
     uint32_t hexStringToUInt(const char *str);
     uint8_t hexStringToUChar(const char *str);
     int intExp(int base, int super);

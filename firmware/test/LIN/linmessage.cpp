@@ -182,24 +182,23 @@ int LinMessage::toString(char *out, size_t maximumLength) const
     char tempHexString[SMALL_BUFFER_SIZE];
     char tempFixedWidthString[SMALL_BUFFER_SIZE];
     toHexString(this->m_address, tempHexString, SMALL_BUFFER_SIZE);
-    toFixedWidth(tempHexString, tempFixedWidthString, SMALL_BUFFER_SIZE); 
+    leftPad(tempHexString, tempFixedWidthString, 2, '0'); 
     strcat(out, "0x");
     strcat(out, tempFixedWidthString);
     strcat(out, ":");
     if (strlen(out) >= maximumLength) {
         return strlen(out);
     }
-    for (int i = 0; i < (this->m_dataPacket.length() - 1); i++) {
-        memset(tempHexString, 0, strlen(tempHexString) + 1);
-        memset(tempFixedWidthString, 0, strlen(tempFixedWidthString) + 1);
+    for (int i = 0; i < this->m_dataPacket.length(); i++) {
+        tempHexString[0] = '\0';
+        tempFixedWidthString[0] = '\0';
         toHexString(this->m_dataPacket.nthByte(i), tempHexString, SMALL_BUFFER_SIZE);
-        toFixedWidth(tempHexString, tempFixedWidthString, SMALL_BUFFER_SIZE);
+        leftPad(tempHexString, tempFixedWidthString, 2, '0');
 
         strcat(out, "0x");
         strcat(out, tempFixedWidthString);
-        strcat(out, ":");
 
-        if (i++ != (this->m_dataPacket.length() - 1)) {
+        if (i != (this->m_dataPacket.length() - 1)) {
             strcat(out, ":");
         }
         if (strlen(out) > maximumLength) {
@@ -221,28 +220,34 @@ uint8_t LinMessage::parseLinByte(const char *str)
     return hexStringToUChar(str);
 }
 
-LinMessage LinMessage::parseLinMessage(const char *str, char delimiter, uint8_t messageLength)
+LinMessage LinMessage::parse(const char *str, char delimiter, uint8_t messageLength)
+{
+    const char temp[2]{delimiter, '\0'};
+    return LinMessage::parse(str, temp, messageLength);
+}
+
+LinMessage LinMessage::parse(const char *str, const char *delimiter, uint8_t messageLength)
 {
     LinMessage returnMessage{};
     using namespace Utilities;
-    char **result{calloc2D<char>(messageLength + 2, 4)};
-    int resultSize{split(str, result, delimiter, messageLength + 2, 4)};
-    if (resultSize < (messageLength + 2)) {
-        free2D(result, 8);
+    int bufferSpace{messageLength + 2};
+    char **result{calloc2D<char>(bufferSpace, 4)};
+    int resultSize{split(str, result, delimiter, bufferSpace, 4)};
+    if (resultSize < (bufferSpace)) {
+        free2D(result, bufferSpace);
         return LinMessage{};
     }
-    
     uint8_t tempVersion{hexStringToUChar(result[0])};
     if ((tempVersion != LinVersion::RevisionOne) && (tempVersion != LinVersion::RevisionTwo)) {
-        free2D(result, messageLength + 2);
+        free2D(result, bufferSpace);
         return returnMessage;
     } 
     returnMessage.setVersion(tempVersion == LinVersion::RevisionOne ? LinVersion::RevisionOne : LinVersion::RevisionTwo);
     returnMessage.setAddress(hexStringToUChar(result[1]));
-    for (int i = 0; i < (messageLength); i++) {
+    for (uint8_t i = 0; i < messageLength; i++) {
         returnMessage.setDataPacketNthByte(i, hexStringToUChar(result[i + 2]));
     }
-    free2D(result, 8);
+    free2D(result, bufferSpace);
     return returnMessage;
 }
     

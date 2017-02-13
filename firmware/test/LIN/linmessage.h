@@ -1,13 +1,12 @@
-#ifndef ARDUINOPC_LinMessage_H
-#define ARDUINOPC_LinMessage_H
+#ifndef ARDUINOPC_LINMESSAGE_H
+#define ARDUINOPC_LINMESSAGE_H
 
 #include "utilities.h"
-
+#include <stdio.h>
 
 #ifndef SMALL_BUFFER_SIZE
     #define SMALL_BUFFER_SIZE 255
 #endif
-
 
 class LinDataPacket
 {
@@ -68,7 +67,9 @@ public:
     int toString(char *out, size_t maximumLength) const;
     static uint8_t parseLinAddress(const char *str);
     static uint8_t parseLinByte(const char *str);
-    static LinMessage parseLinMessage(const char *str, char delimiter, uint8_t messageLength);
+    static LinMessage parse(const char *str, char delimiter, uint8_t messageLength);
+    static LinMessage parse(const char *str, const char *delimiter, uint8_t messageLength);
+
 
 private:
     uint8_t m_address;
@@ -77,4 +78,4 @@ private:
     LinDataPacket m_dataPacket;
 };
 
-#endif //ARDUINOPC_LinMessage_H
+#endif //ARDUINOPC_LINMESSAGE_H
