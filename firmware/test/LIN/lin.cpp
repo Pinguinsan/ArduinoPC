@@ -152,8 +152,8 @@ uint8_t LIN::addressParity(uint8_t targetAddress)
     return (p0 | (p1 << 1)) << 6;
 }
 
-/* sendTo a message across the LIN bus */
-void LIN::sendTo(uint8_t targetAddress, const uint8_t* message, uint8_t numberOfBytes,uint8_t linVersion)
+/* send a message across the LIN bus */
+void LIN::sendTo(uint8_t targetAddress, const uint8_t* message, uint8_t numberOfBytes, uint8_t linVersion)
 {
     uint8_t addressByte{(targetAddress & ADDRESS_PARITY_BYTE) | addressParity(targetAddress)};
     uint8_t checksum{dataChecksum(message, numberOfBytes,(linVersion  == 1) ? 0 : addressByte)};
@@ -162,6 +162,28 @@ void LIN::sendTo(uint8_t targetAddress, const uint8_t* message, uint8_t numberOf
     this->m_serial.write(addressByte);  // ID byte
     this->m_serial.write(message, numberOfBytes);  // data bytes
     this->m_serial.write(checksum);  // checksum  
+}
+
+void LIN::sendTo(const LinMessage &linMessage)
+{
+    LIN::sendTo(linMessage.address(), linMessage.message(), linMessage.length(), linMessage.version());
+}
+
+LinMessage LIN::receiveFrom(uint8_t targetAddress, uint8_t numberOfBytes, LinVersion linVersion, int &status)
+{
+    uint8_t *tempBuffer{(uint8_t *)calloc(numberOfBytes, sizeof(uint8_t))};
+    uint8_t receivedSize{this->receiveFrom(targetAddress, tempBuffer, numberOfBytes, linVersion)};
+    LinMessage linMessage{numberOfBytes};
+    linMessage.setAddress(targetAddress);
+    linMessage.setVersion((linVersion == LinVersion::RevisionOne) ? LinVersion::RevisionOne : LinVersion::RevisionTwo);
+    if (receivedSize == LIN_RECEIVE_SUCCESS) {
+        linMessage.setMessage(tempBuffer, numberOfBytes);
+        status = LIN_RECEIVE_SUCCESS;
+    } else {
+        status = receivedSize;
+    }
+    free(tempBuffer);
+    return linMessage;
 }
 
 uint8_t LIN::receiveFrom(uint8_t targetAddress, uint8_t *message, uint8_t numberOfBytes, uint8_t linVersion)
@@ -196,7 +218,7 @@ uint8_t LIN::receiveFrom(uint8_t targetAddress, uint8_t *message, uint8_t number
     } while(this->m_serial.read() != idByte);
 
 
-    for (uint8_t i = 0;i < numberOfBytes; i++) {
+    for (uint8_t i = 0; i < numberOfBytes; i++) {
         // This while loop strategy does not take into account the added time for the logic.  So the actual this->m_timeout will be slightly longer then written here.
         while(!this->m_serial.available()) { 
             _delay_us(LIN_WAIT_INTERVAL); 
@@ -219,7 +241,7 @@ uint8_t LIN::receiveFrom(uint8_t targetAddress, uint8_t *message, uint8_t number
         uint8_t receivedChecksum{static_cast<uint8_t>(this->m_serial.read())};
         bytesReceived++;
         if (linVersion == 1) {
-            idByte = 0;  // Don't cksum the ID byte in LIN 1.x
+            idByte = 0;
         }
         if (dataChecksum(message, numberOfBytes, idByte) == receivedChecksum) {
             bytesReceived = LIN_RECEIVE_SUCCESS;

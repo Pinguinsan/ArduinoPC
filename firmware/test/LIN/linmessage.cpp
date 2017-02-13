@@ -1,115 +1,30 @@
 #include "linmessage.h"
 
-const uint8_t LinDataPacket::DEFAULT_PACKET_LENGTH{8};
+const uint8_t LinMessage::DEFAULT_MESSAGE_LENGTH{8};
 
-LinDataPacket::LinDataPacket() :
-    m_length{DEFAULT_PACKET_LENGTH},
-    m_dataPacket{static_cast<uint8_t *>(calloc(this->m_length, sizeof(uint8_t)))}
-{
-
-}
-
-LinDataPacket::LinDataPacket(const LinDataPacket &dataPacket) :
-    m_length{dataPacket.length()},
-    m_dataPacket{static_cast<uint8_t *>(calloc(this->m_length, sizeof(uint8_t)))}
-{
-    dataPacket.toBasicArray(this->m_dataPacket, this->m_length);
-}
-
-LinDataPacket::LinDataPacket(uint8_t *packet, uint8_t length) :
-    m_length{length},
-    m_dataPacket{static_cast<uint8_t *>(calloc(this->m_length, sizeof(uint8_t)))}
-{
-    this->setDataPacket(packet, this->m_length);
-}
-
-LinDataPacket& LinDataPacket::operator=(const LinDataPacket &rhs)
-{
-    free(this->m_dataPacket);
-    this->m_length = rhs.length();
-    this->m_dataPacket = static_cast<uint8_t *>(calloc(this->m_length, sizeof(uint8_t)));
-    return *this;
-}
-
-uint8_t LinDataPacket::length() const
-{
-    return this->m_length;
-}
-
-LinDataPacket::~LinDataPacket()
-{
-    free(this->m_dataPacket);
-}    
-
-
-void LinDataPacket::setDataPacket(uint8_t *packet, uint8_t length)
-{
-    for (int i = 0; i < (length - 1); i++) {
-        if (i >= this->m_length) {
-            break;
-        }
-        if (!(packet + i)) {
-            this->m_dataPacket[i] = 0;
-        } else {
-            this->m_dataPacket[i] = *(packet + i);
-        }
-    }
-}
-
-bool LinDataPacket::setNthByte(uint8_t index, uint8_t nth)
-{
-    if (index < this->m_length) {
-        this->m_dataPacket[index] = nth;
-        return true;
-    } else {
-        return false;
-    }
-}
-
-uint8_t LinDataPacket::nthByte(uint8_t index) const
-{
-    if (index < this->m_length) {
-        return this->m_dataPacket[index];
-    } else {
-        return 0;
-    }
-}
-
-void LinDataPacket::toBasicArray(uint8_t *out, uint8_t length) const
-{
-    for (int i = 0; i < length; i++) {
-        if (i >= this->m_length) {
-            out[i] = 0;
-        } else {
-            out[i] = this->m_dataPacket[i];
-        }
-    }
-}
-
-
-LinMessage::LinMessage(uint8_t address, LinVersion version, uint8_t length, const LinDataPacket &dataPacket) :
+LinMessage::LinMessage(uint8_t address, LinVersion version, uint8_t length, uint8_t *message) :
     m_address{address},
     m_version{version},
     m_length{length},
-    m_dataPacket{dataPacket}
+    m_message{static_cast<uint8_t *>(calloc(this->m_length, sizeof(uint8_t)))}
 {
-
-}
-
-LinMessage::LinMessage(uint8_t address, LinVersion version, uint8_t length, uint8_t *dataPacket) :
-    m_address{address},
-    m_version{version},
-    m_length{length},
-    m_dataPacket{dataPacket, this->m_length}
-{
-
+    this->setMessage(message, length);
 }
 
 LinMessage::LinMessage(const LinMessage &other) :
     m_address{other.address()},
     m_version{other.version()},
     m_length{other.length()},
-    m_dataPacket{other.dataPacket()}
+    m_message{static_cast<uint8_t *>(calloc(this->m_length, sizeof(uint8_t)))}
+{
+    this->setMessage(other.message(), this->m_length);
+}
+
+LinMessage::LinMessage(uint8_t length) :
+    m_address{0},
+    m_version{LinVersion::RevisionOne},
+    m_length{length},
+    m_message{static_cast<uint8_t *>(calloc(this->m_length, sizeof(uint8_t)))}
 {
 
 }
@@ -118,12 +33,25 @@ LinMessage::LinMessage(const LinMessage &other) :
 LinMessage::LinMessage() :
     m_address{0},
     m_version{LinVersion::RevisionOne},
-    m_length{0},
-    m_dataPacket{}
+    m_length{LinMessage::DEFAULT_MESSAGE_LENGTH},
+    m_message{static_cast<uint8_t *>(calloc(this->m_length, sizeof(uint8_t)))}
 {
 
 }
 
+LinMessage::~LinMessage()
+{
+    free(this->m_message);
+}
+
+LinMessage& LinMessage::operator=(const LinMessage &rhs)
+{
+    this->m_length = rhs.length();
+    free(this->m_message);
+    this->m_message = static_cast<uint8_t *>(calloc(this->m_length, sizeof(uint8_t)));
+    this->setMessage(rhs.message(), this->m_length);
+    return *this;
+}
 
 void LinMessage::setAddress(uint8_t address)
 {
@@ -135,14 +63,83 @@ void LinMessage::setVersion(LinVersion version)
     this->m_version = version;
 }
 
-void LinMessage::setDataPacket(const LinDataPacket &dataPacket)
+void LinMessage::setMessage(uint8_t *message, uint8_t length)
 {
-    this->m_dataPacket = dataPacket;
+    if (this->m_length != length) {
+        free(this->m_message);
+        this->m_message = static_cast<uint8_t *>(calloc(length, sizeof(uint8_t)));
+    }
+    for (int i = 0; i < length; i++) {
+        if (!(message + i)) {
+            this->m_message[i] = 0;
+        } else {
+            this->m_message[i] = *(message + i);
+        }
+    }
 }
 
-bool LinMessage::setDataPacketNthByte(uint8_t index, uint8_t nth)
-{   
-    return this->m_dataPacket.setNthByte(index, nth);
+void LinMessage::setMessage(uint8_t *message)
+{
+    for (int i = 0; i < this->m_length; i++) {
+        if (!(message + i)) {
+            this->m_message[i] = 0;
+        } else {
+            this->m_message[i] = *(message + i);
+        }
+    }
+}
+
+bool LinMessage::setMessageNthByte(uint8_t index, uint8_t nth)
+{
+    if (index < this->m_length) {
+        this->m_message[index] = nth;
+        return true;
+    } else {
+        return false;
+    }
+}
+
+uint8_t LinMessage::operator[](int index)
+{
+    if (index < 0) {
+        return 0;
+    } else {
+        return this->nthByte(index);
+    }
+}
+
+uint8_t LinMessage::nthByte(uint8_t index) const
+{
+    if (index < this->m_length) {
+        return this->m_message[index];
+    } else {
+        return 0;
+    }
+}
+
+uint8_t *LinMessage::message() const
+{
+    return this->m_message;
+}
+
+void LinMessage::setLength(uint8_t length)
+{
+    if (this->m_length == length) {
+        return;
+    }
+    uint8_t oldLength{this->m_length};
+    uint8_t *tempStorage{static_cast<uint8_t *>(calloc(oldLength, sizeof(uint8_t)))};
+    for (int i = 0; i < oldLength; i++) {
+        tempStorage[i] = this->m_message[i];
+    }
+    free(this->m_message);
+    this->m_message = static_cast<uint8_t *>(calloc(length, sizeof(uint8_t)));
+    this->m_length = length;
+    uint8_t numberToCopy{(this->m_length < oldLength) ? oldLength : this->m_length};
+    for (int i = 0; i < numberToCopy; i++) {
+        this->m_message[i] = tempStorage[i]; 
+    }
+    free(tempStorage);
 }
 
 uint8_t LinMessage::address() const
@@ -160,18 +157,12 @@ uint8_t LinMessage::length() const
     return this->m_length;
 }
 
-LinDataPacket LinMessage::dataPacket() const
-{
-    return this->m_dataPacket;
-}
-
 int LinMessage::toString(char *out, size_t maximumLength) const
 {
     using namespace Utilities;
     if ((this->m_address == 0) &&
         (this->m_version == LinVersion::RevisionOne) &&
-        (this->m_length == 0) &&
-        (this->m_dataPacket == LinDataPacket{})) {
+        (this->m_length == 0)) {
         return -1;
     }
     char tempVersion[2];
@@ -189,16 +180,16 @@ int LinMessage::toString(char *out, size_t maximumLength) const
     if (strlen(out) >= maximumLength) {
         return strlen(out);
     }
-    for (int i = 0; i < this->m_dataPacket.length(); i++) {
+    for (int i = 0; i < this->m_length; i++) {
         tempHexString[0] = '\0';
         tempFixedWidthString[0] = '\0';
-        toHexString(this->m_dataPacket.nthByte(i), tempHexString, SMALL_BUFFER_SIZE);
+        toHexString(this->m_message[i], tempHexString, SMALL_BUFFER_SIZE);
         leftPad(tempHexString, tempFixedWidthString, 2, '0');
 
         strcat(out, "0x");
         strcat(out, tempFixedWidthString);
 
-        if (i != (this->m_dataPacket.length() - 1)) {
+        if (i != (this->m_length - 1)) {
             strcat(out, ":");
         }
         if (strlen(out) > maximumLength) {
@@ -237,15 +228,15 @@ LinMessage LinMessage::parse(const char *str, const char *delimiter, uint8_t mes
         free2D(result, bufferSpace);
         return LinMessage{};
     }
-    uint8_t tempVersion{hexStringToUChar(result[0])};
+    uint8_t tempVersion{stringToUChar(result[0])};
     if ((tempVersion != LinVersion::RevisionOne) && (tempVersion != LinVersion::RevisionTwo)) {
         free2D(result, bufferSpace);
         return returnMessage;
     } 
     returnMessage.setVersion(tempVersion == LinVersion::RevisionOne ? LinVersion::RevisionOne : LinVersion::RevisionTwo);
-    returnMessage.setAddress(hexStringToUChar(result[1]));
+    returnMessage.setAddress(stringToUChar(result[1]));
     for (uint8_t i = 0; i < messageLength; i++) {
-        returnMessage.setDataPacketNthByte(i, hexStringToUChar(result[i + 2]));
+        returnMessage.setMessageNthByte(i, stringToUChar(result[i + 2]));
     }
     free2D(result, bufferSpace);
     return returnMessage;

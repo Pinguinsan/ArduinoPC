@@ -2,6 +2,7 @@
 #define ARDUINOPC_LIN_H
 
 #include <inttypes.h>
+#include "linmessage.h"
 #include "Arduino.h"
 #include <HardwareSerial.h>
 
@@ -87,9 +88,12 @@ public:
 
     // Send a message right now, ignoring the schedule table.
     void sendTo(uint8_t targetAddress, const uint8_t *message, uint8_t numberOfBytes, uint8_t linVersion);
+    void sendTo(const LinMessage &linMessage);
 
     // Receive a message right now, returns 0xff if good checksum, # bytes received (including checksum) if checksum is bad.
     uint8_t receiveFrom(uint8_t targetAddress, uint8_t *message, uint8_t numberOfBytes, uint8_t linVersion);
+    LinMessage receiveFrom(uint8_t targetAddress, uint8_t numberOfBytes, LinVersion linVersion, int &status);
+
 
     // Add an element to the schedule.  To remove, either clear the whole thing, or remove it when it next plays
     void add(LinScheduleEntry& entry, uint16_t when=0);

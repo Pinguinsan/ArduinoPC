@@ -157,17 +157,40 @@ namespace Utilities
     {
         if (!str) {
             return 0;
-        };
-        int base{16};
-        if (startsWith(str, "0x")) {
-            base = 0;
         }
-        return (int)strtol(str, NULL, base);
+        return (uint32_t)strtol(str, NULL, 16);
     }
 
     uint8_t hexStringToUChar(const char *str)
     {
         return (uint8_t)hexStringToUInt(str);
+    }
+
+
+    uint32_t decStringToUInt(const char *str)
+    {
+        if (!str) {
+            return 0;
+        }
+        return (uint32_t)strtol(str, NULL, 10);
+    }
+
+    uint8_t decStringToUChar(const char *str)
+    {
+        return (uint8_t)decStringToUInt(str);
+    }
+    
+    uint32_t stringToUInt(const char *str)
+    {
+        if (!str) {
+            return 0;
+        }
+        return (uint32_t)strtol(str, NULL, 0);
+    }
+
+    uint8_t stringToUChar(const char *str)
+    {
+        return (uint8_t)strtol(str, NULL, 0);
     }
 
     int intExp(int base, int super)

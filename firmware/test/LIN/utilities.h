@@ -35,6 +35,10 @@ namespace Utilities
 
     uint32_t hexStringToUInt(const char *str);
     uint8_t hexStringToUChar(const char *str);
+    uint32_t decStringToUInt(const char *str);
+    uint8_t decStringToUChar(const char *str);
+    uint32_t stringToUInt(const char *str);
+    uint8_t stringToUChar(const char *str);
     int intExp(int base, int super);
     int tAbs(int lhs, int rhs);
     int tMax(int lhs, int rhs);
