@@ -7,6 +7,7 @@
 
 #include "Arduino.h"
 #include "lin.h"
+#include "bitset.h"
 #include "linmessage.h"
 
 #define CS_PIN A0
@@ -20,6 +21,8 @@
 #define RECEIVE_ID 0x39
 #define DATA_DELIMITER ':'
 #define LINE_ENDING '\r'
+#define CHANGE_TIMEOUT 1000
+
 
 LIN *linController;
 void onFaultTxePinStateChange()
@@ -71,35 +74,72 @@ int main()
     Serial.println(faultTxePinState ? "HIGH" : "LOW");
     long long sendStartTime{millis()};
     long long sendEndTime{millis()};
-    #define CHANGE_TIMEOUT 1000
     bool sendState{false};
-    while (true) {
-        uint8_t sendMessageOne[MESSAGE_LENGTH]{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,0x00};
-        uint8_t sendMessageTwo[MESSAGE_LENGTH]{0x00, 0xAF, 0xBD, 0x40, 0x25, 0x38, 0x00 ,0x80};
-        uint8_t receivedMessage[MESSAGE_LENGTH]{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+    /*
+    uint8_t *baseMessageData{static_cast<uint8_t *>(calloc(MESSAGE_LENGTH, sizeof(uint8_t)))};
+    baseMessageData[0] = 0x00;
+    baseMessageData[1] = 0x00;
+    baseMessageData[2] = 0x00;
+    baseMessageData[3] = 0x00;
+    baseMessageData[4] = 0x00;
+    baseMessageData[5] = 0x00;
+    baseMessageData[6] = 0x00;
+    baseMessageData[7] = 0x00;
+    LinMessage baseMessage{SEND_ID, LIN_REVISION, MESSAGE_LENGTH, baseMessageData};
+    free(baseMessageData);
+    */
 
-        //sendEndTime = millis();
+    LinMessage baseMessage{SEND_ID, LIN_REVISION};
+    
+    uint8_t *allOnMessageData{static_cast<uint8_t *>(calloc(MESSAGE_LENGTH, sizeof(uint8_t)))};
+    allOnMessageData[0] = 0x00;
+    allOnMessageData[1] = 0xAF;
+    allOnMessageData[2] = 0xBD;
+    allOnMessageData[3] = 0x40;
+    allOnMessageData[4] = 0x25;
+    allOnMessageData[5] = 0x38;
+    allOnMessageData[6] = 0x00;
+    allOnMessageData[7] = 0x80;
+    LinMessage allOnMessage{SEND_ID, LIN_REVISION, MESSAGE_LENGTH, allOnMessageData};
+    free(allOnMessageData);
+    while (true) {
+        sendEndTime = millis();
         if ((sendEndTime - sendStartTime) >= CHANGE_TIMEOUT) {
             sendState = !sendState;
             if (sendState) {
-                linController->sendTo(SEND_ID, sendMessageTwo, MESSAGE_LENGTH, LIN_REVISION);
+                linController->sendTo(baseMessage);
             } else {
-                linController->sendTo(SEND_ID, sendMessageOne, MESSAGE_LENGTH, LIN_REVISION);
+                linController->sendTo(allOnMessage);
             }
             sendStartTime = millis();
         }
         
         int status{0};
-        LinMessage linMessage{linController->receiveFrom(RECEIVE_ID, MESSAGE_LENGTH, (LIN_REVISION == LinVersion::RevisionOne ? 
-                                                                                                       LinVersion::RevisionOne : 
-                                                                                                       LinVersion::RevisionTwo), status)};
+        LinMessage linMessage{linController->receiveFrom(RECEIVE_ID, MESSAGE_LENGTH, LIN_REVISION, status)};
         if (status == 0xff) {
             Serial.print("Received full ");
             Serial.print(MESSAGE_LENGTH, DEC);
             Serial.print(" byte LIN message: ");
+            for (int i = 0; i < linMessage.length(); i++) {
+                if (i != 0) {
+                    Serial.print(" ");
+                }
+                Bitset bitset{MESSAGE_LENGTH};
+                bitset.setByte(linMessage.nthByte(i));
+                char tempBitset[SMALL_BUFFER_SIZE];
+                bitset.toString(tempBitset, 1);
+                Serial.print(tempBitset);
+                if ((i + 1) != linMessage.length()) {
+                    Serial.print(" |||");
+                }
+            }
+            Serial.println("");
+
+            /*
             char tempMessage[SMALL_BUFFER_SIZE];
             linMessage.toString(tempMessage, SMALL_BUFFER_SIZE);
             Serial.println(tempMessage);
+            */
         } else {
 
         }
@@ -110,16 +150,16 @@ int main()
                 int eatEmpty{Serial.read()};
                 (void)eatEmpty;
             }
-            LinMessage linMessage{LinMessage::parse(readString.c_str(), DATA_DELIMITER, MESSAGE_LENGTH)};
+            LinMessage serialLinMessage{LinMessage::parse(readString.c_str(), DATA_DELIMITER, MESSAGE_LENGTH)};
             char temp[SMALL_BUFFER_SIZE];
-            int result{linMessage.toString(temp, SMALL_BUFFER_SIZE)};
+            int result{serialLinMessage.toString(temp, SMALL_BUFFER_SIZE)};
             if (result < 0) {
                 Serial.println("Invalid LIN message read and parsed from Serial");
             } else {
                 Serial.print("Read and parsed valid LIN message from Serial: ");
                 Serial.println(temp);
             }
-            linController->sendTo(linMessage);
+            baseMessage = serialLinMessage;
         }   
         bool tempState = digitalRead(FAULT_TXE_PIN);
         if (tempState != faultTxePinState) {

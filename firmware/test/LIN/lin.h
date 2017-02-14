@@ -93,6 +93,7 @@ public:
     // Receive a message right now, returns 0xff if good checksum, # bytes received (including checksum) if checksum is bad.
     uint8_t receiveFrom(uint8_t targetAddress, uint8_t *message, uint8_t numberOfBytes, uint8_t linVersion);
     LinMessage receiveFrom(uint8_t targetAddress, uint8_t numberOfBytes, LinVersion linVersion, int &status);
+    LinMessage receiveFrom(uint8_t targetAddress, uint8_t numberOfBytes, uint8_t version, int &status);
 
 
     // Add an element to the schedule.  To remove, either clear the whole thing, or remove it when it next plays

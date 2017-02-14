@@ -17,6 +17,11 @@ class LinMessage
 {
 public:
     LinMessage(uint8_t address, LinVersion version, uint8_t length, uint8_t *message);
+    LinMessage(uint8_t address, LinVersion version);
+    LinMessage(uint8_t address, uint8_t version, uint8_t length, uint8_t *message);
+    LinMessage(uint8_t address, uint8_t version);
+    LinMessage(uint8_t address, LinVersion version, uint8_t length);
+    LinMessage(uint8_t address, uint8_t version, uint8_t length);
     LinMessage(const LinMessage &other);
     LinMessage(uint8_t length);
     LinMessage();
@@ -54,6 +59,8 @@ public:
         return true;
     }
 
+    static LinVersion toLinVersion(uint8_t version);
+
 
 private:
     uint8_t m_address;
@@ -62,6 +69,9 @@ private:
     uint8_t *m_message;
     
     static const uint8_t DEFAULT_MESSAGE_LENGTH;
+    static const LinVersion DEFAULT_LIN_VERSION;
+
+    void setZeroedMessage();
 
 };
 

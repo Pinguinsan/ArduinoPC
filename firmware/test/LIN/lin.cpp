@@ -186,6 +186,25 @@ LinMessage LIN::receiveFrom(uint8_t targetAddress, uint8_t numberOfBytes, LinVer
     return linMessage;
 }
 
+LinMessage LIN::receiveFrom(uint8_t targetAddress, uint8_t numberOfBytes, uint8_t version, int &status)
+{
+    LinVersion linVersion{LinMessage::toLinVersion(version)};
+    uint8_t *tempBuffer{(uint8_t *)calloc(numberOfBytes, sizeof(uint8_t))};
+    uint8_t receivedSize{this->receiveFrom(targetAddress, tempBuffer, numberOfBytes, linVersion)};
+    LinMessage linMessage{numberOfBytes};
+    linMessage.setAddress(targetAddress);
+    linMessage.setVersion((linVersion == LinVersion::RevisionOne) ? LinVersion::RevisionOne : LinVersion::RevisionTwo);
+    if (receivedSize == LIN_RECEIVE_SUCCESS) {
+        linMessage.setMessage(tempBuffer, numberOfBytes);
+        status = LIN_RECEIVE_SUCCESS;
+    } else {
+        status = receivedSize;
+    }
+    free(tempBuffer);
+    return linMessage;
+}
+
+
 uint8_t LIN::receiveFrom(uint8_t targetAddress, uint8_t *message, uint8_t numberOfBytes, uint8_t linVersion)
 {
     uint8_t bytesReceived{0};

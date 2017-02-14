@@ -1,6 +1,7 @@
 #include "linmessage.h"
 
 const uint8_t LinMessage::DEFAULT_MESSAGE_LENGTH{8};
+const LinVersion LinMessage::DEFAULT_LIN_VERSION{LinVersion::RevisionOne};
 
 LinMessage::LinMessage(uint8_t address, LinVersion version, uint8_t length, uint8_t *message) :
     m_address{address},
@@ -9,6 +10,51 @@ LinMessage::LinMessage(uint8_t address, LinVersion version, uint8_t length, uint
     m_message{static_cast<uint8_t *>(calloc(this->m_length, sizeof(uint8_t)))}
 {
     this->setMessage(message, length);
+}
+
+LinMessage::LinMessage(uint8_t address, uint8_t version, uint8_t length, uint8_t *message) :
+    m_address{address},
+    m_version{LinMessage::toLinVersion(version)},
+    m_length{length},
+    m_message{static_cast<uint8_t *>(calloc(this->m_length, sizeof(uint8_t)))}
+{
+    this->setMessage(message, length);
+}
+
+LinMessage::LinMessage(uint8_t address, LinVersion version) :
+    m_address{address},
+    m_version{version},
+    m_length{DEFAULT_MESSAGE_LENGTH},
+    m_message{static_cast<uint8_t *>(calloc(this->m_length, sizeof(uint8_t)))}
+{
+    this->setZeroedMessage();
+}
+
+LinMessage::LinMessage(uint8_t address, uint8_t version) :
+    m_address{address},
+    m_version{LinMessage::toLinVersion(version)},
+    m_length{DEFAULT_MESSAGE_LENGTH},
+    m_message{static_cast<uint8_t *>(calloc(this->m_length, sizeof(uint8_t)))}
+{
+    this->setZeroedMessage();
+}
+
+LinMessage::LinMessage(uint8_t address, LinVersion version, uint8_t length) :
+    m_address{address},
+    m_version{version},
+    m_length{length},
+    m_message{static_cast<uint8_t *>(calloc(this->m_length, sizeof(uint8_t)))}
+{
+    this->setZeroedMessage();
+}
+
+LinMessage::LinMessage(uint8_t address, uint8_t version, uint8_t length) :
+    m_address{address},
+    m_version{LinMessage::toLinVersion(version)},
+    m_length{length},
+    m_message{static_cast<uint8_t *>(calloc(this->m_length, sizeof(uint8_t)))}
+{
+    this->setZeroedMessage();
 }
 
 LinMessage::LinMessage(const LinMessage &other) :
@@ -22,11 +68,11 @@ LinMessage::LinMessage(const LinMessage &other) :
 
 LinMessage::LinMessage(uint8_t length) :
     m_address{0},
-    m_version{LinVersion::RevisionOne},
+    m_version{DEFAULT_LIN_VERSION},
     m_length{length},
     m_message{static_cast<uint8_t *>(calloc(this->m_length, sizeof(uint8_t)))}
 {
-
+    this->setZeroedMessage();
 }
 
 
@@ -36,7 +82,7 @@ LinMessage::LinMessage() :
     m_length{LinMessage::DEFAULT_MESSAGE_LENGTH},
     m_message{static_cast<uint8_t *>(calloc(this->m_length, sizeof(uint8_t)))}
 {
-
+    this->setZeroedMessage();
 }
 
 LinMessage::~LinMessage()
@@ -51,6 +97,13 @@ LinMessage& LinMessage::operator=(const LinMessage &rhs)
     this->m_message = static_cast<uint8_t *>(calloc(this->m_length, sizeof(uint8_t)));
     this->setMessage(rhs.message(), this->m_length);
     return *this;
+}
+
+void LinMessage::setZeroedMessage()
+{
+    for (int i = 0; i < this->m_length; i++) {
+        this->m_message[i] = 0x00;
+    }
 }
 
 void LinMessage::setAddress(uint8_t address)
@@ -240,5 +293,17 @@ LinMessage LinMessage::parse(const char *str, const char *delimiter, uint8_t mes
     }
     free2D(result, bufferSpace);
     return returnMessage;
+}
+
+LinVersion LinMessage::toLinVersion(uint8_t version)
+{
+    if (version == static_cast<uint8_t>(LinVersion::RevisionOne)) {
+        return LinVersion::RevisionOne;
+    } else if (version == static_cast<uint8_t>(LinVersion::RevisionTwo)) {
+        return LinVersion::RevisionTwo;
+    } else {
+        return LinMessage::DEFAULT_LIN_VERSION;
+    }
+
 }
     
