@@ -143,6 +143,7 @@ int main()
         } else {
 
         }
+        //delay(100);
 
         if (Serial.available()) {
             String readString{Serial.readStringUntil(LINE_ENDING)};
