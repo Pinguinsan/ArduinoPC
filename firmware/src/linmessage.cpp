@@ -1,49 +1,74 @@
-#include "../include/canmessage.h"
+#include "../include/linmessage.h"
 
-const uint8_t CanMessage::CAN_BYTE_WIDTH{2};
-const uint8_t CanMessage::CAN_ID_WIDTH{3};
-const uint8_t CanMessage::DEFAULT_MESSAGE_LENGTH{8};
-const uint8_t CanMessage::DEFAULT_FRAME_TYPE{0};
+const uint8_t LinMessage::DEFAULT_MESSAGE_LENGTH{8};
+const LinVersion LinMessage::DEFAULT_LIN_VERSION{LinVersion::RevisionOne};
 
-CanMessage::CanMessage(uint32_t id, uint8_t frameType, uint8_t length, uint8_t *message) :
-    m_id{id},
-    m_frameType{frameType},
+LinMessage::LinMessage(uint8_t address, LinVersion version, uint8_t length, uint8_t *message) :
+    m_address{address},
+    m_version{version},
     m_length{length},
     m_message{static_cast<uint8_t *>(calloc(this->m_length, sizeof(uint8_t)))}
 {
     this->setMessage(message, length);
 }
 
-CanMessage::CanMessage(uint32_t id, uint8_t frameType) :
-    m_id{id},
-    m_frameType{frameType},
+LinMessage::LinMessage(uint8_t address, uint8_t version, uint8_t length, uint8_t *message) :
+    m_address{address},
+    m_version{LinMessage::toLinVersion(version)},
+    m_length{length},
+    m_message{static_cast<uint8_t *>(calloc(this->m_length, sizeof(uint8_t)))}
+{
+    this->setMessage(message, length);
+}
+
+LinMessage::LinMessage(uint8_t address, LinVersion version) :
+    m_address{address},
+    m_version{version},
     m_length{DEFAULT_MESSAGE_LENGTH},
     m_message{static_cast<uint8_t *>(calloc(this->m_length, sizeof(uint8_t)))}
 {
     this->setZeroedMessage();
 }
 
-CanMessage::CanMessage(uint32_t id, uint8_t frameType, uint8_t length) :
-    m_id{id},
-    m_frameType{frameType},
+LinMessage::LinMessage(uint8_t address, uint8_t version) :
+    m_address{address},
+    m_version{LinMessage::toLinVersion(version)},
+    m_length{DEFAULT_MESSAGE_LENGTH},
+    m_message{static_cast<uint8_t *>(calloc(this->m_length, sizeof(uint8_t)))}
+{
+    this->setZeroedMessage();
+}
+
+LinMessage::LinMessage(uint8_t address, LinVersion version, uint8_t length) :
+    m_address{address},
+    m_version{version},
     m_length{length},
     m_message{static_cast<uint8_t *>(calloc(this->m_length, sizeof(uint8_t)))}
 {
     this->setZeroedMessage();
 }
 
-CanMessage::CanMessage(const CanMessage &other) :
-    m_id{other.id()},
-    m_frameType{other.frameType()},
+LinMessage::LinMessage(uint8_t address, uint8_t version, uint8_t length) :
+    m_address{address},
+    m_version{LinMessage::toLinVersion(version)},
+    m_length{length},
+    m_message{static_cast<uint8_t *>(calloc(this->m_length, sizeof(uint8_t)))}
+{
+    this->setZeroedMessage();
+}
+
+LinMessage::LinMessage(const LinMessage &other) :
+    m_address{other.address()},
+    m_version{other.version()},
     m_length{other.length()},
     m_message{static_cast<uint8_t *>(calloc(this->m_length, sizeof(uint8_t)))}
 {
     this->setMessage(other.message(), this->m_length);
 }
 
-CanMessage::CanMessage(uint8_t length) :
-    m_id{0},
-    m_frameType{DEFAULT_FRAME_TYPE},
+LinMessage::LinMessage(uint8_t length) :
+    m_address{0},
+    m_version{DEFAULT_LIN_VERSION},
     m_length{length},
     m_message{static_cast<uint8_t *>(calloc(this->m_length, sizeof(uint8_t)))}
 {
@@ -51,21 +76,21 @@ CanMessage::CanMessage(uint8_t length) :
 }
 
 
-CanMessage::CanMessage() :
-    m_id{0},
-    m_frameType{DEFAULT_FRAME_TYPE},
-    m_length{CanMessage::DEFAULT_MESSAGE_LENGTH},
+LinMessage::LinMessage() :
+    m_address{0},
+    m_version{LinVersion::RevisionOne},
+    m_length{LinMessage::DEFAULT_MESSAGE_LENGTH},
     m_message{static_cast<uint8_t *>(calloc(this->m_length, sizeof(uint8_t)))}
 {
     this->setZeroedMessage();
 }
 
-CanMessage::~CanMessage()
+LinMessage::~LinMessage()
 {
     free(this->m_message);
 }
 
-CanMessage& CanMessage::operator=(const CanMessage &rhs)
+LinMessage& LinMessage::operator=(const LinMessage &rhs)
 {
     this->m_length = rhs.length();
     free(this->m_message);
@@ -74,24 +99,24 @@ CanMessage& CanMessage::operator=(const CanMessage &rhs)
     return *this;
 }
 
-void CanMessage::setZeroedMessage()
+void LinMessage::setZeroedMessage()
 {
     for (int i = 0; i < this->m_length; i++) {
         this->m_message[i] = 0x00;
     }
 }
 
-void CanMessage::setID(uint32_t id)
+void LinMessage::setAddress(uint8_t address)
 {
-    this->m_id = id;
+    this->m_address = address;
 }
 
-void CanMessage::setFrameType(uint8_t frameType)
+void LinMessage::setVersion(LinVersion version)
 {
-    this->m_frameType = frameType;
+    this->m_version = version;
 }
 
-void CanMessage::setMessage(uint8_t *message, uint8_t length)
+void LinMessage::setMessage(uint8_t *message, uint8_t length)
 {
     if (this->m_length != length) {
         free(this->m_message);
@@ -106,7 +131,7 @@ void CanMessage::setMessage(uint8_t *message, uint8_t length)
     }
 }
 
-void CanMessage::setMessage(uint8_t *message)
+void LinMessage::setMessage(uint8_t *message)
 {
     for (int i = 0; i < this->m_length; i++) {
         if (!(message + i)) {
@@ -117,7 +142,7 @@ void CanMessage::setMessage(uint8_t *message)
     }
 }
 
-bool CanMessage::setMessageNthByte(uint8_t index, uint8_t nth)
+bool LinMessage::setMessageNthByte(uint8_t index, uint8_t nth)
 {
     if (index < this->m_length) {
         this->m_message[index] = nth;
@@ -127,7 +152,7 @@ bool CanMessage::setMessageNthByte(uint8_t index, uint8_t nth)
     }
 }
 
-uint8_t CanMessage::operator[](int index)
+uint8_t LinMessage::operator[](int index)
 {
     if (index < 0) {
         return 0;
@@ -136,7 +161,7 @@ uint8_t CanMessage::operator[](int index)
     }
 }
 
-uint8_t CanMessage::nthByte(uint8_t index) const
+uint8_t LinMessage::nthByte(uint8_t index) const
 {
     if (index < this->m_length) {
         return this->m_message[index];
@@ -145,12 +170,12 @@ uint8_t CanMessage::nthByte(uint8_t index) const
     }
 }
 
-uint8_t *CanMessage::message() const
+uint8_t *LinMessage::message() const
 {
     return this->m_message;
 }
 
-void CanMessage::setLength(uint8_t length)
+void LinMessage::setLength(uint8_t length)
 {
     if (this->m_length == length) {
         return;
@@ -170,37 +195,37 @@ void CanMessage::setLength(uint8_t length)
     free(tempStorage);
 }
 
-uint32_t CanMessage::id() const
+uint8_t LinMessage::address() const
 {
-    return this->m_id;
+    return this->m_address;
 }
 
-uint8_t CanMessage::frameType() const
+LinVersion LinMessage::version() const
 {
-    return this->m_frameType;
+    return this->m_version;
 }
 
-uint8_t CanMessage::length() const
+uint8_t LinMessage::length() const
 {
     return this->m_length;
 }
 
-int CanMessage::toString(char *out, size_t maximumLength) const
+int LinMessage::toString(char *out, size_t maximumLength) const
 {
     using namespace Utilities;
-    if ((this->m_id == 0) &&
-        (this->m_frameType == DEFAULT_FRAME_TYPE) &&
+    if ((this->m_address == 0) &&
+        (this->m_version == LinVersion::RevisionOne) &&
         (this->m_length == 0)) {
         return -1;
     }
-    char tempFrameType[2];
-    toDecString(this->m_frameType, tempFrameType, 2);
-    strcpy(out, tempFrameType);
+    char tempVersion[2];
+    toDecString(this->m_version, tempVersion, 2);
+    strcpy(out, tempVersion);
     strcat(out, ":");
 
     char tempHexString[SMALL_BUFFER_SIZE];
     char tempFixedWidthString[SMALL_BUFFER_SIZE];
-    toHexString(this->m_id, tempHexString, SMALL_BUFFER_SIZE);
+    toHexString(this->m_address, tempHexString, SMALL_BUFFER_SIZE);
     leftPad(tempHexString, tempFixedWidthString, 2, '0'); 
     strcat(out, "0x");
     strcat(out, tempFixedWidthString);
@@ -227,34 +252,46 @@ int CanMessage::toString(char *out, size_t maximumLength) const
     return strlen(out);
 }
 
-CanMessage CanMessage::parse(const char *str, char delimiter, uint8_t messageLength)
+LinMessage LinMessage::parse(const char *str, char delimiter, uint8_t messageLength)
 {
     const char temp[2]{delimiter, '\0'};
-    return CanMessage::parse(str, temp, messageLength);
+    return LinMessage::parse(str, temp, messageLength);
 }
 
-CanMessage CanMessage::parse(const char *str, const char *delimiter, uint8_t messageLength)
+LinMessage LinMessage::parse(const char *str, const char *delimiter, uint8_t messageLength)
 {
-    CanMessage returnMessage{};
+    LinMessage returnMessage{};
     using namespace Utilities;
     int bufferSpace{messageLength + 2};
     char **result{calloc2D<char>(bufferSpace, 4)};
     int resultSize{split(str, result, delimiter, bufferSpace, 4)};
     if (resultSize < (bufferSpace)) {
         free2D(result, bufferSpace);
-        return CanMessage{};
+        return LinMessage{};
     }
-    uint8_t tempFrameType{stringToUChar(result[0])};
-    if (tempFrameType > 1) {
+    uint8_t tempVersion{stringToUChar(result[0])};
+    if ((tempVersion != LinVersion::RevisionOne) && (tempVersion != LinVersion::RevisionTwo)) {
         free2D(result, bufferSpace);
         return returnMessage;
     } 
-    returnMessage.setFrameType(tempFrameType);
-    returnMessage.setID(stringToUInt(result[1]));
+    returnMessage.setVersion(tempVersion == LinVersion::RevisionOne ? LinVersion::RevisionOne : LinVersion::RevisionTwo);
+    returnMessage.setAddress(stringToUChar(result[1]));
     for (uint8_t i = 0; i < messageLength; i++) {
         returnMessage.setMessageNthByte(i, stringToUChar(result[i + 2]));
     }
     free2D(result, bufferSpace);
     return returnMessage;
+}
+
+LinVersion LinMessage::toLinVersion(uint8_t version)
+{
+    if (version == static_cast<uint8_t>(LinVersion::RevisionOne)) {
+        return LinVersion::RevisionOne;
+    } else if (version == static_cast<uint8_t>(LinVersion::RevisionTwo)) {
+        return LinVersion::RevisionTwo;
+    } else {
+        return LinMessage::DEFAULT_LIN_VERSION;
+    }
+
 }
     

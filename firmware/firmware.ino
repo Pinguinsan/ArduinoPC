@@ -1,4 +1,5 @@
 #include "include/gpio.h"
+#include "utilities.h"
 #include "include/arduinopcstrings.h"
 #include <string.h>
 #include <stdlib.h>
@@ -11,9 +12,13 @@
 
 #if defined(__HAVE_CAN_BUS__)
     #include "include/mcp_can.h"
-    #include "include/candatapacket.h"
     #include "include/canmessage.h"
-#endif
+#endif //__HAVE_CAN_BUS__
+
+#if defined(__HAVE_LIN_BUS__)
+    #include "include/lin.h"
+    #include "include/linmessage.h"
+#endif //__HAVE_LIN_BUS__
 
 using namespace ArduinoPCStrings;
 using namespace Utilities;
@@ -43,9 +48,7 @@ using namespace Utilities;
 static const bool NO_BROADCAST{false};
 static const bool BROADCAST{true};
 
-static const char OPENING_CHARACTER{'{'};
-static const char CLOSING_CHARACTER{'}'};
-static const char *LINE_ENDING{"\r"};
+static const char *LINE_ENDING{"\n"};
 static const char ITEM_SEPARATOR{':'}; 
 static const char DIGITAL_STATE_LOW_IDENTIFIER{'0'};
 static const char DIGITAL_STATE_HIGH_IDENTIFIER{'1'};
@@ -56,6 +59,12 @@ void broadcastString(const char *str);
     void printCanResult(const char *header, const char *str, int resultCode, bool broadcast = false);
     void printCanResult(const char *header, const CanMessage &msg, int resultCode, bool broadcast = false);
     void printBlankCanResult(const char *header, int resultCode); 
+#endif
+
+#if defined(__HAVE_LIN_BUS__)
+    void printLinResult(const char *header, const char *str, int resultCode, bool broadcast = false);
+    void printLinResult(const char *header, const LinMessage &msg, int resultCode, bool broadcast = false);
+    void printBlankLinResult(const char *header, int resultCode); 
 #endif
 
 void handleSerialString(const char *str);
@@ -90,56 +99,46 @@ bool isValidAnalogStateIdentifier(const char *str);
 bool isValidPwmPinIdentifier(const char *str);
 bool isValidPinTypeIdentifier(const char *str);
 
-bool checkValidIOChangeRequest(IOType ioType, int pinNumber);
+bool checkValidIOChangeRequest(IOType ioType, int8_t pinNumber);
 bool checkValidRequestString(const char *header, const char *checkStr); 
 
-bool isValidDigitalOutputPin(int pinNumber);
-bool isValidDigitalInputPin(int pinNumber);
-bool isValidAnalogOutputPin(int pinNumber);
-bool isValidAnalogInputPin(int pinNumber);
-int parseAnalogPin(const char *str);
+bool isValidDigitalOutputPin(int8_t pinNumber);
+bool isValidDigitalInputPin(int8_t pinNumber);
+bool isValidAnalogOutputPin(int8_t pinNumber);
+bool isValidAnalogInputPin(int8_t pinNumber);
+int8_t parseAnalogPin(const char *str);
 int parseToState(const char *str);
 
 int parseToAnalogState(const char *str);
 IOType parseIOType(const char *str);
 int parseToDigitalState(const char *str);
-int parsePin(const char *str);
+int8_t parsePin(const char *str);
 void populateGpioMap();
 
-int getIOTypeString(IOType type, char *out, size_t maximumSize);
-int getSerialPinIOTypeString(int pinNumber, char *out, size_t maximumSize);
-int analogPinFromNumber(int number, char *out, size_t maximumSize);
-GPIO *gpioPinByPinNumber(int pinNumber);
-bool pinInUseBySerialPort(int pinNumber);
+int8_t getIOTypeString(IOType type, char *out, size_t maximumSize);
+int8_t getSerialPinIOTypeString(int8_t pinNumber, char *out, size_t maximumSize);
+int8_t analogPinFromNumber(int8_t number, char *out, size_t maximumSize);
+GPIO *gpioPinByPinNumber(int8_t pinNumber);
+bool pinInUseBySerialPort(int8_t pinNumber);
 size_t makeRequestString(const char *str, const char *header, char *out, size_t maximumSize);
-size_t analogPinArraySize();
-size_t generalPinArraySize();
-size_t pwmPinArraySize();
+uint8_t analogPinArraySize();
+uint8_t generalPinArraySize();
+uint8_t pwmPinArraySize();
 
 #if defined(ARDUINO_AVR_UNO)
     static const PROGMEM int8_t AVAILABLE_ANALOG_PINS[]{A0, A1, A2, A3, A4, A5, -1};
     static const PROGMEM int8_t AVAILABLE_GENERAL_PINS[]{2, 4, 7, 8, 12, 13, -1};
     #define NUMBER_OF_ANALOG_PINS 6
     #define ANALOG_PIN_OFFSET 13
-    #if defined(__HAVE_CAN_BUS__)
-        #define NUMBER_OF_PINS 20
-        static const PROGMEM int8_t AVAILABLE_PWM_PINS[]{3, 5, 6, 10, 11, -1};
-    #else
-        #define NUMBER_OF_PINS 21
-        static const PROGMEM int8_t AVAILABLE_PWM_PINS[]{3, 5, 6, 9, 10, 11, -1};
-    #endif
+    #define NUMBER_OF_PINS 21
+    static const PROGMEM int8_t AVAILABLE_PWM_PINS[]{3, 5, 6, 9, 10, 11, -1};
 #elif defined(ARDUINO_AVR_NANO)
     static const PROGMEM int8_t AVAILABLE_ANALOG_PINS[]{A0, A1, A2, A3, A4, A5, A6, A7, -1};                                                
     static const PROGMEM int8_t AVAILABLE_GENERAL_PINS[]{2, 4, 7, 8, 12, 13, -1};
     #define NUMBER_OF_ANALOG_PINS 8
     #define ANALOG_PIN_OFFSET 13
-    #if defined(__HAVE_CAN_BUS__)
-        #define NUMBER_OF_PINS 22
-        static const PROGMEM int8_t AVAILABLE_PWM_PINS[]{3, 5, 6, 10, 11, -1};
-    #else
-        #define NUMBER_OF_PINS 23
-        static const PROGMEM int8_t AVAILABLE_PWM_PINS[]{3, 5, 6, 9, 10, 11, -1};
-    #endif
+    #define NUMBER_OF_PINS 23
+    static const PROGMEM int8_t AVAILABLE_PWM_PINS[]{3, 5, 6, 9, 10, 11, -1};
 #elif defined(ARDUINO_AVR_MEGA1280) || defined(ARDUINO_AVR_MEGA2560)
     static const PROGMEM int8_t AVAILABLE_ANALOG_PINS[]{A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, -1};
     static const PROGMEM int8_t AVAILABLE_GENERAL_PINS[]{14, 15, 16, 17, 18, 19, 20,21, 22, 23, 24, 
@@ -150,17 +149,11 @@ size_t pwmPinArraySize();
                                                            A8, A9, A10, A11, A12, A13, A14, A15};                                    
     #define NUMBER_OF_ANALOG_PINS 16
     #define ANALOG_PIN_OFFSET 53
-    #if defined(__HAVE_CAN_BUS__)
-        #define NUMBER_OF_PINS 70
-        static const PROGMEM int8_t AVAILABLE_PWM_PINS[]{2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 44, 45, 46, -1};
-    #else
-        #define NUMBER_OF_PINS 71
-        static const PROGMEM int8_t AVAILABLE_PWM_PINS[]{2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 44, 45, 46, -1};
-    #endif
+    #define NUMBER_OF_PINS 71
+    static const PROGMEM int8_t AVAILABLE_PWM_PINS[]{2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 44, 45, 46, -1};
 #endif
 
 #if defined(__HAVE_CAN_BUS__)
-    #include <set>
     #ifndef INT32U
         #define INT32U unsigned long
     #endif
@@ -191,10 +184,20 @@ size_t pwmPinArraySize();
     #define CAN_WRITE_REQUEST_SIZE 9
     static bool canBusInitialized{false};
     static bool canLiveUpdate{false};
-    CanMessage parseCanMessage(const char *str);
-    static std::map<uint32_t, CanMessage> lastCanMessages;
-    static std::set<uint32_t> positiveCanMasks;
-    static std::set<uint32_t> negativeCanMasks;
+
+    #define EMPTY_CAN_MASK_SLOT 0x0
+    #define MAX_LAST_CAN_MESSAGES 10
+    #define MAX_POSITIVE_CAN_MASKS 10
+    #define MAX_NEGATIVE_CAN_MASKS 10
+    static CanMessage lastCanMessages[MAX_LAST_CAN_MESSAGES];
+    static uint32_t positiveCanMasks[MAX_POSITIVE_CAN_MASKS];
+    static uint32_t negativeCanMasks[MAX_NEGATIVE_CAN_MASKS];
+    bool positiveCanMaskExists(uint32_t targetMask);
+    bool negativeCanMaskExists(uint32_t targetMask);
+    uint8_t numberOfPositiveCanMasks();
+    uint8_t numberOfNegativeCanMasks();
+    void initializeCanMasks();
+    
     void addLastCanMessage(const CanMessage &msg);
     #define CAN_MESSAGE_LENGTH 8
     #define CAN_FRAME 0
@@ -249,17 +252,17 @@ ByteStream *defaultNativePort{hardwareSerialPorts[0]};
 
 template <typename Header, typename PinNumber, typename State, typename ResultCode> inline void printResult(const Header &header, PinNumber pinNumber, State state, ResultCode resultCode)
 {    
-    *getCurrentValidOutputStream() << header << ITEM_SEPARATOR << pinNumber << ITEM_SEPARATOR << state << ITEM_SEPARATOR << resultCode << CLOSING_CHARACTER << LINE_ENDING;
+    *getCurrentValidOutputStream() << header << ITEM_SEPARATOR << pinNumber << ITEM_SEPARATOR << state << ITEM_SEPARATOR << resultCode << LINE_ENDING;
 }
 
 template <typename Header, typename ResultCode> inline void printSingleResult(const Header &header, ResultCode resultCode)
 {
-    *getCurrentValidOutputStream() << header << ITEM_SEPARATOR << resultCode << CLOSING_CHARACTER << LINE_ENDING;
+    *getCurrentValidOutputStream() << header << ITEM_SEPARATOR << resultCode << LINE_ENDING;
 }
 
 template <typename Header, typename Type, typename ResultCode> inline void printTypeResult(const Header &header, Type type, ResultCode resultCode)
 {
-    *getCurrentValidOutputStream() << header << ITEM_SEPARATOR << type << ITEM_SEPARATOR << resultCode << CLOSING_CHARACTER << LINE_ENDING; 
+    *getCurrentValidOutputStream() << header << ITEM_SEPARATOR << type << ITEM_SEPARATOR << resultCode << LINE_ENDING; 
 }
 
 template <typename Parameter> inline void printString(const Parameter &parameter)
@@ -267,103 +270,81 @@ template <typename Parameter> inline void printString(const Parameter &parameter
     *getCurrentValidOutputStream() << parameter << LINE_ENDING;
 }
 
-int main()
-{
-    arduinoInit();
+void setup() {
     initializeSerialPorts();
     announceStartup();
     populateGpioMap();
+    #if defined(__HAVE_CAN_BUS__)
+        initializeCanMasks();
+    #endif //__HAVE_CAN_BUS__
+}
 
-    while (true) {
-        for (unsigned int i = 0; i < ARRAY_SIZE(hardwareSerialPorts); i++) {
-            ByteStream *it{nullptr};
-            if (hardwareSerialPorts + i) {
-                if (hardwareSerialPorts[i]) {
-                    it = hardwareSerialPorts[i];
-                }
-            }
-            if (!it) {
-                continue;
-            }
-            if ((it->isEnabled()) && (it->available() != 0)) {
-                char buffer[MAXIMUM_SERIAL_READ_SIZE];
-                int serialRead{it->readLine(buffer, MAXIMUM_SERIAL_READ_SIZE)};
-                if (serialRead > 0) {
-                    currentSerialStream = it;
-                    handleSerialString(buffer);
-                }
-            }
-        }
-        for (unsigned int i = 0; i < ARRAY_SIZE(softwareSerialPorts); i++) {
-            ByteStream *it{nullptr};
-            if (softwareSerialPorts + i) {
-                if (softwareSerialPorts[i]) {
-                    it = softwareSerialPorts[i];
-                }
-            }
-            if (!it) {
-                continue;
-            }
-            if ((it->isEnabled()) && (it->available() != 0)) {
-                char buffer[MAXIMUM_SERIAL_READ_SIZE];
-                int serialRead{it->readLine(buffer, MAXIMUM_SERIAL_READ_SIZE)};
-                if (serialRead > 0) {
-                    currentSerialStream = it;
-                    handleSerialString(buffer);
-                }
-            }
-        }
-        #if defined(__HAVE_CAN_BUS__)
-            if (canLiveUpdate) {
-                canReadRequest(canLiveUpdate);
-            }
-            bool canSend{false};
-            for (auto &it : lastCanMessages) {
-                if (it.second.toString() != "") {
-                    canSend = true;
-                }
-            }
-            if (canSend) {
-                if (canCommunicationStartTime == 0) {
-                    canCommunicationStartTime = millis();
-                }
-                canCommunicationEndTime = millis();
-                if (static_cast<unsigned int>((canCommunicationEndTime - canCommunicationStartTime)) >= CAN_COMMUNICATION_DOWN_TIME) {    
-                    for (auto &it : lastCanMessages) {
-                        sendCanMessage(it.second);
-                    }
-                    canCommunicationStartTime = millis();
-                }
-            }
-        #endif
-        doImAliveBlink();
-        if (serialEventRun) serialEventRun();
-    }
-    for (unsigned int i = 0; i < ARRAY_SIZE(gpioPins); i++) {
-        if (gpioPins + i) {
-            if (gpioPins[i]) {
-                delete gpioPins[i];
-            }
-        }
-    }
+void loop() {
     for (unsigned int i = 0; i < ARRAY_SIZE(hardwareSerialPorts); i++) {
+        ByteStream *it{nullptr};
         if (hardwareSerialPorts + i) {
             if (hardwareSerialPorts[i]) {
-                delete hardwareSerialPorts[i];
+                it = hardwareSerialPorts[i];
+            }
+        }
+        if (!it) {
+            continue;
+        }
+        if ((it->isEnabled()) && (it->available() != 0)) {
+            char buffer[MAXIMUM_SERIAL_READ_SIZE];
+            int serialRead{it->readLine(buffer, MAXIMUM_SERIAL_READ_SIZE)};
+            if (serialRead > 0) {
+                currentSerialStream = it;
+                handleSerialString(buffer);
             }
         }
     }
     for (unsigned int i = 0; i < ARRAY_SIZE(softwareSerialPorts); i++) {
+        ByteStream *it{nullptr};
         if (softwareSerialPorts + i) {
             if (softwareSerialPorts[i]) {
-                delete softwareSerialPorts[i];
+                it = softwareSerialPorts[i];
+            }
+        }
+        if (!it) {
+            continue;
+        }
+        if ((it->isEnabled()) && (it->available() != 0)) {
+            char buffer[MAXIMUM_SERIAL_READ_SIZE];
+            int serialRead{it->readLine(buffer, MAXIMUM_SERIAL_READ_SIZE)};
+            if (serialRead > 0) {
+                currentSerialStream = it;
+                handleSerialString(buffer);
             }
         }
     }
+    
     #if defined(__HAVE_CAN_BUS__)
-        delete canController;
+        if (canLiveUpdate) {
+            canReadRequest(canLiveUpdate);
+        }
+        bool canSend{false};
+        for (int i = 0; i < MAX_LAST_CAN_MESSAGES; i++) {
+            if (lastCanMessages[i].id() != 0) {
+                canSend = true;
+            }
+        }
+        if (canSend) {
+            if (canCommunicationStartTime == 0) {
+                canCommunicationStartTime = millis();
+            }
+            canCommunicationEndTime = millis();
+            if (static_cast<unsigned int>((canCommunicationEndTime - canCommunicationStartTime)) >= CAN_COMMUNICATION_DOWN_TIME) {    
+                for (int i = 0; i < MAX_LAST_CAN_MESSAGES; i++) {
+                    if (lastCanMessages[i].id() != 0) {
+                        sendCanMessage(lastCanMessages[i]);
+                    }
+                }
+                canCommunicationStartTime = millis();
+            }
+        }
     #endif
-    return 0;
+    doImAliveBlink();
 }
 
 void doImAliveBlink()
@@ -580,7 +561,7 @@ void handleSerialString(const char *str)
     } else if (startsWith(str, CLEAR_ALL_CAN_MASKS_HEADER)) {
         clearAllCanMasksRequest();
 #endif
-    /*} else if (startsWith(str, ADD_SOFTWARE_SERIAL_HEADER)) {
+    } else if (startsWith(str, ADD_SOFTWARE_SERIAL_HEADER)) {
         if (checkValidRequestString(ADD_SOFTWARE_SERIAL_HEADER, str)) {
             substringResult = substring(str, strlen(ADD_SOFTWARE_SERIAL_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
             addSoftwareSerialRequest(requestString);
@@ -594,7 +575,6 @@ void handleSerialString(const char *str)
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
-    */
     } else {
         printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
     }
@@ -604,7 +584,7 @@ void handleSerialString(const char *str)
 size_t makeRequestString(const char *str, const char *header, char *out, size_t maximumSize)
 {
     size_t returnLength = substring(str, strlen(header) + 1, out, maximumSize);
-    if (out[strlen(out)-1] == CLOSING_CHARACTER) {
+    if ((out[strlen(out)-1] == '\n') || (out[strlen(out)-1] == '\r')) {
         out[strlen(out)-1] = '\0';
         returnLength--;
     }
@@ -618,7 +598,7 @@ void addSoftwareSerialRequest(const char *str)
     int result{substring(str, 0, foundPosition, maybeRxPin, SMALL_BUFFER_SIZE)};
     (void)result;
  
-    int rxPinNumber{parsePin(maybeRxPin)};
+    int8_t rxPinNumber{parsePin(maybeRxPin)};
     if (rxPinNumber == INVALID_PIN) {
         printResult(ADD_SOFTWARE_SERIAL_HEADER, maybeRxPin, STATE_FAILURE, OPERATION_FAILURE);
         return;
@@ -627,7 +607,7 @@ void addSoftwareSerialRequest(const char *str)
     char maybeTxPin[SMALL_BUFFER_SIZE];
     result = substring(str, foundPosition+1, maybeTxPin, SMALL_BUFFER_SIZE);
     
-    int txPinNumber{parsePin(maybeTxPin)};
+    int8_t txPinNumber{parsePin(maybeTxPin)};
     if (txPinNumber == INVALID_PIN) {
         printResult(ADD_SOFTWARE_SERIAL_HEADER, maybeRxPin, maybeTxPin, OPERATION_FAILURE);
         return;
@@ -671,7 +651,7 @@ void addHardwareSerialRequest(const char *str)
     int result{substring(str, 0, foundPosition, maybeRxPin, SMALL_BUFFER_SIZE)};
     (void)result;
     
-    int rxPinNumber{parsePin(maybeRxPin)};
+    int8_t rxPinNumber{parsePin(maybeRxPin)};
     if (rxPinNumber == INVALID_PIN) {
         printResult(ADD_HARDWARE_SERIAL_HEADER, maybeRxPin, STATE_FAILURE, OPERATION_FAILURE);
         return;
@@ -679,7 +659,7 @@ void addHardwareSerialRequest(const char *str)
     char maybeTxPin[SMALL_BUFFER_SIZE];
     result = substring(str, foundPosition+1, maybeTxPin, SMALL_BUFFER_SIZE);
 
-    int txPinNumber{parsePin(maybeTxPin)};
+    int8_t txPinNumber{parsePin(maybeTxPin)};
     if (txPinNumber == INVALID_PIN) {
         printResult(ADD_HARDWARE_SERIAL_HEADER, maybeRxPin, maybeTxPin, OPERATION_FAILURE);
         return;
@@ -704,7 +684,7 @@ void removeSoftwareSerialRequest(const char *str)
     int result{substring(str, 0, foundPosition, maybeRxPin, SMALL_BUFFER_SIZE)};
     (void)result;
  
-    int rxPinNumber{parsePin(maybeRxPin)};
+    int8_t rxPinNumber{parsePin(maybeRxPin)};
     if (rxPinNumber == INVALID_PIN) {
         printResult(REMOVE_SOFTWARE_SERIAL_HEADER, maybeRxPin, STATE_FAILURE, OPERATION_FAILURE);
         return;
@@ -716,7 +696,7 @@ void removeSoftwareSerialRequest(const char *str)
     char maybeTxPin[SMALL_BUFFER_SIZE];
     result = substring(str, foundPosition+1, maybeTxPin, SMALL_BUFFER_SIZE);
 
-    int txPinNumber{parsePin(maybeTxPin)};
+    int8_t txPinNumber{parsePin(maybeTxPin)};
     if (txPinNumber == INVALID_PIN) {
         printResult(REMOVE_SOFTWARE_SERIAL_HEADER, maybeRxPin, maybeTxPin, OPERATION_FAILURE);
         return;
@@ -741,7 +721,7 @@ void removeHardwareSerialRequest(const char *str)
     int result{substring(str, 0, foundPosition, maybeRxPin, SMALL_BUFFER_SIZE)};
     (void)result;
  
-    int rxPinNumber{parsePin(maybeRxPin)};
+    int8_t rxPinNumber{parsePin(maybeRxPin)};
     if (rxPinNumber == INVALID_PIN) {
         printResult(REMOVE_HARDWARE_SERIAL_HEADER, maybeRxPin, STATE_FAILURE, OPERATION_FAILURE);
         return;
@@ -753,7 +733,7 @@ void removeHardwareSerialRequest(const char *str)
     char maybeTxPin[SMALL_BUFFER_SIZE];
     result = substring(str, foundPosition+1, maybeTxPin, SMALL_BUFFER_SIZE);
 
-    int txPinNumber{parsePin(maybeTxPin)};
+    int8_t txPinNumber{parsePin(maybeTxPin)};
     if (txPinNumber == INVALID_PIN) {
         printResult(REMOVE_HARDWARE_SERIAL_HEADER, maybeRxPin, maybeTxPin, OPERATION_FAILURE);
         return;
@@ -798,7 +778,7 @@ bool isValidSoftwareSerialAddition(int rxPinNumber, int txPinNumber)
         
         int i{0};
         do {
-            int tempPinNumber{pgm_read_word_near(AVAILABLE_SERIAL_RX_PINS + i++)};
+            int8_t tempPinNumber{pgm_read_byte_near(AVAILABLE_SERIAL_RX_PINS + i++)};
             if (tempPinNumber < 0) {
                 break;
             }
@@ -852,7 +832,7 @@ void currentAToDThresholdRequest()
 
 void ioReportRequest()
 {
-    *getCurrentValidOutputStream() << IO_REPORT_HEADER << CLOSING_CHARACTER;
+    *getCurrentValidOutputStream() << IO_REPORT_HEADER << ITEM_SEPARATOR;
     for (int i = 0; i < NUMBER_OF_PINS; i++) {
         GPIO *gpioPin{gpioPinByPinNumber(i)};
         if (!gpioPin) {
@@ -871,24 +851,24 @@ void ioReportRequest()
         if (isValidAnalogInputPin(gpioPin->pinNumber())) {
             char analogPinString[SMALL_BUFFER_SIZE];
             char ioTypeString[SMALL_BUFFER_SIZE];
-            int result{analogPinFromNumber(gpioPin->pinNumber(), analogPinString, SMALL_BUFFER_SIZE)};
-            int secondResult{getIOTypeString(gpioPin->ioType(), ioTypeString, SMALL_BUFFER_SIZE)};
+            int8_t result{analogPinFromNumber(gpioPin->pinNumber(), analogPinString, SMALL_BUFFER_SIZE)};
+            int8_t secondResult{getIOTypeString(gpioPin->ioType(), ioTypeString, SMALL_BUFFER_SIZE)};
             (void)result;
             (void)secondResult;
-            *getCurrentValidOutputStream() << OPENING_CHARACTER << analogPinString << ITEM_SEPARATOR << ioTypeString << ITEM_SEPARATOR << state << CLOSING_CHARACTER;
+            *getCurrentValidOutputStream() << ITEM_SEPARATOR << analogPinString << ITEM_SEPARATOR << ioTypeString << ITEM_SEPARATOR << state;
         } else {
             char ioTypeString[SMALL_BUFFER_SIZE];
             int result{getIOTypeString(gpioPin->ioType(), ioTypeString, SMALL_BUFFER_SIZE)};
             (void)result;
-            *getCurrentValidOutputStream() << OPENING_CHARACTER << gpioPin->pinNumber() << ITEM_SEPARATOR << ioTypeString << ITEM_SEPARATOR << state << CLOSING_CHARACTER;
+            *getCurrentValidOutputStream() << ITEM_SEPARATOR << gpioPin->pinNumber() << ITEM_SEPARATOR << ioTypeString << ITEM_SEPARATOR << state;
         }
     }
-    *getCurrentValidOutputStream() << IO_REPORT_END_HEADER << CLOSING_CHARACTER << LINE_ENDING;
+    *getCurrentValidOutputStream() << ITEM_SEPARATOR << IO_REPORT_END_HEADER << LINE_ENDING;
 }
 
 void digitalReadRequest(const char *str, bool soft)
 {
-    int pinNumber{parsePin(str)};
+    int8_t pinNumber{parsePin(str)};
     if (pinNumber == INVALID_PIN) {
         printResult((soft ? SOFT_DIGITAL_READ_HEADER : DIGITAL_READ_HEADER), str, STATE_FAILURE, OPERATION_FAILURE);
         return;
@@ -901,7 +881,13 @@ void digitalReadRequest(const char *str, bool soft)
         printResult((soft ? SOFT_DIGITAL_READ_HEADER : DIGITAL_READ_HEADER), str, STATE_FAILURE, OPERATION_FAILURE);
         return;
     }
-    bool state{(soft ? gpioPinByPinNumber(pinNumber)->g_softDigitalRead() : gpioPinByPinNumber(pinNumber)->g_digitalRead())};
+    bool state{false};
+    GPIO *gpioHandle{gpioPinByPinNumber(pinNumber)};
+    if (gpioHandle->ioType() == IOType::DIGITAL_OUTPUT) {
+        state = gpioHandle->g_softDigitalRead();
+    } else {
+        state = gpioHandle->g_digitalRead();
+    }
     printResult((soft ? SOFT_DIGITAL_READ_HEADER : DIGITAL_READ_HEADER), str, state, OPERATION_SUCCESS);
 }
 
@@ -914,7 +900,7 @@ void digitalWriteRequest(const char *str)
         free2D(splitString, DIGITAL_WRITE_PARAMETER_COUNT);
         return;
     }
-    int pinNumber{parsePin(splitString[0])};
+    int8_t pinNumber{parsePin(splitString[0])};
     if (pinNumber == INVALID_PIN) {
         printResult(DIGITAL_WRITE_HEADER, splitString[0], STATE_FAILURE, OPERATION_FAILURE);
         free2D(splitString, DIGITAL_WRITE_PARAMETER_COUNT);
@@ -943,7 +929,7 @@ void digitalWriteRequest(const char *str)
 
 void digitalWriteAllRequest(const char *str)
 {
-    *getCurrentValidOutputStream() << DIGITAL_WRITE_ALL_HEADER;
+    *getCurrentValidOutputStream() << DIGITAL_WRITE_ALL_HEADER << ITEM_SEPARATOR;
     
     int state{parseToDigitalState(str)};
     if (state == OPERATION_FAILURE) {
@@ -957,7 +943,7 @@ void digitalWriteAllRequest(const char *str)
                 gpioPin->g_digitalWrite(state);
                 if (isValidAnalogInputPin(gpioPin->pinNumber())) {
                     char analogPinString[SMALL_BUFFER_SIZE];
-                    int result{analogPinFromNumber(gpioPin->pinNumber(), analogPinString, SMALL_BUFFER_SIZE)};
+                    int8_t result{analogPinFromNumber(gpioPin->pinNumber(), analogPinString, SMALL_BUFFER_SIZE)};
                     (void)result;
                     *getCurrentValidOutputStream() << ITEM_SEPARATOR << analogPinString;
                 } else {
@@ -966,12 +952,12 @@ void digitalWriteAllRequest(const char *str)
             }
         }
     }
-    *getCurrentValidOutputStream() << ITEM_SEPARATOR << state << ITEM_SEPARATOR << OPERATION_SUCCESS << CLOSING_CHARACTER << LINE_ENDING;
+    *getCurrentValidOutputStream() << ITEM_SEPARATOR << state << ITEM_SEPARATOR << OPERATION_SUCCESS << LINE_ENDING;
 }
 
 void analogReadRequest(const char *str)
 {
-    int pinNumber{parsePin(str)};
+    int8_t pinNumber{parsePin(str)};
     if (pinNumber == INVALID_PIN) {
         printResult(ANALOG_READ_HEADER, str, STATE_FAILURE, OPERATION_FAILURE);
         return;
@@ -996,7 +982,7 @@ void analogWriteRequest(const char *str)
         free2D(splitString, ANALOG_WRITE_PARAMETER_COUNT);
         return;
     }
-    int pinNumber{parsePin(splitString[0])};
+    int8_t pinNumber{parsePin(splitString[0])};
     if (pinNumber == INVALID_PIN) {
         printResult(ANALOG_WRITE_HEADER, splitString[0], STATE_FAILURE, OPERATION_FAILURE);
         free2D(splitString, ANALOG_WRITE_PARAMETER_COUNT);
@@ -1025,7 +1011,7 @@ void analogWriteRequest(const char *str)
 
 void pinTypeRequest(const char *str)
 {
-    int pinNumber{parsePin(str)};
+    int8_t pinNumber{parsePin(str)};
     if (pinNumber == INVALID_PIN) {
         printResult(PIN_TYPE_HEADER, str, STATE_FAILURE, OPERATION_FAILURE);
         return;
@@ -1045,7 +1031,7 @@ void pinTypeRequest(const char *str)
         return;
     }
     char ioTypeString[SMALL_BUFFER_SIZE];
-    int result{getIOTypeString(tempGpio->ioType(), ioTypeString, SMALL_BUFFER_SIZE)};
+    int8_t result{getIOTypeString(tempGpio->ioType(), ioTypeString, SMALL_BUFFER_SIZE)};
     (void)result;
     printResult(PIN_TYPE_HEADER, str, ioTypeString, OPERATION_SUCCESS);
 }
@@ -1059,7 +1045,7 @@ void pinTypeChangeRequest(const char *str)
         free2D(splitString, PIN_TYPE_CHANGE_PARAMETER_COUNT);
         return;
     }
-    int pinNumber{parsePin(splitString[0])};
+    int8_t pinNumber{parsePin(splitString[0])};
     if (pinNumber == INVALID_PIN) {
         printResult(PIN_TYPE_CHANGE_HEADER, splitString[0], STATE_FAILURE, OPERATION_FAILURE);
         free2D(splitString, PIN_TYPE_CHANGE_PARAMETER_COUNT);
@@ -1103,7 +1089,7 @@ void pinTypeChangeRequest(const char *str)
 
 void softAnalogReadRequest(const char *str)
 {
-    int pinNumber{parsePin(str)};
+    int8_t pinNumber{parsePin(str)};
     if (pinNumber == INVALID_PIN) {
         printResult(SOFT_ANALOG_READ_HEADER, str, STATE_FAILURE, OPERATION_FAILURE);
         return;
@@ -1121,9 +1107,7 @@ void heartbeatRequest()
     char *stringToPrint = (char *)calloc(strlen(HEARTBEAT_HEADER) + 1, sizeof(char));
     strncpy(stringToPrint, HEARTBEAT_HEADER, strlen(HEARTBEAT_HEADER) + 1);
 
-    size_t stringLength{strlen(stringToPrint)};
-    stringToPrint[stringLength] = CLOSING_CHARACTER;
-    stringToPrint[stringLength + 1] = '\0';
+    stringToPrint[strlen(stringToPrint)] = '\0';
 
     printString(stringToPrint);
     free(stringToPrint);
@@ -1150,12 +1134,12 @@ void canBusEnabledRequest()
 
 void populateGpioMap()
 {
-    for (size_t i = 0; i < NUMBER_OF_PINS; i++) {
+    for (uint8_t i = 0; i < NUMBER_OF_PINS; i++) {
         gpioPins[i] = nullptr;
     }
-    int i{0};
+    uint8_t i{0};
     do {
-        int pinNumber{pgm_read_word_near(AVAILABLE_PWM_PINS + i++)};
+        int8_t pinNumber{pgm_read_byte_near(AVAILABLE_PWM_PINS + i++)};
         if (pinNumber < 0) {
             break;
         }
@@ -1163,7 +1147,7 @@ void populateGpioMap()
     } while (true);
     i = 0;
     do {
-        int pinNumber{pgm_read_word_near(AVAILABLE_ANALOG_PINS + i++)};
+        int8_t pinNumber{pgm_read_byte_near(AVAILABLE_ANALOG_PINS + i++)};
         if (pinNumber < 0) {
             break;
         }
@@ -1171,7 +1155,7 @@ void populateGpioMap()
     } while (true);
     i = 0;
     do {
-        int pinNumber{pgm_read_word_near(AVAILABLE_GENERAL_PINS + i++)};
+        int8_t pinNumber{pgm_read_byte_near(AVAILABLE_GENERAL_PINS + i++)};
         if (pinNumber < 0) {
             break;
         }
@@ -1188,7 +1172,7 @@ bool checkValidRequestString(const char *header, const char *checkStr)
 }
 
 
-bool isValidDigitalOutputPin(int pinNumber)
+bool isValidDigitalOutputPin(int8_t pinNumber)
 {
 #if defined(ARDUINO_AVR_NANO)
     if ((pinNumber == A6) || (pinNumber == A7)) {
@@ -1200,16 +1184,16 @@ bool isValidDigitalOutputPin(int pinNumber)
     return isValidPinIdentifier(temp);
 }
 
-bool isValidDigitalInputPin(int pinNumber)
+bool isValidDigitalInputPin(int8_t pinNumber)
 {
     return isValidDigitalOutputPin(pinNumber);
 }
 
-bool isValidAnalogOutputPin(int pinNumber)
+bool isValidAnalogOutputPin(int8_t pinNumber)
 {
-    int i{0};
+    uint8_t i{0};
     do {
-        int tempPinNumber{pgm_read_word_near(AVAILABLE_PWM_PINS + i++)};
+        int8_t tempPinNumber{pgm_read_byte_near(AVAILABLE_PWM_PINS + i++)};
         if (tempPinNumber < 0) {
             return false;
         }
@@ -1219,11 +1203,11 @@ bool isValidAnalogOutputPin(int pinNumber)
     } while (true);
 }
 
-bool isValidAnalogInputPin(int pinNumber)
+bool isValidAnalogInputPin(int8_t pinNumber)
 {
-    int i{0};
+    uint8_t i{0};
     do {
-        int tempPinNumber{pgm_read_word_near(AVAILABLE_ANALOG_PINS + i++)};
+        int8_t tempPinNumber{pgm_read_byte_near(AVAILABLE_ANALOG_PINS + i++)};
         if (tempPinNumber < 0) {
             return false;
         }
@@ -1233,7 +1217,7 @@ bool isValidAnalogInputPin(int pinNumber)
     } while (true);
 }
 
-bool checkValidIOChangeRequest(IOType ioType, int pinNumber)
+bool checkValidIOChangeRequest(IOType ioType, int8_t pinNumber)
 {
     if ((ioType == IOType::DIGITAL_INPUT) || (ioType == IOType::DIGITAL_INPUT_PULLUP)) {
         return isValidDigitalInputPin(pinNumber);
@@ -1248,7 +1232,7 @@ bool checkValidIOChangeRequest(IOType ioType, int pinNumber)
     }
 }
 
-int getIOTypeString(IOType ioType, char *out, size_t maximumSize)
+int8_t getIOTypeString(IOType ioType, char *out, size_t maximumSize)
 {
     if (ioType == IOType::DIGITAL_INPUT) {
         strncpy(out, DIGITAL_INPUT_IDENTIFIER, maximumSize);
@@ -1271,9 +1255,9 @@ int getIOTypeString(IOType ioType, char *out, size_t maximumSize)
     }
 }
 
-int parsePin(const char *str)
+int8_t parsePin(const char *str)
 {
-    if (startsWith(str, ANALOG_IDENTIFIER_CHAR)) {
+    if (startsWith(str, ANALOG_IDENTIFIER_CHAR)) { 
         return parseAnalogPin(str);
     } else if (isValidPinIdentifier(str)) {
         return atoi(str);
@@ -1284,15 +1268,15 @@ int parsePin(const char *str)
 
 IOType parseIOType(const char *str)
 {
-    if (strcmp(str, DIGITAL_INPUT_IDENTIFIER) == 0) {
+    if (strncmp(str, DIGITAL_INPUT_IDENTIFIER, SMALL_BUFFER_SIZE) == 0) {
         return IOType::DIGITAL_INPUT;
-    } else if (strcmp(str, DIGITAL_OUTPUT_IDENTIFIER) == 0) {
+    } else if (strncmp(str, DIGITAL_OUTPUT_IDENTIFIER, SMALL_BUFFER_SIZE) == 0) {
         return IOType::DIGITAL_OUTPUT;
-    } else if (strcmp(str, ANALOG_INPUT_IDENTIFIER) == 0) {
+    } else if (strncmp(str, ANALOG_INPUT_IDENTIFIER, SMALL_BUFFER_SIZE) == 0) {
         return IOType::ANALOG_INPUT;
-    } else if (strcmp(str, ANALOG_OUTPUT_IDENTIFIER) == 0) {
+    } else if (strncmp(str, ANALOG_OUTPUT_IDENTIFIER, SMALL_BUFFER_SIZE) == 0) {
         return IOType::ANALOG_OUTPUT;
-    } else if (strcmp(str, DIGITAL_INPUT_PULLUP_IDENTIFIER) == 0) {
+    } else if (strncmp(str, DIGITAL_INPUT_PULLUP_IDENTIFIER, SMALL_BUFFER_SIZE) == 0) {
         return IOType::DIGITAL_INPUT_PULLUP;
     } else {
         return IOType::UNSPECIFIED;
@@ -1383,9 +1367,9 @@ bool isValidPinIdentifier(const char *str)
 
 bool isValidPwmPinIdentifier(const char *str)
 {
-    int i{0};
+    uint8_t i{0};
     do {
-        int tempPinNumber{pgm_read_word_near(AVAILABLE_PWM_PINS + i++)};
+        int8_t tempPinNumber{pgm_read_byte_near(AVAILABLE_PWM_PINS + i++)};
         if (tempPinNumber < 0) {
             return false;
         }
@@ -1397,9 +1381,9 @@ bool isValidPwmPinIdentifier(const char *str)
 
 bool isValidAnalogPinIdentifier(const char *str)
 {
-    int i{0};
+    uint8_t i{0};
     do {
-        int tempPinNumber{pgm_read_word_near(AVAILABLE_ANALOG_PINS + i++)};
+        int8_t tempPinNumber{pgm_read_byte_near(AVAILABLE_ANALOG_PINS + i++)};
         if (tempPinNumber < 0) {
             break;
         }
@@ -1469,8 +1453,8 @@ void broadcastString(const char *str)
 
 void announceStartup()
 {
-    char *str = (char *)calloc(SMALL_BUFFER_SIZE, sizeof(char));
-    strcpy (str, INITIALIZATION_HEADER);
+    char str[SMALL_BUFFER_SIZE];
+    strncpy (str, INITIALIZATION_HEADER, SMALL_BUFFER_SIZE);
 
     size_t stringLength{strlen(str)};
     str[stringLength] = ITEM_SEPARATOR;
@@ -1485,64 +1469,57 @@ void announceStartup()
     strncat (str, FIRMWARE_VERSION, SMALL_BUFFER_SIZE);
 
     stringLength = strlen(str);
-    str[stringLength] = CLOSING_CHARACTER;
-    str[stringLength + 1] = '\0';
+    str[strlen(str)] = '\0';
 
-    strncat (str, LINE_ENDING, SMALL_BUFFER_SIZE);
     broadcastString(str);
-    delay(2000);
-    free(str);
 }
 
 
-GPIO *gpioPinByPinNumber(int pinNumber)
+GPIO *gpioPinByPinNumber(int8_t pinNumber)
 {
     return ((gpioPins + pinNumber) ? gpioPins[pinNumber] : nullptr);
 }
 
-size_t analogPinArraySize()
+uint8_t analogPinArraySize()
 {
-    size_t arraySize{0};
+    uint8_t arraySize{0};
     while (true) {
-        int tempPinNumber{pgm_read_word_near(AVAILABLE_ANALOG_PINS + arraySize)};
+        int8_t tempPinNumber{pgm_read_byte_near(AVAILABLE_ANALOG_PINS + arraySize++)};
         if (tempPinNumber < 0) {
+            arraySize--;
             break;
-        } else {
-            arraySize++;
         }
     }
     return arraySize;
 }
 
-size_t generalPinArraySize()
+uint8_t generalPinArraySize()
 {
-    size_t arraySize{0};
+    uint8_t arraySize{0};
     while (true) {
-        int tempPinNumber{pgm_read_word_near(AVAILABLE_GENERAL_PINS + arraySize)};
+        int8_t tempPinNumber{pgm_read_byte_near(AVAILABLE_GENERAL_PINS + arraySize++)};
         if (tempPinNumber < 0) {
+            arraySize--;
             break;
-        } else {
-            arraySize++;
         }
     }
     return arraySize;
 }
 
-size_t pwmPinArraySize()
+uint8_t pwmPinArraySize()
 {
     size_t arraySize{0};
     while (true) {
-        int tempPinNumber{pgm_read_word_near(AVAILABLE_PWM_PINS + arraySize)};
+        int8_t tempPinNumber{pgm_read_byte_near(AVAILABLE_PWM_PINS + arraySize++)};
         if (tempPinNumber < 0) {
+            arraySize--;
             break;
-        } else {
-            arraySize++;
-        }
+        } 
     }
     return arraySize;
 }
 
-int parseAnalogPin(const char *pinAlias)
+int8_t parseAnalogPin(const char *pinAlias)
 {
     if (!pinAlias) {
         return 0;
@@ -1559,13 +1536,13 @@ int parseAnalogPin(const char *pinAlias)
         }
     }
     free(buffer);
-    int i{0};
-    int maybePinNumber{parsePin(pinAlias)};
+    uint8_t i{0};
+    int8_t maybePinNumber{parsePin(pinAlias)};
     if (maybePinNumber == INVALID_PIN) {
         return INVALID_PIN;
     }
     do {
-        int tempPinNumber{pgm_read_word_near(AVAILABLE_ANALOG_PINS + i++)};
+        int8_t tempPinNumber{pgm_read_byte_near(AVAILABLE_ANALOG_PINS + i++)};
         if (tempPinNumber < 0) {
             break;
         }
@@ -1576,33 +1553,31 @@ int parseAnalogPin(const char *pinAlias)
     return INVALID_PIN;
 }
 
-int analogPinFromNumber(int pinNumber, char *out, size_t maximumSize)
+int8_t analogPinFromNumber(int8_t pinNumber, char *out, size_t maximumSize)
 {
     if (!out) {
         return 0;
     }
-    int i{0};
+    uint8_t i{0};
     do {
-        int tempPinNumber{pgm_read_word_near(AVAILABLE_ANALOG_PINS + i++)};
+        int8_t tempPinNumber{pgm_read_byte_near(AVAILABLE_ANALOG_PINS + i++)};
         if (tempPinNumber < 0) {
             return 0;
         }
         if (tempPinNumber == pinNumber) {
-            char *tempNumber = (char *)calloc(SMALL_BUFFER_SIZE, sizeof(char));
+            char tempNumber[SMALL_BUFFER_SIZE];
             if (!toDecString(i-1, tempNumber, maximumSize)) {
-                free(tempNumber);
                 return 0;
             }
             out[0] = ANALOG_IDENTIFIER_CHAR;
             out[1] = '\0';
             strcat(out, tempNumber);
-            free(tempNumber);
             return strlen(out);
         }
     } while (true);
 }
 
-bool pinInUseBySerialPort(int pinNumber)
+bool pinInUseBySerialPort(int8_t pinNumber)
 {
     for (unsigned int i = 0; i < ARRAY_SIZE(hardwareSerialPorts); i++) {
         if (hardwareSerialPorts + i) {
@@ -1633,7 +1608,7 @@ bool pinInUseBySerialPort(int pinNumber)
     return false;
 }
 
-int getSerialPinIOTypeString(int pinNumber, char *out, size_t maximumSize)
+int8_t getSerialPinIOTypeString(int8_t pinNumber, char *out, size_t maximumSize)
 {
     for (unsigned int i = 0; i < ARRAY_SIZE(hardwareSerialPorts); i++) {
         if (hardwareSerialPorts + i) {
@@ -1712,27 +1687,33 @@ ByteStream *getSoftwareCout(int coutIndex)
     {
         if (broadcast) {
             for (auto &it : hardwareSerialPorts) {
-                *it << header << ITEM_SEPARATOR << str << ITEM_SEPARATOR << resultCode << CLOSING_CHARACTER << LINE_ENDING;
+                *it << header << ITEM_SEPARATOR << str << ITEM_SEPARATOR << resultCode << LINE_ENDING;
             }            
         } else {
-            *getCurrentValidOutputStream() << header << ITEM_SEPARATOR << str << ITEM_SEPARATOR << resultCode << CLOSING_CHARACTER << LINE_ENDING;
+            *getCurrentValidOutputStream() << header << ITEM_SEPARATOR << str << ITEM_SEPARATOR << resultCode << LINE_ENDING;
         }
     }
     
     void printCanResult(const char *header, const CanMessage &msg, int resultCode, bool broadcast) 
     { 
+        char temp[SMALL_BUFFER_SIZE];
+        msg.toString(temp, SMALL_BUFFER_SIZE);
         if (broadcast) {
-            for (auto &it : hardwareSerialPorts) {
-                *it << header << ITEM_SEPARATOR << msg.toString() << ITEM_SEPARATOR << resultCode << CLOSING_CHARACTER << LINE_ENDING;
+            for (int i = 0; i < NUMBER_OF_HARDWARE_SERIAL_PORTS; i++) {
+                if (hardwareSerialPorts + i) {
+                    if (hardwareSerialPorts[i]) {
+                        *(hardwareSerialPorts[i]) << header << ITEM_SEPARATOR << temp << ITEM_SEPARATOR << resultCode << LINE_ENDING;
+                    }
+                }
             }
         } else {
-            *getCurrentValidOutputStream() << header << ITEM_SEPARATOR << msg.toString() << ITEM_SEPARATOR << resultCode << CLOSING_CHARACTER << LINE_ENDING;
+            *getCurrentValidOutputStream() << header << ITEM_SEPARATOR << temp << ITEM_SEPARATOR << resultCode << LINE_ENDING;
         }
     }
     
     void printBlankCanResult(const char *header, int resultCode) 
     { 
-        *getCurrentValidOutputStream() << header << ITEM_SEPARATOR << resultCode << CLOSING_CHARACTER << LINE_ENDING;
+        *getCurrentValidOutputStream() << header << ITEM_SEPARATOR << resultCode << LINE_ENDING;
     } 
 
     void canInit()
@@ -1740,6 +1721,9 @@ ByteStream *getSoftwareCout(int coutIndex)
         using namespace ArduinoPCStrings;
         unsigned int startTime = millis();
         unsigned int endTime = millis();
+        if (canBusInitialized) {
+            return;
+        }
         if (canController) {
             while (canController->begin(CAN_500KBPS) != CAN_OK) {
                 endTime = millis();
@@ -1753,13 +1737,7 @@ ByteStream *getSoftwareCout(int coutIndex)
 
     void canInitRequest()
     {
-        using namespace ArduinoPCStrings;
-        if (canBusInitialized) {
-            printSingleResult(CAN_INIT_HEADER, OPERATION_SUCCESS);
-            return;
-        } else {
-            canInit();
-        }
+        canInit();
         if (canBusInitialized) {
             printSingleResult(CAN_INIT_HEADER, OPERATION_SUCCESS);
         } else {
@@ -1774,32 +1752,33 @@ ByteStream *getSoftwareCout(int coutIndex)
         if (!canBusInitialized) {
             canInit();
         }
+        //TODO: Extended frame
         unsigned char receivedPacketLength{0};
         unsigned char pack[8]{0, 0, 0, 0, 0, 0, 0, 0};
         uint32_t canID{0}; 
         if (CAN_MSGAVAIL == canController->checkReceive()) {
             canController->readMsgBuf(&receivedPacketLength, pack);
             canID = canController->getCanId();
-            if ((positiveCanMasks.size() == 0) && (negativeCanMasks.size() == 0)) {
-                CanMessage msg{canID, CAN_FRAME, receivedPacketLength, CanDataPacket{pack[0], pack[1], pack[2], pack[3], pack[4], pack[5], pack[6], pack[7]}};
-                printCanResult(CAN_READ_HEADER, msg.toString(), OPERATION_SUCCESS, (autoUp ? BROADCAST : NO_BROADCAST));
+            if ((numberOfPositiveCanMasks() == 0) && (numberOfNegativeCanMasks() == 0)) {
+                CanMessage readMessage{canID, CAN_FRAME, receivedPacketLength, pack};
+                printCanResult(CAN_READ_HEADER, readMessage, OPERATION_SUCCESS, (autoUp ? BROADCAST : NO_BROADCAST));
             } else {
-                if (positiveCanMasks.size() == 0) {
-                    if (negativeCanMasks.find(canID) == negativeCanMasks.end()) {
-                        CanMessage msg{canID, CAN_FRAME, receivedPacketLength, CanDataPacket{pack[0], pack[1], pack[2], pack[3], pack[4], pack[5], pack[6], pack[7]}};
-                        printCanResult(CAN_READ_HEADER, msg.toString(), OPERATION_SUCCESS, (autoUp ? BROADCAST : NO_BROADCAST));
+                if (numberOfPositiveCanMasks() == 0) {
+                    if (!negativeCanMaskExists(canID)) {
+                        CanMessage readMessage{canID, CAN_FRAME, receivedPacketLength, pack};
+                        printCanResult(CAN_READ_HEADER, readMessage, OPERATION_SUCCESS, (autoUp ? BROADCAST : NO_BROADCAST));
                     }
                 }
-                if (negativeCanMasks.size() == 0) {
-                    if (positiveCanMasks.find(canID) != positiveCanMasks.end()) {
-                        CanMessage msg{canID, CAN_FRAME, receivedPacketLength, CanDataPacket{pack[0], pack[1], pack[2], pack[3], pack[4], pack[5], pack[6], pack[7]}};
-                        printCanResult(CAN_READ_HEADER, msg.toString(), OPERATION_SUCCESS, (autoUp ? BROADCAST : NO_BROADCAST));
+                if (numberOfNegativeCanMasks() == 0) {
+                    if (positiveCanMaskExists(canID)) {
+                        CanMessage readMessage{canID, CAN_FRAME, receivedPacketLength, pack};
+                        printCanResult(CAN_READ_HEADER, readMessage, OPERATION_SUCCESS, (autoUp ? BROADCAST : NO_BROADCAST));
                     }
                 }
-                if (positiveCanMasks.find(canID) != positiveCanMasks.end()) {
-                    if (negativeCanMasks.find(canID) == negativeCanMasks.end()) {
-                        CanMessage msg{canID, CAN_FRAME, receivedPacketLength, CanDataPacket{pack[0], pack[1], pack[2], pack[3], pack[4], pack[5], pack[6], pack[7]}};
-                        printCanResult(CAN_READ_HEADER, msg.toString(), OPERATION_SUCCESS, (autoUp ? BROADCAST : NO_BROADCAST));
+                if (positiveCanMaskExists(canID)) {
+                    if (!negativeCanMaskExists(canID)) {
+                        CanMessage readMessage{canID, CAN_FRAME, receivedPacketLength, pack};
+                        printCanResult(CAN_READ_HEADER, readMessage, OPERATION_SUCCESS, (autoUp ? BROADCAST : NO_BROADCAST));
                     }
                 }
             }
@@ -1810,29 +1789,33 @@ ByteStream *getSoftwareCout(int coutIndex)
 
     void canWriteRequest(const char *str, bool once)
     {
-        using namespace ArduinoPCStrings;
         if (!canBusInitialized) {
             canInit();
         }
-        CanMessage msg{parseCanMessage(str)};
-        if (msg.toString() == "") {
+        CanMessage readMessage{CanMessage::parse(str, ITEM_SEPARATOR, SMALL_BUFFER_SIZE)};
+        char tempMessage[SMALL_BUFFER_SIZE];
+        int resultLength{readMessage.toString(tempMessage, SMALL_BUFFER_SIZE)};
+        if (!resultLength) {
             printSingleResult((once ? CAN_WRITE_ONCE_HEADER : CAN_WRITE_HEADER), OPERATION_FAILURE);
             return;
         }
         if (!once) {
-            addLastCanMessage(msg);
+            addLastCanMessage(readMessage);
         }
-        sendCanMessage(msg);
-        printCanResult((once ? CAN_WRITE_ONCE_HEADER : CAN_WRITE_HEADER), msg.toString(), OPERATION_SUCCESS, NO_BROADCAST);
+        sendCanMessage(readMessage);
+        printCanResult((once ? CAN_WRITE_ONCE_HEADER : CAN_WRITE_HEADER), tempMessage, OPERATION_SUCCESS, NO_BROADCAST);
     }
 
     void addPositiveCanMaskRequest(const char *str)
     {
-        uint32_t maybeID{CanMessage::parseCanID(str)};
+        uint32_t maybeID{stringToUInt(str)};
         if (maybeID == 0) {
             printTypeResult(ADD_POSITIVE_CAN_MASK_HEADER, str, OPERATION_FAILURE);
         }
-        if ((positiveCanMasks.insert(maybeID)).second) {
+        int8_t result{addPositiveCanMask(maybeID)};
+        if (result == -1) {
+            printTypeResult(ADD_POSITIVE_CAN_MASK_HEADER, str, OPERATION_FAILURE);
+        } else if (result) {
             printTypeResult(ADD_POSITIVE_CAN_MASK_HEADER, str, OPERATION_SUCCESS);
         } else {
             printTypeResult(ADD_POSITIVE_CAN_MASK_HEADER, str, OPERATION_KIND_OF_SUCCESS);
@@ -1841,21 +1824,28 @@ ByteStream *getSoftwareCout(int coutIndex)
 
     void removePositiveCanMaskRequest(const char *str)
     {
-        uint32_t maybeID{CanMessage::parseCanID(str)};
+        uint32_t maybeID{stringToUInt(str)};
         if (maybeID == 0) {
             printTypeResult(REMOVE_POSITIVE_CAN_MASK_HEADER, str, OPERATION_FAILURE);
         }
-        positiveCanMasks.erase(maybeID);
+        for (uint8_t i = 0; i < MAX_POSITIVE_CAN_MASKS; i++) {
+            if (positiveCanMasks[i] == maybeID) {
+                positiveCanMasks[i] = EMPTY_CAN_MASK_SLOT;
+            }
+        }
         printTypeResult(REMOVE_POSITIVE_CAN_MASK_HEADER, str, OPERATION_SUCCESS);
     }
 
     void addNegativeCanMaskRequest(const char *str)
     {
-        uint32_t maybeID{CanMessage::parseCanID(str)};
+        uint32_t maybeID{stringToUInt(str)};
         if (maybeID == 0) {
             printTypeResult(ADD_NEGATIVE_CAN_MASK_HEADER, str, OPERATION_FAILURE);
         }
-        if ((negativeCanMasks.insert(maybeID)).second) {
+        int8_t result{addNegativeCanMask(maybeID)};
+        if (result == -1) {
+            printTypeResult(ADD_NEGATIVE_CAN_MASK_HEADER, str, OPERATION_FAILURE);
+        } else if (result) {
             printTypeResult(ADD_NEGATIVE_CAN_MASK_HEADER, str, OPERATION_SUCCESS);
         } else {
             printTypeResult(ADD_NEGATIVE_CAN_MASK_HEADER, str, OPERATION_KIND_OF_SUCCESS);
@@ -1864,20 +1854,20 @@ ByteStream *getSoftwareCout(int coutIndex)
 
     void removeNegativeCanMaskRequest(const char *str)
     {
-        uint32_t maybeID{CanMessage::parseCanID(str)};
+        uint32_t maybeID{stringToUInt(str)};
         if (maybeID == 0) {
             printTypeResult(REMOVE_NEGATIVE_CAN_MASK_HEADER, str, OPERATION_FAILURE);
         }
-        negativeCanMasks.erase(maybeID);
+        for (uint8_t i = 0; i < MAX_NEGATIVE_CAN_MASKS; i++) {
+            if (negativeCanMasks[i] == maybeID) {
+                negativeCanMasks[i] = EMPTY_CAN_MASK_SLOT;
+            }
+        }
         printTypeResult(REMOVE_NEGATIVE_CAN_MASK_HEADER, str, OPERATION_SUCCESS);
     }
 
     void canLiveUpdateRequest(const char *str)
     {
-        if (str == "") {
-            printTypeResult(CAN_LIVE_UPDATE_HEADER, OPERATION_FAILURE, OPERATION_FAILURE);
-            return;
-        }
         int canState{parseToDigitalState(str)};
         if (canState == OPERATION_FAILURE) {
             printTypeResult(CAN_LIVE_UPDATE_HEADER, str, OPERATION_FAILURE);
@@ -1889,51 +1879,63 @@ ByteStream *getSoftwareCout(int coutIndex)
 
     void currentCachedCanMessageByIdRequest(const char *str)
     {
-        uint32_t maybeID{CanMessage::parseCanID(str)};
+        uint32_t maybeID{stringToUInt(str)};
         if (maybeID == 0) {
             printTypeResult(CURRENT_CAN_MESSAGE_BY_ID_HEADER, str, OPERATION_FAILURE);
         }
-        if (lastCanMessages.find(maybeID) == lastCanMessages.end()) {
-            printBlankCanResult(CURRENT_CAN_MESSAGE_BY_ID_HEADER, OPERATION_SUCCESS);
+        int8_t foundPosition{-1};
+        for (uint8_t i = 0; i < MAX_LAST_CAN_MESSAGES; i++) {
+            if (lastCanMessages[i].id() == maybeID) {
+                foundPosition = i;
+            }
+        }
+        if (foundPosition != -1) {
+            printCanResult(CURRENT_CAN_MESSAGE_BY_ID_HEADER, lastCanMessages[foundPosition], OPERATION_SUCCESS, NO_BROADCAST);
         } else {
-            printCanResult(CURRENT_CAN_MESSAGE_BY_ID_HEADER, lastCanMessages.find(maybeID)->second, OPERATION_SUCCESS, NO_BROADCAST);
+            printBlankCanResult(CURRENT_CAN_MESSAGE_BY_ID_HEADER, OPERATION_SUCCESS);
         }
     }
 
     void clearCurrentMessageByIdRequest(const char *str)
     {
-        uint32_t maybeID{CanMessage::parseCanID(str)};
+        uint32_t maybeID{stringToUInt(str)};
         if (maybeID == 0) {
             printTypeResult(CLEAR_CAN_MESSAGE_BY_ID_HEADER, str, OPERATION_FAILURE);
         }
-        lastCanMessages.erase(maybeID);
+        for (uint8_t i = 0; i < MAX_LAST_CAN_MESSAGES; i++) {
+            if (lastCanMessages[i].id() == maybeID) {
+                lastCanMessages[i] = CanMessage{};
+            }
+        }
         printTypeResult(CLEAR_CAN_MESSAGE_BY_ID_HEADER, str, OPERATION_SUCCESS);
     }
 
     void currentCachedCanMessagesRequest()
     {
-        for (auto &it : lastCanMessages) {
-            printCanResult(CURRENT_CAN_MESSAGES_HEADER, it.second, OPERATION_SUCCESS, NO_BROADCAST);
+        for (uint8_t i = 0; i < MAX_LAST_CAN_MESSAGES; i++) {
+            printCanResult(CURRENT_CAN_MESSAGES_HEADER, lastCanMessages[i], OPERATION_SUCCESS, NO_BROADCAST);
         }
     }
         
     void clearCanMessagesRequest()
     {
-        lastCanMessages.clear();
+        for (uint8_t i = 0; i < MAX_LAST_CAN_MESSAGES; i++) {
+            lastCanMessages[i] = CanMessage{};
+        }
         printSingleResult(CLEAR_CAN_MESSAGES_HEADER, OPERATION_SUCCESS);
     }
 
     void currentPositiveCanMasksRequest()
     {
-        for (auto &it :positiveCanMasks) {
-            printTypeResult(CURRENT_POSITIVE_CAN_MASKS_HEADER, it, OPERATION_SUCCESS);
+        for (uint8_t i = 0; i < MAX_POSITIVE_CAN_MASKS; i++) {
+            printTypeResult(CURRENT_POSITIVE_CAN_MASKS_HEADER, positiveCanMasks[i], OPERATION_SUCCESS);
         }
     }
 
     void currentNegativeCanMasksRequest()
     {
-        for (auto &it : negativeCanMasks) {
-            printTypeResult(CURRENT_NEGATIVE_CAN_MASKS_HEADER, it, OPERATION_SUCCESS);
+        for (uint8_t i = 0; i < MAX_NEGATIVE_CAN_MASKS; i++) {
+            printTypeResult(CURRENT_POSITIVE_CAN_MASKS_HEADER, negativeCanMasks[i], OPERATION_SUCCESS);
         }
     }
 
@@ -1945,58 +1947,132 @@ ByteStream *getSoftwareCout(int coutIndex)
 
     void clearPositiveCanMasksRequest()
     {
-        positiveCanMasks.clear();
+        for (uint8_t i = 0; i < MAX_POSITIVE_CAN_MASKS; i++) {
+            positiveCanMasks[i] = EMPTY_CAN_MASK_SLOT;
+        }
         printSingleResult(CLEAR_POSITIVE_CAN_MASKS_HEADER, OPERATION_SUCCESS);
     }
 
     void clearNegativeCanMasksRequest()
     {
-        negativeCanMasks.clear();
+        for (uint8_t i = 0; i < MAX_NEGATIVE_CAN_MASKS; i++) {
+            negativeCanMasks[i] = EMPTY_CAN_MASK_SLOT;
+        }
         printSingleResult(CLEAR_NEGATIVE_CAN_MASKS_HEADER, OPERATION_SUCCESS);
     }
 
     void clearAllCanMasksRequest()
     {
-        positiveCanMasks.clear();
-        negativeCanMasks.clear();
+        for (uint8_t i = 0; i < MAX_POSITIVE_CAN_MASKS; i++) {
+            positiveCanMasks[i] = EMPTY_CAN_MASK_SLOT;
+        }
+        for (uint8_t i = 0; i < MAX_NEGATIVE_CAN_MASKS; i++) {
+            negativeCanMasks[i] = EMPTY_CAN_MASK_SLOT;
+        }
         printSingleResult(CLEAR_ALL_CAN_MASKS_HEADER, OPERATION_SUCCESS);
+    }
+
+    int8_t addPositiveCanMask(uint32_t id)
+    {
+        for (uint8_t i = 0; i < MAX_POSITIVE_CAN_MASKS; i++) {
+            if (positiveCanMasks[i] == id) {
+                return 0;
+            }
+        }
+        for (uint8_t i = 0; i < MAX_POSITIVE_CAN_MASKS; i++) {
+            if (positiveCanMasks[i] == EMPTY_CAN_MASK_SLOT) {
+                positiveCanMasks[i] = id;
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    int8_t addNegativeCanMask(uint32_t id)
+    {
+        for (uint8_t i = 0; i < MAX_NEGATIVE_CAN_MASKS; i++) {
+            if (negativeCanMasks[i] == id) {
+                return 0;
+            }
+        }
+        for (uint8_t i = 0; i < MAX_NEGATIVE_CAN_MASKS; i++) {
+            if (negativeCanMasks[i] == EMPTY_CAN_MASK_SLOT) {
+                negativeCanMasks[i] = id;
+                return i;
+            }
+        }
+        return -1;
     }
 
     void addLastCanMessage(const CanMessage &msg)
     {
-        std::map<uint32_t, CanMessage>::iterator iter{lastCanMessages.find(msg.id())};
-        if (iter != lastCanMessages.end()) {
-            iter->second = msg;
-        } else {
-            lastCanMessages.insert(std::pair<uint32_t, CanMessage>(msg.id(), msg));
-        }
-    }
-    CanMessage parseCanMessage(const char *str)
-    {
-        using namespace ArduinoPCStrings;
-        std::vector<std::string> rawMsg{parseToContainer<std::vector<std::string>>(str.begin(), str.end(), ITEM_SEPARATOR)};
-        if (rawMsg.size() != CAN_WRITE_REQUEST_SIZE) {
-            return CanMessage{};
-        }
-        CanMessage returnMessage;
-        int i{0};
-        returnMessage.setFrame(CAN_FRAME);
-        returnMessage.setLength(CAN_MESSAGE_LENGTH);
-        for (auto &it : rawMsg) {
-            if (i++ == 0) {
-                returnMessage.setID(CanMessage::parseCanID(it));
-            } else {
-                returnMessage.setDataPacketNthByte(i-2, CanMessage::parseCanByte(it));
+        for (uint8_t i = 0; i < MAX_LAST_CAN_MESSAGES; i++) {
+            if ((lastCanMessages[i].id() == msg.id()) || (lastCanMessages[i].id() == 0)) {
+                lastCanMessages[i] = msg;
             }
         }
-        return returnMessage;
     }
 
     void sendCanMessage(const CanMessage &msg)
     {
-        unsigned char send[8]{0, 0, 0, 0, 0, 0, 0, 0};
-        msg.dataPacket().toBasicArray(send);
-        canController->sendMsgBuf(msg.id(), msg.frame(), msg.length(), send);
+        canController->sendMsgBuf(msg.id(), msg.frameType(), msg.length(), msg.message());
     }
+
+    void initializeCanMasks()
+    {
+        for (uint8_t i = 0; i < MAX_POSITIVE_CAN_MASKS; i++) {
+            positiveCanMasks[i] = EMPTY_CAN_MASK_SLOT;
+        }
+        for (uint8_t i = 0; i < MAX_NEGATIVE_CAN_MASKS; i++) {
+            negativeCanMasks[i] = EMPTY_CAN_MASK_SLOT;
+        }
+    }
+
+    uint8_t numberOfPositiveCanMasks()
+    {
+        uint8_t returnLength{0};
+        for (uint8_t i = 0; i < MAX_POSITIVE_CAN_MASKS; i++) {
+            if (positiveCanMasks[i] != EMPTY_CAN_MASK_SLOT) {
+                returnLength++;
+            }
+        }
+        return returnLength;
+    }
+
+    uint8_t numberOfNegativeCanMasks()
+    {
+        uint8_t returnLength{0};
+        for (uint8_t i = 0; i < MAX_NEGATIVE_CAN_MASKS; i++) {
+            if (negativeCanMasks[i] != EMPTY_CAN_MASK_SLOT) {
+                returnLength++;
+            }
+        }
+        return returnLength;
+    }
+
+    bool positiveCanMaskExists(uint32_t targetMask)
+    {
+        for (uint8_t i = 0; i < MAX_POSITIVE_CAN_MASKS; i++) {
+            if (positiveCanMasks[i] != EMPTY_CAN_MASK_SLOT) {
+                if (targetMask == positiveCanMasks[i]) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    bool negativeCanMaskExists(uint32_t targetMask)
+    {
+        for (uint8_t i = 0; i < MAX_NEGATIVE_CAN_MASKS; i++) {
+            if (negativeCanMasks[i] != EMPTY_CAN_MASK_SLOT) {
+                if (targetMask == negativeCanMasks[i]) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
 
 #endif

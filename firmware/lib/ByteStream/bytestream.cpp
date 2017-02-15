@@ -77,7 +77,13 @@ void ByteStream::addToStringBuilderQueue(char byte)
 
 int ByteStream::available()
 {
-    return (this->m_serialPort->available());
+    if (this->m_serialPort->available() != 0) {
+       return this->m_serialPort->available();
+    } else if (this->m_stringQueueIndex == 0) {
+        return this->m_stringQueueIndex;
+    } else {
+        return 0;
+    }
 }
 
 int ByteStream::readUntil(char readUntilByte, char *out, size_t maximumReadSize)
@@ -161,17 +167,32 @@ const char *ByteStream::lineEnding() const
 
 void ByteStream::print(const char *stringToPrint)
 {
-    this->m_serialPort->print(stringToPrint);
+    if (strncmp(stringToPrint, this->m_lineEnding, MAXIMUM_LINE_ENDING_STRING) == 0) {
+        //this->m_serialPort->println("");
+        this->m_serialPort->print(stringToPrint);
+    } else {
+        this->m_serialPort->print(stringToPrint);
+    }
 }
 
 void ByteStream::print(char *stringToPrint)
 {
-    this->m_serialPort->print(stringToPrint);
+    if (strncmp(stringToPrint, this->m_lineEnding, MAXIMUM_LINE_ENDING_STRING) == 0) {
+        //this->m_serialPort->println("");
+        this->m_serialPort->print(stringToPrint);
+    } else {
+        this->m_serialPort->print(stringToPrint);
+    }
 }
 
 void ByteStream::print(char charToPrint)
 {
-    this->m_serialPort->print(charToPrint);
+    if ((charToPrint == '\r') || (charToPrint == '\n')) {
+        //this->m_serialPort->println("");
+        this->m_serialPort->print(charToPrint);
+    } else {
+        this->m_serialPort->print(charToPrint);
+    }
 }
 
 void ByteStream::print(short shortToPrint)
