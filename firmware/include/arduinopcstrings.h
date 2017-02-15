@@ -37,6 +37,10 @@ namespace ArduinoPCStrings
     const char * const REMOVE_NEGATIVE_CAN_MASK_HEADER{"remncanmask"};
 #endif
 
+#if defined(__HAVE_LIN_BUS__)
+
+#endif
+
     const char * const HEARTBEAT_HEADER{"heartbeat"};
 
     const char * const HARDWARE_SERIAL_RX_PIN_TYPE{"hardserialrx"};
@@ -57,6 +61,7 @@ namespace ArduinoPCStrings
     const char * const REMOVE_HARDWARE_SERIAL_HEADER{"remhardserial"};
     
     const char * const CAN_BUS_ENABLED_HEADER{"canbus"};
+    const char * const LIN_BUS_ENABLED_HEADER{"linbus"};
     
     const char * const DIGITAL_READ_HEADER{"dread"};
     const char * const DIGITAL_WRITE_HEADER{"dwrite"};

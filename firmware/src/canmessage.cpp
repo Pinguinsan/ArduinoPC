@@ -191,20 +191,21 @@ int CanMessage::toString(char *out, size_t maximumLength) const
     if ((this->m_id == 0) &&
         (this->m_frameType == DEFAULT_FRAME_TYPE) &&
         (this->m_length == 0)) {
+        strncpy(out, "", maximumLength);
         return -1;
     }
     char tempFrameType[2];
     toDecString(this->m_frameType, tempFrameType, 2);
     strcpy(out, tempFrameType);
-    strcat(out, ":");
+    strncat(out, ":", maximumLength);
 
     char tempHexString[SMALL_BUFFER_SIZE];
     char tempFixedWidthString[SMALL_BUFFER_SIZE];
     toHexString(this->m_id, tempHexString, SMALL_BUFFER_SIZE);
     leftPad(tempHexString, tempFixedWidthString, 2, '0'); 
-    strcat(out, "0x");
-    strcat(out, tempFixedWidthString);
-    strcat(out, ":");
+    strncat(out, "0x", maximumLength);
+    strncat(out, tempFixedWidthString, maximumLength);
+    strncat(out, ":", maximumLength);
     if (strlen(out) >= maximumLength) {
         return strlen(out);
     }
@@ -214,11 +215,11 @@ int CanMessage::toString(char *out, size_t maximumLength) const
         toHexString(this->m_message[i], tempHexString, SMALL_BUFFER_SIZE);
         leftPad(tempHexString, tempFixedWidthString, 2, '0');
 
-        strcat(out, "0x");
-        strcat(out, tempFixedWidthString);
+        strncat(out, "0x", maximumLength);
+        strncat(out, tempFixedWidthString, maximumLength);
 
         if (i != (this->m_length - 1)) {
-            strcat(out, ":");
+            strncat(out, ":", maximumLength);
         }
         if (strlen(out) > maximumLength) {
             return strlen(out);
@@ -238,8 +239,8 @@ CanMessage CanMessage::parse(const char *str, const char *delimiter, uint8_t mes
     CanMessage returnMessage{};
     using namespace Utilities;
     int bufferSpace{messageLength + 2};
-    char **result{calloc2D<char>(bufferSpace, 4)};
-    int resultSize{split(str, result, delimiter, bufferSpace, 4)};
+    char **result{calloc2D<char>(bufferSpace, 10)};
+    int resultSize{split(str, result, delimiter, bufferSpace, 10)};
     if (resultSize < (bufferSpace)) {
         free2D(result, bufferSpace);
         return CanMessage{};

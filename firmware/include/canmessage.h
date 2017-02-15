@@ -3,10 +3,16 @@
 
 #include "utilities.h"
 #include <stdio.h>
+#include <Arduino.h>
 
 #ifndef SMALL_BUFFER_SIZE
     #define SMALL_BUFFER_SIZE 255
 #endif
+
+enum FrameType {
+    Normal,
+    Extended
+};
 
 class CanMessage
 {

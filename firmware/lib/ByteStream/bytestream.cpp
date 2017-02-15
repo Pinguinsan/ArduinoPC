@@ -34,8 +34,6 @@ ByteStream::~ByteStream()
     free(this->m_stringQueue);
 }
 
-
-
 void ByteStream::syncStringListener()
 {
     using namespace Utilities;
@@ -77,13 +75,7 @@ void ByteStream::addToStringBuilderQueue(char byte)
 
 int ByteStream::available()
 {
-    if (this->m_serialPort->available() != 0) {
-       return this->m_serialPort->available();
-    } else if (this->m_stringQueueIndex == 0) {
-        return this->m_stringQueueIndex;
-    } else {
-        return 0;
-    }
+    return this->m_serialPort->available();
 }
 
 int ByteStream::readUntil(char readUntilByte, char *out, size_t maximumReadSize)

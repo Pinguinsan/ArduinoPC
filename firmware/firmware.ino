@@ -1,12 +1,12 @@
-#include "include/gpio.h"
-#include "utilities.h"
-#include "include/arduinopcstrings.h"
 #include <string.h>
 #include <stdlib.h>
 #include <avr/pgmspace.h>
 #include <bytestream.h>
 #include <hardwareserialport.h>
 #include <softwareserialport.h>
+#include "include/gpio.h"
+#include "utilities.h"
+#include "include/arduinopcstrings.h"
 
 #define ARRAY_SIZE(x) (sizeof(x)/sizeof(x[0]))
 
@@ -37,11 +37,18 @@ using namespace Utilities;
 #define PIN_TYPE_CHANGE_PARAMETER_COUNT 2
 
 #define OPERATION_FAILURE -1
-#define INVALID_PIN -1
-#define STATE_FAILURE -1
+#define OPERATION_INVALID_PIN -2
+#define OPERATION_INVALID_STATE -3
+#define OPERATION_PIN_TYPE_MISMATCH -4
+#define OPERATION_INVALID_PARAMETER_COUNT -5
+#define OPERATION_INVALID_IO_TYPE -6
+#define OPERATION_INVALID_IO_CHANGE -7
+#define OPERATION_PIN_HAS_SECONDARY_FUNCTION -8
 #define OPERATION_SUCCESS 1
 #define OPERATION_KIND_OF_SUCCESS 2
 #define OPERATION_PIN_USED_BY_SERIAL_PORT 3
+#define INVALID_PIN -1
+#define STATE_FAILURE -1
 #define PIN_PLACEHOLDER 1
 #define SOFT 1
 
@@ -88,7 +95,9 @@ void currentAToDThresholdRequest();
 void arduinoTypeRequest();
 void firmwareVersionRequest();
 void canBusEnabledRequest();
+void linBusEnabledRequest();
 void ioReportRequest();
+void getPrintablePinType(int8_t pinNumber, char *out);
 
 ByteStream *getCurrentValidOutputStream();
 
@@ -106,6 +115,7 @@ bool isValidDigitalOutputPin(int8_t pinNumber);
 bool isValidDigitalInputPin(int8_t pinNumber);
 bool isValidAnalogOutputPin(int8_t pinNumber);
 bool isValidAnalogInputPin(int8_t pinNumber);
+bool pinHasSecondaryFunction(int8_t pinNumber);
 int8_t parseAnalogPin(const char *str);
 int parseToState(const char *str);
 
@@ -113,7 +123,7 @@ int parseToAnalogState(const char *str);
 IOType parseIOType(const char *str);
 int parseToDigitalState(const char *str);
 int8_t parsePin(const char *str);
-void populateGpioMap();
+void initializeGpioMap();
 
 int8_t getIOTypeString(IOType type, char *out, size_t maximumSize);
 int8_t getSerialPinIOTypeString(int8_t pinNumber, char *out, size_t maximumSize);
@@ -161,10 +171,11 @@ uint8_t pwmPinArraySize();
         #define INT8U byte
     #endif
     void canInitRequest();
+    bool canInit();
     void canReadRequest(bool autoUp);
-    void canWriteRequest(const char *canMessage, bool once);
-    void addNegativeCanMaskRequest(const char *canMask);
-    void removePositiveCanMaskRequest(const char *canMask);
+    void canWriteRequest(const char *str, bool once);
+    void addNegativeCanMaskRequest(const char *str);
+    void removePositiveCanMaskRequest(const char *str);
     void canLiveUpdateRequest(const char *str);
     void clearCurrentMessageByIdRequest(const char *str);
     void currentCachedCanMessageByIdRequest(const char *str);
@@ -181,7 +192,8 @@ uint8_t pwmPinArraySize();
     #define SPI_CS_PIN 9 
     MCP_CAN *canController{new MCP_CAN(SPI_CS_PIN)};
     #define CAN_CONNECTION_TIMEOUT 1000
-    #define CAN_WRITE_REQUEST_SIZE 9
+    #define CAN_WRITE_REQUEST_SIZE 10
+    #define CAN_BUS_NOT_INITIALIZED -9
     static bool canBusInitialized{false};
     static bool canLiveUpdate{false};
 
@@ -199,11 +211,15 @@ uint8_t pwmPinArraySize();
     void initializeCanMasks();
     
     void addLastCanMessage(const CanMessage &msg);
-    #define CAN_MESSAGE_LENGTH 8
-    #define CAN_FRAME 0
+    #define CAN_NORMAL_FRAME 0
+    #define CAN_EXTENDED_FRAME 1
     #define CAN_COMMUNICATION_DOWN_TIME 100
     static int canCommunicationStartTime{0};
     static int canCommunicationEndTime{0};
+#endif
+
+#if defined(__HAVE_LIN_BUS_)
+
 #endif
 
 #if defined(ARDUINO_AVR_MEGA1280) || defined(ARDUINO_AVR_MEGA2560)
@@ -249,6 +265,8 @@ ByteStream *getHardwareCout(int coutIndex);
 ByteStream *getSoftwareCout(int coutIndex);
 static ByteStream *currentSerialStream{hardwareSerialPorts[0]};
 ByteStream *defaultNativePort{hardwareSerialPorts[0]};
+bool isValidSoftwareSerialAddition(int8_t rxPinNumber, int8_t txPinNumber);
+bool isValidHardwareSerialAddition(int8_t rxPinNumber, int8_t txPinNumber);
 
 template <typename Header, typename PinNumber, typename State, typename ResultCode> inline void printResult(const Header &header, PinNumber pinNumber, State state, ResultCode resultCode)
 {    
@@ -273,7 +291,7 @@ template <typename Parameter> inline void printString(const Parameter &parameter
 void setup() {
     initializeSerialPorts();
     announceStartup();
-    populateGpioMap();
+    initializeGpioMap();
     #if defined(__HAVE_CAN_BUS__)
         initializeCanMasks();
     #endif //__HAVE_CAN_BUS__
@@ -424,14 +442,14 @@ void handleSerialString(const char *str)
         }
     } else if (startsWith(str, PIN_TYPE_HEADER)) {
         if (checkValidRequestString(PIN_TYPE_HEADER, str)) {
-            substringResult = substring(str, strlen(PIN_TYPE_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            substringResult = makeRequestString(str, PIN_TYPE_HEADER, requestString, SMALL_BUFFER_SIZE);
             pinTypeRequest(requestString);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
     } else if (startsWith(str, PIN_TYPE_CHANGE_HEADER)) {
         if (checkValidRequestString(PIN_TYPE_CHANGE_HEADER, str)) {
-            substringResult = substring(str, strlen(PIN_TYPE_CHANGE_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            substringResult = makeRequestString(str, PIN_TYPE_CHANGE_HEADER, requestString, SMALL_BUFFER_SIZE);
             pinTypeChangeRequest(requestString);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
@@ -462,17 +480,19 @@ void handleSerialString(const char *str)
         arduinoTypeRequest();
     } else if (startsWith(str, CAN_BUS_ENABLED_HEADER)) {
         canBusEnabledRequest();
+    } else if (startsWith(str, LIN_BUS_ENABLED_HEADER)) {
+        linBusEnabledRequest();
 #if (defined(ARDUINO_AVR_MEGA2560) || defined(ARDUINO_AVR_MEGA1280))
     } else if (startsWith(str, ADD_HARDWARE_SERIAL_HEADER)) {
         if (checkValidRequestString(ADD_HARDWARE_SERIAL_HEADER, str)) {
-            substringResult = substring(str, strlen(ADD_HARDWARE_SERIAL_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            substringResult = makeRequestString(str, ADD_HARDWARE_SERIAL_HEADER, requestString, SMALL_BUFFER_SIZE);
             addHardwareSerialRequest(requestString);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }  
     } else if (startsWith(str, REMOVE_HARDWARE_SERIAL_HEADER)) {
         if (checkValidRequestString(REMOVE_HARDWARE_SERIAL_HEADER, str)) {
-            substringResult = substring(str, strlen(REMOVE_HARDWARE_SERIAL_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            substringResult = makeRequestString(str, REMOVE_HARDWARE_SERIAL_HEADER, requestString, SMALL_BUFFER_SIZE);
             removeHardwareSerialRequest(requestString);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
@@ -485,63 +505,65 @@ void handleSerialString(const char *str)
         canReadRequest(false);
     } else if (startsWith(str, CAN_WRITE_ONCE_HEADER)) {
         if (checkValidRequestString(CAN_WRITE_ONCE_HEADER, str)) {
-            substringResult = substring(str, strlen(CAN_WRITE_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            substringResult = makeRequestString(str, CAN_WRITE_ONCE_HEADER, requestString, SMALL_BUFFER_SIZE);
             canWriteRequest(requestString, true);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
+    /*
     } else if (startsWith(str, CAN_WRITE_HEADER)) {
         if (checkValidRequestString(CAN_WRITE_HEADER, str)) {
-            substringResult = substring(str, strlen(CAN_WRITE_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            substringResult = makeRequestString(str, CAN_WRITE_HEADER, requestString, SMALL_BUFFER_SIZE);
             canWriteRequest(requestString, false);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
-        }     
+        }
+    */
     } else if (startsWith(str, CAN_LIVE_UPDATE_HEADER)) {
         if (checkValidRequestString(CAN_LIVE_UPDATE_HEADER, str)) {
-            substringResult = substring(str, strlen(CAN_LIVE_UPDATE_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            substringResult = makeRequestString(str, CAN_LIVE_UPDATE_HEADER, requestString, SMALL_BUFFER_SIZE);
             canLiveUpdateRequest(requestString);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
     } else if (startsWith(str, CLEAR_CAN_MESSAGE_BY_ID_HEADER)) {
         if (checkValidRequestString(CLEAR_CAN_MESSAGE_BY_ID_HEADER, str)) {
-            substringResult = substring(str, strlen(CLEAR_CAN_MESSAGE_BY_ID_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            substringResult = makeRequestString(str, CLEAR_CAN_MESSAGE_BY_ID_HEADER, requestString, SMALL_BUFFER_SIZE);
             clearCurrentMessageByIdRequest(requestString);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
-        }   
+        }
     } else if (startsWith(str, CURRENT_CAN_MESSAGE_BY_ID_HEADER)) {
         if (checkValidRequestString(CURRENT_CAN_MESSAGE_BY_ID_HEADER, str)) {
-            substringResult = substring(str, strlen(CURRENT_CAN_MESSAGE_BY_ID_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            substringResult = makeRequestString(str, CURRENT_CAN_MESSAGE_BY_ID_HEADER, requestString, SMALL_BUFFER_SIZE);
             currentCachedCanMessageByIdRequest(requestString);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
     } else if (startsWith(str, REMOVE_NEGATIVE_CAN_MASK_HEADER)) {
         if (checkValidRequestString(REMOVE_NEGATIVE_CAN_MASK_HEADER, str)) {
-            substringResult = substring(str, strlen(REMOVE_NEGATIVE_CAN_MASK_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            substringResult = makeRequestString(str, REMOVE_NEGATIVE_CAN_MASK_HEADER, requestString, SMALL_BUFFER_SIZE);
             removeNegativeCanMaskRequest(requestString);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
     } else if (startsWith(str, REMOVE_POSITIVE_CAN_MASK_HEADER)) {
         if (checkValidRequestString(REMOVE_POSITIVE_CAN_MASK_HEADER, str)) {
-            substringResult = substring(str, strlen(REMOVE_POSITIVE_CAN_MASK_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            substringResult = makeRequestString(str, REMOVE_POSITIVE_CAN_MASK_HEADER, requestString, SMALL_BUFFER_SIZE);
             removePositiveCanMaskRequest(requestString);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
     } else if (startsWith(str, ADD_POSITIVE_CAN_MASK_HEADER)) {
         if (checkValidRequestString(ADD_POSITIVE_CAN_MASK_HEADER, str)) {
-            substringResult = substring(str, strlen(ADD_POSITIVE_CAN_MASK_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            substringResult = makeRequestString(str, ADD_POSITIVE_CAN_MASK_HEADER, requestString, SMALL_BUFFER_SIZE);
             addPositiveCanMaskRequest(requestString);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
     } else if (startsWith(str, ADD_NEGATIVE_CAN_MASK_HEADER)) {
         if (checkValidRequestString(ADD_NEGATIVE_CAN_MASK_HEADER, str)) {
-            substringResult = substring(str, strlen(ADD_NEGATIVE_CAN_MASK_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            substringResult = makeRequestString(str, ADD_NEGATIVE_CAN_MASK_HEADER, requestString, SMALL_BUFFER_SIZE);
             addNegativeCanMaskRequest(requestString);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
@@ -550,6 +572,8 @@ void handleSerialString(const char *str)
         currentCachedCanMessagesRequest();
     } else if (startsWith(str, CLEAR_CAN_MESSAGES_HEADER)) {
         clearCanMessagesRequest();
+    } else if (startsWith(str, ALL_CURRENT_CAN_MASKS_HEADER)) {
+        allCurrentCanMasksRequest();
     } else if (startsWith(str, CURRENT_POSITIVE_CAN_MASKS_HEADER)) {
         currentPositiveCanMasksRequest();
     } else if (startsWith(str, CURRENT_NEGATIVE_CAN_MASKS_HEADER)) {
@@ -561,16 +585,19 @@ void handleSerialString(const char *str)
     } else if (startsWith(str, CLEAR_ALL_CAN_MASKS_HEADER)) {
         clearAllCanMasksRequest();
 #endif
+#if defined(__HAVE_LIN_BUS__)
+
+#endif
     } else if (startsWith(str, ADD_SOFTWARE_SERIAL_HEADER)) {
         if (checkValidRequestString(ADD_SOFTWARE_SERIAL_HEADER, str)) {
-            substringResult = substring(str, strlen(ADD_SOFTWARE_SERIAL_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            substringResult = makeRequestString(str, ADD_SOFTWARE_SERIAL_HEADER, requestString, SMALL_BUFFER_SIZE);
             addSoftwareSerialRequest(requestString);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
     } else if (startsWith(str, REMOVE_SOFTWARE_SERIAL_HEADER)) {
         if (checkValidRequestString(REMOVE_SOFTWARE_SERIAL_HEADER, str)) {
-            substringResult = substring(str, strlen(REMOVE_SOFTWARE_SERIAL_HEADER)+1, requestString, SMALL_BUFFER_SIZE);
+            substringResult = makeRequestString(str, REMOVE_SOFTWARE_SERIAL_HEADER, requestString, SMALL_BUFFER_SIZE);
             removeSoftwareSerialRequest(requestString);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
@@ -583,9 +610,10 @@ void handleSerialString(const char *str)
 
 size_t makeRequestString(const char *str, const char *header, char *out, size_t maximumSize)
 {
-    size_t returnLength = substring(str, strlen(header) + 1, out, maximumSize);
-    if ((out[strlen(out)-1] == '\n') || (out[strlen(out)-1] == '\r')) {
-        out[strlen(out)-1] = '\0';
+    int returnLength{substring(str, strlen(header) + 1, out, maximumSize)};
+    size_t stringLength{strlen(out)};
+    if ((out[stringLength - 1] == '\n') || (out[stringLength - 1] == '\r')) {
+        out[stringLength - 1] = '\0';
         returnLength--;
     }
     return returnLength;
@@ -603,6 +631,14 @@ void addSoftwareSerialRequest(const char *str)
         printResult(ADD_SOFTWARE_SERIAL_HEADER, maybeRxPin, STATE_FAILURE, OPERATION_FAILURE);
         return;
     }
+    if (pinInUseBySerialPort(rxPinNumber)) {
+        printResult(ADD_SOFTWARE_SERIAL_HEADER, maybeRxPin, OPERATION_FAILURE, OPERATION_PIN_USED_BY_SERIAL_PORT);
+        return;
+    }
+    if (pinHasSecondaryFunction(rxPinNumber)) {
+        printResult(ADD_SOFTWARE_SERIAL_HEADER, maybeRxPin, OPERATION_FAILURE, OPERATION_PIN_HAS_SECONDARY_FUNCTION);
+        return;
+    }
 
     char maybeTxPin[SMALL_BUFFER_SIZE];
     result = substring(str, foundPosition+1, maybeTxPin, SMALL_BUFFER_SIZE);
@@ -612,14 +648,15 @@ void addSoftwareSerialRequest(const char *str)
         printResult(ADD_SOFTWARE_SERIAL_HEADER, maybeRxPin, maybeTxPin, OPERATION_FAILURE);
         return;
     }
-    if (pinInUseBySerialPort(rxPinNumber)) {
-        printResult(ADD_SOFTWARE_SERIAL_HEADER, maybeRxPin, OPERATION_FAILURE, OPERATION_PIN_USED_BY_SERIAL_PORT);
-        return;
-    }
     if (pinInUseBySerialPort(txPinNumber)) {
-        printResult(ADD_SOFTWARE_SERIAL_HEADER, OPERATION_FAILURE, maybeTxPin, OPERATION_PIN_USED_BY_SERIAL_PORT);
+        printResult(ADD_SOFTWARE_SERIAL_HEADER, maybeRxPin, maybeTxPin, OPERATION_PIN_USED_BY_SERIAL_PORT);
         return;
     }
+    if (pinHasSecondaryFunction(txPinNumber)) {
+        printResult(ADD_SOFTWARE_SERIAL_HEADER, maybeRxPin, maybeTxPin, OPERATION_PIN_HAS_SECONDARY_FUNCTION);
+        return;
+    }
+
     for (unsigned int i = 0; i < ARRAY_SIZE(softwareSerialPorts); i++) {
         if (softwareSerialPorts + i) {
             if (softwareSerialPorts[i]) {
@@ -653,7 +690,15 @@ void addHardwareSerialRequest(const char *str)
     
     int8_t rxPinNumber{parsePin(maybeRxPin)};
     if (rxPinNumber == INVALID_PIN) {
-        printResult(ADD_HARDWARE_SERIAL_HEADER, maybeRxPin, STATE_FAILURE, OPERATION_FAILURE);
+        printResult(ADD_HARDWARE_SERIAL_HEADER, maybeRxPin, STATE_FAILURE, OPERATION_INVALID_PIN);
+        return;
+    }
+    if (pinHasSecondaryFunction(rxPinNumber)) {
+        printResult(ADD_HARDWARE_SERIAL_HEADER, maybeRxPin, STATE_FAILURE, OPERATION_PIN_HAS_SECONDARY_FUNCTION);
+        return;
+    }
+    if (pinHasSecondaryFunction(rxPinNumber)) {
+        printResult(ADD_HARDWARE_SERIAL_HEADER, maybeRxPin, STATE_FAILURE, OPERATION_PIN_HAS_SECONDARY_FUNCTION);
         return;
     }
     char maybeTxPin[SMALL_BUFFER_SIZE];
@@ -661,7 +706,15 @@ void addHardwareSerialRequest(const char *str)
 
     int8_t txPinNumber{parsePin(maybeTxPin)};
     if (txPinNumber == INVALID_PIN) {
-        printResult(ADD_HARDWARE_SERIAL_HEADER, maybeRxPin, maybeTxPin, OPERATION_FAILURE);
+        printResult(ADD_HARDWARE_SERIAL_HEADER, maybeRxPin, maybeTxPin, OPERATION_INVALID_PIN);
+        return;
+    }
+    if (pinHasSecondaryFunction(txPinNumber)) {
+        printResult(ADD_HARDWARE_SERIAL_HEADER, maybeRxPin, maybeTxPin, OPERATION_PIN_HAS_SECONDARY_FUNCTION);
+        return;
+    }
+    if (pinHasSecondaryFunction(txPinNumber)) {
+        printResult(ADD_HARDWARE_SERIAL_HEADER, maybeRxPin, maybeTxPin, OPERATION_PIN_HAS_SECONDARY_FUNCTION);
         return;
     }
     for (unsigned int i = 0; i < ARRAY_SIZE(hardwareSerialPorts); i++) {
@@ -686,11 +739,15 @@ void removeSoftwareSerialRequest(const char *str)
  
     int8_t rxPinNumber{parsePin(maybeRxPin)};
     if (rxPinNumber == INVALID_PIN) {
-        printResult(REMOVE_SOFTWARE_SERIAL_HEADER, maybeRxPin, STATE_FAILURE, OPERATION_FAILURE);
+        printResult(REMOVE_SOFTWARE_SERIAL_HEADER, maybeRxPin, STATE_FAILURE, OPERATION_INVALID_PIN);
         return;
     }
     if (pinInUseBySerialPort(rxPinNumber)) {
         printResult(REMOVE_SOFTWARE_SERIAL_HEADER, maybeRxPin, STATE_FAILURE, OPERATION_PIN_USED_BY_SERIAL_PORT);
+        return;
+    }
+    if (pinHasSecondaryFunction(rxPinNumber)) {
+        printResult(REMOVE_SOFTWARE_SERIAL_HEADER, maybeRxPin, STATE_FAILURE, OPERATION_PIN_HAS_SECONDARY_FUNCTION);
         return;
     }
     char maybeTxPin[SMALL_BUFFER_SIZE];
@@ -698,9 +755,19 @@ void removeSoftwareSerialRequest(const char *str)
 
     int8_t txPinNumber{parsePin(maybeTxPin)};
     if (txPinNumber == INVALID_PIN) {
-        printResult(REMOVE_SOFTWARE_SERIAL_HEADER, maybeRxPin, maybeTxPin, OPERATION_FAILURE);
+        printResult(REMOVE_SOFTWARE_SERIAL_HEADER, maybeRxPin, maybeTxPin, OPERATION_INVALID_PIN);
         return;
     }
+    
+    if (pinInUseBySerialPort(rxPinNumber)) {
+        printResult(REMOVE_SOFTWARE_SERIAL_HEADER, maybeRxPin, maybeTxPin, OPERATION_PIN_USED_BY_SERIAL_PORT);
+        return;
+    }
+    if (pinHasSecondaryFunction(rxPinNumber)) {
+        printResult(REMOVE_SOFTWARE_SERIAL_HEADER, maybeRxPin, maybeTxPin, OPERATION_PIN_HAS_SECONDARY_FUNCTION);
+        return;
+    }
+
     for (unsigned int i = 0; i < ARRAY_SIZE(softwareSerialPorts); i++) {
         if (softwareSerialPorts + i) {
             if (softwareSerialPorts[i]) {
@@ -723,7 +790,7 @@ void removeHardwareSerialRequest(const char *str)
  
     int8_t rxPinNumber{parsePin(maybeRxPin)};
     if (rxPinNumber == INVALID_PIN) {
-        printResult(REMOVE_HARDWARE_SERIAL_HEADER, maybeRxPin, STATE_FAILURE, OPERATION_FAILURE);
+        printResult(REMOVE_HARDWARE_SERIAL_HEADER, maybeRxPin, STATE_FAILURE, OPERATION_INVALID_PIN);
         return;
     }
     if (pinInUseBySerialPort(rxPinNumber)) {
@@ -735,9 +802,19 @@ void removeHardwareSerialRequest(const char *str)
 
     int8_t txPinNumber{parsePin(maybeTxPin)};
     if (txPinNumber == INVALID_PIN) {
-        printResult(REMOVE_HARDWARE_SERIAL_HEADER, maybeRxPin, maybeTxPin, OPERATION_FAILURE);
+        printResult(REMOVE_HARDWARE_SERIAL_HEADER, maybeRxPin, maybeTxPin, OPERATION_INVALID_PIN);
         return;
     }
+
+    if (pinInUseBySerialPort(txPinNumber)) {
+        printResult(REMOVE_HARDWARE_SERIAL_HEADER, maybeRxPin, maybeTxPin, OPERATION_PIN_USED_BY_SERIAL_PORT);
+        return;
+    }
+    if (pinHasSecondaryFunction(txPinNumber)) {
+        printResult(REMOVE_HARDWARE_SERIAL_HEADER, maybeRxPin, maybeTxPin, OPERATION_PIN_HAS_SECONDARY_FUNCTION);
+        return;
+    }
+
     for (unsigned int i = 0; i < ARRAY_SIZE(hardwareSerialPorts); i++) {
         if (hardwareSerialPorts + i) {
             if (hardwareSerialPorts[i]) {
@@ -751,12 +828,15 @@ void removeHardwareSerialRequest(const char *str)
     printResult(REMOVE_HARDWARE_SERIAL_HEADER, maybeRxPin, maybeTxPin, OPERATION_FAILURE);
 }
 
-bool isValidSoftwareSerialAddition(int rxPinNumber, int txPinNumber)
+bool isValidSoftwareSerialAddition(int8_t rxPinNumber, int8_t txPinNumber)
 {
     if (ARRAY_SIZE(softwareSerialPorts) >= MAXIMUM_SOFTWARE_SERIAL_PORTS) {
         return false;
     }
     if (pinInUseBySerialPort(rxPinNumber) || pinInUseBySerialPort(txPinNumber)) {
+        return false;
+    }
+    if ((pinHasSecondaryFunction(txPinNumber)) || (pinHasSecondaryFunction(rxPinNumber))) {
         return false;
     }
     if ((rxPinNumber <= 1) || (txPinNumber <= 1)) {        
@@ -798,6 +878,9 @@ bool isValidHardwareSerialAddition(int rxPinNumber, int txPinNumber)
     if (pinInUseBySerialPort(rxPinNumber) || pinInUseBySerialPort(txPinNumber)) {
         return false;
     }
+    if ((pinHasSecondaryFunction(txPinNumber)) || (pinHasSecondaryFunction(rxPinNumber))) {
+        return false;
+    }
     #if defined(ARDUINO_AVR_UNO) || defined(ARDUINO_AVR_NANO)
         return false;
     #elif defined(ARDUINO_AVR_MEGA1280) || defined(ARDUINO_AVR_MEGA2560)
@@ -818,7 +901,7 @@ void changeAToDThresholdRequest(const char *str)
 {
     int maybeState{parseToAnalogState(str)};
     if (maybeState == OPERATION_FAILURE) {
-        printTypeResult(CHANGE_A_TO_D_THRESHOLD_HEADER, str, OPERATION_FAILURE);
+        printTypeResult(CHANGE_A_TO_D_THRESHOLD_HEADER, STATE_FAILURE, OPERATION_INVALID_STATE);
         return;
     } 
     GPIO::setAnalogToDigitalThreshold(maybeState);
@@ -870,15 +953,21 @@ void digitalReadRequest(const char *str, bool soft)
 {
     int8_t pinNumber{parsePin(str)};
     if (pinNumber == INVALID_PIN) {
-        printResult((soft ? SOFT_DIGITAL_READ_HEADER : DIGITAL_READ_HEADER), str, STATE_FAILURE, OPERATION_FAILURE);
+        printResult((soft ? SOFT_DIGITAL_READ_HEADER : DIGITAL_READ_HEADER), INVALID_PIN, STATE_FAILURE, OPERATION_INVALID_PIN);
         return;
     }
+    char tempPin[5];
+    getPrintablePinType(pinNumber, tempPin);
     if (pinInUseBySerialPort(pinNumber)) {
-        printResult((soft ? SOFT_DIGITAL_READ_HEADER : DIGITAL_READ_HEADER), str, STATE_FAILURE, OPERATION_PIN_USED_BY_SERIAL_PORT);
+        printResult((soft ? SOFT_DIGITAL_READ_HEADER : DIGITAL_READ_HEADER), tempPin, STATE_FAILURE, OPERATION_PIN_USED_BY_SERIAL_PORT);
+        return;
+    }
+    if (pinHasSecondaryFunction(pinNumber)) {
+        printResult((soft ? SOFT_DIGITAL_READ_HEADER : DIGITAL_READ_HEADER), tempPin, STATE_FAILURE, OPERATION_PIN_HAS_SECONDARY_FUNCTION);
         return;
     }
     if (!isValidDigitalInputPin(pinNumber)) {
-        printResult((soft ? SOFT_DIGITAL_READ_HEADER : DIGITAL_READ_HEADER), str, STATE_FAILURE, OPERATION_FAILURE);
+        printResult((soft ? SOFT_DIGITAL_READ_HEADER : DIGITAL_READ_HEADER), tempPin, STATE_FAILURE, OPERATION_PIN_TYPE_MISMATCH);
         return;
     }
     bool state{false};
@@ -888,7 +977,7 @@ void digitalReadRequest(const char *str, bool soft)
     } else {
         state = gpioHandle->g_digitalRead();
     }
-    printResult((soft ? SOFT_DIGITAL_READ_HEADER : DIGITAL_READ_HEADER), str, state, OPERATION_SUCCESS);
+    printResult((soft ? SOFT_DIGITAL_READ_HEADER : DIGITAL_READ_HEADER), static_cast<int16_t>(pinNumber), state, OPERATION_SUCCESS);
 }
 
 void digitalWriteRequest(const char *str)
@@ -896,33 +985,39 @@ void digitalWriteRequest(const char *str)
     char **splitString{calloc2D<char>(DIGITAL_WRITE_PARAMETER_COUNT, SMALL_BUFFER_SIZE)};
     int splitStringSize{split(str, splitString, ITEM_SEPARATOR, DIGITAL_WRITE_PARAMETER_COUNT, SMALL_BUFFER_SIZE)};
     if (splitStringSize != DIGITAL_WRITE_PARAMETER_COUNT) {
-        printResult(DIGITAL_WRITE_HEADER, INVALID_PIN, STATE_FAILURE, OPERATION_FAILURE);
+        printResult(DIGITAL_WRITE_HEADER, INVALID_PIN, STATE_FAILURE, OPERATION_INVALID_PARAMETER_COUNT);
         free2D(splitString, DIGITAL_WRITE_PARAMETER_COUNT);
         return;
     }
     int8_t pinNumber{parsePin(splitString[0])};
     if (pinNumber == INVALID_PIN) {
-        printResult(DIGITAL_WRITE_HEADER, splitString[0], STATE_FAILURE, OPERATION_FAILURE);
+        printResult(DIGITAL_WRITE_HEADER, INVALID_PIN, STATE_FAILURE, OPERATION_INVALID_PIN);
         free2D(splitString, DIGITAL_WRITE_PARAMETER_COUNT);
         return;
     }
+    char tempPin[5];
+    getPrintablePinType(pinNumber, tempPin);
     if (pinInUseBySerialPort(pinNumber)) {
-        printResult(DIGITAL_WRITE_HEADER, splitString[0], STATE_FAILURE, OPERATION_PIN_USED_BY_SERIAL_PORT);
+        printResult(DIGITAL_WRITE_HEADER, tempPin, STATE_FAILURE, OPERATION_PIN_USED_BY_SERIAL_PORT);
         free2D(splitString, DIGITAL_WRITE_PARAMETER_COUNT);
+        return;
+    }
+    if (pinHasSecondaryFunction(pinNumber)) {
+        printResult(DIGITAL_WRITE_HEADER, tempPin, STATE_FAILURE, OPERATION_PIN_HAS_SECONDARY_FUNCTION);
         return;
     }
     if (!isValidDigitalOutputPin(pinNumber)) {
-        printResult(DIGITAL_WRITE_HEADER, splitString[0], STATE_FAILURE, OPERATION_FAILURE);
+        printResult(DIGITAL_WRITE_HEADER, tempPin, STATE_FAILURE, OPERATION_PIN_TYPE_MISMATCH);
         free2D(splitString, DIGITAL_WRITE_PARAMETER_COUNT);
         return;
     }
     
     int state{parseToDigitalState(splitString[1])};
     if (state == OPERATION_FAILURE) {
-        printResult(DIGITAL_WRITE_HEADER, splitString[0], splitString[1], OPERATION_FAILURE);
+        printResult(DIGITAL_WRITE_HEADER, tempPin, splitString[1], OPERATION_INVALID_STATE);
     } else {
         gpioPinByPinNumber(pinNumber)->g_digitalWrite(state);
-        printResult(DIGITAL_WRITE_HEADER, splitString[0], state, OPERATION_SUCCESS);
+        printResult(DIGITAL_WRITE_HEADER, tempPin, state, OPERATION_SUCCESS);
     }
     free2D(splitString, DIGITAL_WRITE_PARAMETER_COUNT);
 }
@@ -933,7 +1028,7 @@ void digitalWriteAllRequest(const char *str)
     
     int state{parseToDigitalState(str)};
     if (state == OPERATION_FAILURE) {
-        printTypeResult(DIGITAL_WRITE_ALL_HEADER, str, OPERATION_FAILURE);
+        printTypeResult(DIGITAL_WRITE_ALL_HEADER, STATE_FAILURE, OPERATION_INVALID_STATE);
         return;
     }
     for (int i = 0; i < NUMBER_OF_PINS; i++) {
@@ -959,18 +1054,24 @@ void analogReadRequest(const char *str)
 {
     int8_t pinNumber{parsePin(str)};
     if (pinNumber == INVALID_PIN) {
-        printResult(ANALOG_READ_HEADER, str, STATE_FAILURE, OPERATION_FAILURE);
+        printResult(ANALOG_READ_HEADER, INVALID_PIN, STATE_FAILURE, OPERATION_INVALID_PIN);
         return;
     }
+    char tempPin[5];
+    getPrintablePinType(pinNumber, tempPin);
     if (pinInUseBySerialPort(pinNumber)) {
-        printResult(ANALOG_READ_HEADER, str, STATE_FAILURE, OPERATION_PIN_USED_BY_SERIAL_PORT);
+        printResult(ANALOG_READ_HEADER, tempPin, STATE_FAILURE, OPERATION_PIN_USED_BY_SERIAL_PORT);
+        return;
+    }
+    if (pinHasSecondaryFunction(pinNumber)) {
+        printResult(ANALOG_READ_HEADER, tempPin, STATE_FAILURE, OPERATION_PIN_HAS_SECONDARY_FUNCTION);
         return;
     }
     if (!isValidAnalogInputPin(pinNumber)) {
-        printResult(ANALOG_READ_HEADER, str, STATE_FAILURE, OPERATION_FAILURE);
+        printResult(ANALOG_READ_HEADER, tempPin, STATE_FAILURE, OPERATION_PIN_TYPE_MISMATCH);
         return;
     }
-    printResult(ANALOG_READ_HEADER, str, gpioPinByPinNumber(pinNumber)->g_analogRead(), OPERATION_SUCCESS);
+    printResult(ANALOG_READ_HEADER, tempPin, gpioPinByPinNumber(pinNumber)->g_analogRead(), OPERATION_SUCCESS);    
 }
 
 void analogWriteRequest(const char *str)
@@ -978,33 +1079,39 @@ void analogWriteRequest(const char *str)
     char **splitString{calloc2D<char>(ANALOG_WRITE_PARAMETER_COUNT, SMALL_BUFFER_SIZE)};
     int splitStringSize{split(str, splitString, ITEM_SEPARATOR, ANALOG_WRITE_PARAMETER_COUNT, SMALL_BUFFER_SIZE)};
     if (splitStringSize != ANALOG_WRITE_PARAMETER_COUNT) {
-        printResult(ANALOG_WRITE_HEADER, INVALID_PIN, STATE_FAILURE, OPERATION_FAILURE);
+        printResult(ANALOG_WRITE_HEADER, INVALID_PIN, STATE_FAILURE, OPERATION_INVALID_PARAMETER_COUNT);
         free2D(splitString, ANALOG_WRITE_PARAMETER_COUNT);
         return;
     }
     int8_t pinNumber{parsePin(splitString[0])};
     if (pinNumber == INVALID_PIN) {
-        printResult(ANALOG_WRITE_HEADER, splitString[0], STATE_FAILURE, OPERATION_FAILURE);
+        printResult(ANALOG_WRITE_HEADER, INVALID_PIN, STATE_FAILURE, OPERATION_INVALID_PIN);
         free2D(splitString, ANALOG_WRITE_PARAMETER_COUNT);
         return;
     }
+    char tempPin[5];
+    getPrintablePinType(pinNumber, tempPin);
+    if (pinHasSecondaryFunction(pinNumber)) {
+        printResult(ANALOG_WRITE_HEADER, tempPin, STATE_FAILURE, OPERATION_PIN_HAS_SECONDARY_FUNCTION);
+        return;
+    }
     if (pinInUseBySerialPort(pinNumber)) {
-        printResult(ANALOG_WRITE_HEADER, splitString[0], STATE_FAILURE, OPERATION_PIN_USED_BY_SERIAL_PORT);
+        printResult(ANALOG_WRITE_HEADER, tempPin, STATE_FAILURE, OPERATION_PIN_USED_BY_SERIAL_PORT);
         free2D(splitString, ANALOG_WRITE_PARAMETER_COUNT);
         return;
     }
     if (!isValidAnalogOutputPin(pinNumber)) {
-        printResult(ANALOG_WRITE_HEADER, splitString[0], STATE_FAILURE, OPERATION_FAILURE);
+        printResult(ANALOG_WRITE_HEADER, tempPin, STATE_FAILURE, OPERATION_PIN_TYPE_MISMATCH);
         free2D(splitString, ANALOG_WRITE_PARAMETER_COUNT);
         return;
     }
     
     int state{parseToAnalogState(splitString[1])};
     if (state == OPERATION_FAILURE) {
-        printResult(ANALOG_WRITE_HEADER, splitString[0], splitString[1], OPERATION_FAILURE);
+        printResult(ANALOG_WRITE_HEADER, tempPin, splitString[1], OPERATION_INVALID_STATE);
     } else {
         gpioPinByPinNumber(pinNumber)->g_analogWrite(state);
-        printResult(ANALOG_WRITE_HEADER, splitString[0], state, OPERATION_SUCCESS);
+        printResult(ANALOG_WRITE_HEADER, tempPin, state, OPERATION_SUCCESS);
     }
     free2D(splitString, ANALOG_WRITE_PARAMETER_COUNT);
 }
@@ -1013,27 +1120,33 @@ void pinTypeRequest(const char *str)
 {
     int8_t pinNumber{parsePin(str)};
     if (pinNumber == INVALID_PIN) {
-        printResult(PIN_TYPE_HEADER, str, STATE_FAILURE, OPERATION_FAILURE);
+        printResult(PIN_TYPE_HEADER, INVALID_PIN, STATE_FAILURE, OPERATION_INVALID_PIN);
         return;
     }
+    char tempPin[5];
+    getPrintablePinType(pinNumber, tempPin);
     if (pinInUseBySerialPort(pinNumber)) {
         char temp[SMALL_BUFFER_SIZE];
         if (!getSerialPinIOTypeString(pinNumber, temp, SMALL_BUFFER_SIZE)) {
-            printResult(PIN_TYPE_HEADER, str, pinNumber, OPERATION_SUCCESS);
+            printResult(PIN_TYPE_HEADER, tempPin, pinNumber, OPERATION_PIN_USED_BY_SERIAL_PORT);
         } else {
-            printResult(PIN_TYPE_HEADER, str, temp, OPERATION_SUCCESS);
+            printResult(PIN_TYPE_HEADER, tempPin, temp, OPERATION_PIN_USED_BY_SERIAL_PORT);
         }
+        return;
+    }
+    if (pinHasSecondaryFunction(pinNumber)) {
+        printResult(PIN_TYPE_HEADER, tempPin, STATE_FAILURE, OPERATION_PIN_HAS_SECONDARY_FUNCTION);
         return;
     }
     GPIO *tempGpio{gpioPinByPinNumber(pinNumber)};
     if (!tempGpio) {
-        printResult(PIN_TYPE_HEADER, INVALID_PIN, STATE_FAILURE, OPERATION_FAILURE);
+        printResult(PIN_TYPE_HEADER, INVALID_PIN, STATE_FAILURE, OPERATION_INVALID_PIN);
         return;
     }
     char ioTypeString[SMALL_BUFFER_SIZE];
     int8_t result{getIOTypeString(tempGpio->ioType(), ioTypeString, SMALL_BUFFER_SIZE)};
     (void)result;
-    printResult(PIN_TYPE_HEADER, str, ioTypeString, OPERATION_SUCCESS);
+    printResult(PIN_TYPE_HEADER, tempPin, ioTypeString, OPERATION_SUCCESS);
 }
 
 void pinTypeChangeRequest(const char *str)
@@ -1041,25 +1154,30 @@ void pinTypeChangeRequest(const char *str)
     char **splitString{calloc2D<char>(PIN_TYPE_CHANGE_PARAMETER_COUNT, SMALL_BUFFER_SIZE)}; 
     int splitStringSize{split(str, splitString, ITEM_SEPARATOR, PIN_TYPE_CHANGE_PARAMETER_COUNT, SMALL_BUFFER_SIZE)};
     if (splitStringSize != PIN_TYPE_CHANGE_PARAMETER_COUNT) {
-        printResult(PIN_TYPE_CHANGE_HEADER, INVALID_PIN, STATE_FAILURE, OPERATION_FAILURE);
+        printResult(PIN_TYPE_CHANGE_HEADER, INVALID_PIN, STATE_FAILURE, OPERATION_INVALID_PARAMETER_COUNT);
         free2D(splitString, PIN_TYPE_CHANGE_PARAMETER_COUNT);
         return;
     }
     int8_t pinNumber{parsePin(splitString[0])};
     if (pinNumber == INVALID_PIN) {
-        printResult(PIN_TYPE_CHANGE_HEADER, splitString[0], STATE_FAILURE, OPERATION_FAILURE);
+        printResult(PIN_TYPE_CHANGE_HEADER, INVALID_PIN, STATE_FAILURE, OPERATION_INVALID_PIN);
         free2D(splitString, PIN_TYPE_CHANGE_PARAMETER_COUNT);
         return;
     }
+    char tempPin[5];
+    getPrintablePinType(pinNumber, tempPin);
     if (pinInUseBySerialPort(pinNumber)) {
-        printResult(PIN_TYPE_CHANGE_HEADER, splitString[0], STATE_FAILURE, OPERATION_PIN_USED_BY_SERIAL_PORT);
+        printResult(PIN_TYPE_CHANGE_HEADER, tempPin, STATE_FAILURE, OPERATION_PIN_USED_BY_SERIAL_PORT);
         free2D(splitString, PIN_TYPE_CHANGE_PARAMETER_COUNT);
         return;
     }
-
+    if (pinHasSecondaryFunction(pinNumber)) {
+        printResult(PIN_TYPE_CHANGE_HEADER, tempPin, STATE_FAILURE, OPERATION_PIN_HAS_SECONDARY_FUNCTION);
+        return;
+    }
     IOType type{parseIOType(splitString[1])};
     if (type == IOType::UNSPECIFIED) {
-        printResult(PIN_TYPE_CHANGE_HEADER, splitString[0], splitString[1], OPERATION_FAILURE);
+        printResult(PIN_TYPE_CHANGE_HEADER, tempPin, splitString[1], OPERATION_INVALID_IO_TYPE);
         free2D(splitString, PIN_TYPE_CHANGE_PARAMETER_COUNT);
         return;
     }
@@ -1067,23 +1185,23 @@ void pinTypeChangeRequest(const char *str)
     char ioTypeString[SMALL_BUFFER_SIZE];
     (void)getIOTypeString(type, ioTypeString, SMALL_BUFFER_SIZE);
     if (pinInUseBySerialPort(pinNumber)) {
-        printResult(DIGITAL_WRITE_HEADER, splitString[0], ioTypeString, OPERATION_PIN_USED_BY_SERIAL_PORT);
+        printResult(DIGITAL_WRITE_HEADER, tempPin, ioTypeString, OPERATION_PIN_USED_BY_SERIAL_PORT);
         free2D(splitString, PIN_TYPE_CHANGE_PARAMETER_COUNT);
         return;
     }
     if (!checkValidIOChangeRequest(type, pinNumber)) {
-        printResult(PIN_TYPE_CHANGE_HEADER, splitString[0], ioTypeString, OPERATION_FAILURE);
+        printResult(PIN_TYPE_CHANGE_HEADER, tempPin, ioTypeString, OPERATION_INVALID_IO_CHANGE);
         free2D(splitString, PIN_TYPE_CHANGE_PARAMETER_COUNT);
         return;
     }
     GPIO *tempGpio{gpioPinByPinNumber(pinNumber)};
     if (!tempGpio) {
-        printResult(PIN_TYPE_CHANGE_HEADER, splitString[0], ioTypeString, OPERATION_FAILURE);
+        printResult(PIN_TYPE_CHANGE_HEADER, tempPin, ioTypeString, OPERATION_INVALID_PIN);
         free2D(splitString, PIN_TYPE_CHANGE_PARAMETER_COUNT);
         return;
     }
     tempGpio->setIOType(type);
-    printResult(PIN_TYPE_CHANGE_HEADER, splitString[0], ioTypeString, OPERATION_SUCCESS);
+    printResult(PIN_TYPE_CHANGE_HEADER, tempPin, ioTypeString, OPERATION_SUCCESS);
     free2D(splitString, PIN_TYPE_CHANGE_PARAMETER_COUNT);
 }
 
@@ -1091,24 +1209,28 @@ void softAnalogReadRequest(const char *str)
 {
     int8_t pinNumber{parsePin(str)};
     if (pinNumber == INVALID_PIN) {
-        printResult(SOFT_ANALOG_READ_HEADER, str, STATE_FAILURE, OPERATION_FAILURE);
+        printResult(SOFT_ANALOG_READ_HEADER, INVALID_PIN, STATE_FAILURE, OPERATION_INVALID_PIN);
         return;
     }
+    char tempPin[5];
+    getPrintablePinType(pinNumber, tempPin);
+    if (pinHasSecondaryFunction(pinNumber)) {
+        printResult(SOFT_ANALOG_READ_HEADER, tempPin, STATE_FAILURE, OPERATION_PIN_HAS_SECONDARY_FUNCTION);
+        return ;
+    }
     if (!isValidAnalogOutputPin(pinNumber)) {
-        printResult(SOFT_ANALOG_READ_HEADER, str, STATE_FAILURE, OPERATION_FAILURE);
+        printResult(SOFT_ANALOG_READ_HEADER, tempPin, STATE_FAILURE, OPERATION_PIN_TYPE_MISMATCH);
         return;
     }
     int state{gpioPinByPinNumber(pinNumber)->g_softAnalogRead()};
-    printResult(SOFT_ANALOG_READ_HEADER, str, state, OPERATION_SUCCESS);
+    printResult(SOFT_ANALOG_READ_HEADER, tempPin, state, OPERATION_SUCCESS);
 }
 
 void heartbeatRequest()
 {
     char *stringToPrint = (char *)calloc(strlen(HEARTBEAT_HEADER) + 1, sizeof(char));
     strncpy(stringToPrint, HEARTBEAT_HEADER, strlen(HEARTBEAT_HEADER) + 1);
-
     stringToPrint[strlen(stringToPrint)] = '\0';
-
     printString(stringToPrint);
     free(stringToPrint);
 }
@@ -1132,7 +1254,16 @@ void canBusEnabledRequest()
     #endif
 } 
 
-void populateGpioMap()
+void linBusEnabledRequest()
+{
+    #if defined(__HAVE_LIN_BUS__)
+        printTypeResult(LIN_BUS_ENABLED_HEADER, 1, OPERATION_SUCCESS);
+    #else
+        printTypeResult(LIN_BUS_ENABLED_HEADER, 0, OPERATION_SUCCESS);
+    #endif
+}
+
+void initializeGpioMap()
 {
     for (uint8_t i = 0; i < NUMBER_OF_PINS; i++) {
         gpioPins[i] = nullptr;
@@ -1143,15 +1274,19 @@ void populateGpioMap()
         if (pinNumber < 0) {
             break;
         }
-        gpioPins[pinNumber] = new GPIO(pinNumber, IOType::DIGITAL_INPUT_PULLUP);
+        if (!pinHasSecondaryFunction(pinNumber)) {
+            gpioPins[pinNumber] = new GPIO(pinNumber, IOType::DIGITAL_INPUT_PULLUP);
+        }
     } while (true);
     i = 0;
     do {
         int8_t pinNumber{pgm_read_byte_near(AVAILABLE_ANALOG_PINS + i++)};
         if (pinNumber < 0) {
             break;
+        }      
+        if (!pinHasSecondaryFunction(pinNumber)) { 
+            gpioPins[pinNumber] = new GPIO(pinNumber, IOType::ANALOG_INPUT);
         }
-        gpioPins[pinNumber] = new GPIO(pinNumber, IOType::ANALOG_INPUT);
     } while (true);
     i = 0;
     do {
@@ -1159,8 +1294,23 @@ void populateGpioMap()
         if (pinNumber < 0) {
             break;
         }
-        gpioPins[pinNumber] = new GPIO(pinNumber, IOType::DIGITAL_INPUT_PULLUP);
+        if (!pinHasSecondaryFunction(pinNumber)) {   
+            gpioPins[pinNumber] = new GPIO(pinNumber, IOType::DIGITAL_INPUT_PULLUP);
+        }
     } while (true);
+}
+
+bool pinHasSecondaryFunction(int8_t pinNumber)
+{
+    if (pinInUseBySerialPort(pinNumber)) {
+        return true;
+    }
+    #if defined(__HAVE_CAN_BUS__)
+    if (pinNumber == SPI_CS_PIN) {
+        return true;
+    }
+    #endif
+    return false;
 }
 
 bool checkValidRequestString(const char *header, const char *checkStr)
@@ -1170,6 +1320,15 @@ bool checkValidRequestString(const char *header, const char *checkStr)
     }
     return (strlen(checkStr) > (strlen(header) + 1));
 }
+
+void getPrintablePinType(int8_t pinNumber, char *out)
+{
+    if (isValidAnalogInputPin(pinNumber)) {
+        analogPinFromNumber(pinNumber, out, 5);
+    } else {
+        toDecString(pinNumber, out, 5);
+    }
+}  
 
 
 bool isValidDigitalOutputPin(int8_t pinNumber)
@@ -1392,18 +1551,19 @@ bool isValidAnalogPinIdentifier(const char *str)
         }
     } while (true);
 
-    char buffer[strlen(str) + 1];
-    memset(buffer, 0, sizeof buffer);
-    strncpy(buffer, str, sizeof(buffer) - 1);
+    char *buffer{static_cast<char *>(calloc(strlen(str) + 1, sizeof(char)))};
+    strncpy(buffer, str, (strlen(str) + 1));
 
     for (unsigned int j = 0; j < analogPinArraySize(); j++) {
         if (startsWith(str, ANALOG_IDENTIFIER_CHAR)) {
             buffer[0] = DIGITAL_STATE_LOW_IDENTIFIER;
             if (atoi(buffer) == static_cast<int>(j)) {
+                free(buffer);
                 return true;
             }
         }
     }
+    free(buffer);
     return false;
 }
 
@@ -1686,8 +1846,12 @@ ByteStream *getSoftwareCout(int coutIndex)
     void printCanResult(const char *header, const char *str, int resultCode, bool broadcast)
     {
         if (broadcast) {
-            for (auto &it : hardwareSerialPorts) {
-                *it << header << ITEM_SEPARATOR << str << ITEM_SEPARATOR << resultCode << LINE_ENDING;
+            for (int i = 0; i < NUMBER_OF_HARDWARE_SERIAL_PORTS; i++) {
+                if (hardwareSerialPorts + i) {
+                    if (hardwareSerialPorts[i]) {
+                        *(hardwareSerialPorts[i]) << header << ITEM_SEPARATOR << str << ITEM_SEPARATOR << resultCode << LINE_ENDING;
+                    }
+                }
             }            
         } else {
             *getCurrentValidOutputStream() << header << ITEM_SEPARATOR << str << ITEM_SEPARATOR << resultCode << LINE_ENDING;
@@ -1716,72 +1880,77 @@ ByteStream *getSoftwareCout(int coutIndex)
         *getCurrentValidOutputStream() << header << ITEM_SEPARATOR << resultCode << LINE_ENDING;
     } 
 
-    void canInit()
+    bool canInit()
     {
-        using namespace ArduinoPCStrings;
         unsigned int startTime = millis();
         unsigned int endTime = millis();
         if (canBusInitialized) {
-            return;
+            return true;
         }
         if (canController) {
             while (canController->begin(CAN_500KBPS) != CAN_OK) {
                 endTime = millis();
                 if ((endTime - startTime) >= CAN_CONNECTION_TIMEOUT) {
-                    return;
+                    return false;
                 }
             }
             canBusInitialized = true;
+            return true;
         }
+        return false;
     }
 
     void canInitRequest()
     {
-        canInit();
-        if (canBusInitialized) {
-            printSingleResult(CAN_INIT_HEADER, OPERATION_SUCCESS);
+        if (!canInit()) {
+            printSingleResult(CAN_INIT_HEADER, CAN_BUS_NOT_INITIALIZED);
         } else {
-            printSingleResult(CAN_INIT_HEADER, OPERATION_FAILURE);
+            printSingleResult(CAN_INIT_HEADER, OPERATION_SUCCESS);
         }
-        
     }
 
     void canReadRequest(bool autoUp)
     {
         using namespace ArduinoPCStrings;
-        if (!canBusInitialized) {
-            canInit();
+        if (!canInit()) {
+            printSingleResult(CAN_READ_HEADER, CAN_BUS_NOT_INITIALIZED);
+            return;
         }
         //TODO: Extended frame
-        unsigned char receivedPacketLength{0};
-        unsigned char pack[8]{0, 0, 0, 0, 0, 0, 0, 0};
-        uint32_t canID{0}; 
-        if (CAN_MSGAVAIL == canController->checkReceive()) {
-            canController->readMsgBuf(&receivedPacketLength, pack);
-            canID = canController->getCanId();
+        uint8_t receivedPacketLength{0};      
+        uint8_t rawReceivedMessage[SMALL_BUFFER_SIZE];
+        uint32_t canID{0};
+        uint8_t frameType{CAN_NORMAL_FRAME};
+        if (canController->checkReceive() == CAN_MSGAVAIL) {
+            if (canController->isExtendedFrame()) {
+                frameType = CAN_EXTENDED_FRAME;
+            }
+            canController->readMsgBufID(&canID, &receivedPacketLength, rawReceivedMessage);
             if ((numberOfPositiveCanMasks() == 0) && (numberOfNegativeCanMasks() == 0)) {
-                CanMessage readMessage{canID, CAN_FRAME, receivedPacketLength, pack};
+                CanMessage readMessage{canID, frameType, receivedPacketLength, rawReceivedMessage};
                 printCanResult(CAN_READ_HEADER, readMessage, OPERATION_SUCCESS, (autoUp ? BROADCAST : NO_BROADCAST));
             } else {
                 if (numberOfPositiveCanMasks() == 0) {
                     if (!negativeCanMaskExists(canID)) {
-                        CanMessage readMessage{canID, CAN_FRAME, receivedPacketLength, pack};
+                        CanMessage readMessage{canID, frameType, receivedPacketLength, rawReceivedMessage};
                         printCanResult(CAN_READ_HEADER, readMessage, OPERATION_SUCCESS, (autoUp ? BROADCAST : NO_BROADCAST));
                     }
                 }
                 if (numberOfNegativeCanMasks() == 0) {
                     if (positiveCanMaskExists(canID)) {
-                        CanMessage readMessage{canID, CAN_FRAME, receivedPacketLength, pack};
+                        CanMessage readMessage{canID, frameType, receivedPacketLength, rawReceivedMessage};
                         printCanResult(CAN_READ_HEADER, readMessage, OPERATION_SUCCESS, (autoUp ? BROADCAST : NO_BROADCAST));
                     }
                 }
                 if (positiveCanMaskExists(canID)) {
                     if (!negativeCanMaskExists(canID)) {
-                        CanMessage readMessage{canID, CAN_FRAME, receivedPacketLength, pack};
+                        CanMessage readMessage{canID, frameType, receivedPacketLength, rawReceivedMessage};
                         printCanResult(CAN_READ_HEADER, readMessage, OPERATION_SUCCESS, (autoUp ? BROADCAST : NO_BROADCAST));
                     }
                 }
             }
+            CanMessage readMessage{canID, frameType, receivedPacketLength, rawReceivedMessage};
+            printCanResult(CAN_READ_HEADER, readMessage, OPERATION_SUCCESS, (autoUp ? BROADCAST : NO_BROADCAST));
         } else if (!autoUp) {
             printBlankCanResult(CAN_READ_HEADER, OPERATION_SUCCESS);
         }
@@ -1789,8 +1958,9 @@ ByteStream *getSoftwareCout(int coutIndex)
 
     void canWriteRequest(const char *str, bool once)
     {
-        if (!canBusInitialized) {
-            canInit();
+        if (!canInit()) {
+            printSingleResult((once ? CAN_WRITE_ONCE_HEADER : CAN_WRITE_HEADER), CAN_BUS_NOT_INITIALIZED);
+            return;
         }
         CanMessage readMessage{CanMessage::parse(str, ITEM_SEPARATOR, SMALL_BUFFER_SIZE)};
         char tempMessage[SMALL_BUFFER_SIZE];
@@ -1808,6 +1978,10 @@ ByteStream *getSoftwareCout(int coutIndex)
 
     void addPositiveCanMaskRequest(const char *str)
     {
+        if (!canInit()) {
+            printSingleResult(ADD_POSITIVE_CAN_MASK_HEADER, CAN_BUS_NOT_INITIALIZED);
+            return;
+        }
         uint32_t maybeID{stringToUInt(str)};
         if (maybeID == 0) {
             printTypeResult(ADD_POSITIVE_CAN_MASK_HEADER, str, OPERATION_FAILURE);
@@ -1824,6 +1998,10 @@ ByteStream *getSoftwareCout(int coutIndex)
 
     void removePositiveCanMaskRequest(const char *str)
     {
+        if (!canInit()) {
+            printSingleResult(REMOVE_POSITIVE_CAN_MASK_HEADER, CAN_BUS_NOT_INITIALIZED);
+            return;
+        }
         uint32_t maybeID{stringToUInt(str)};
         if (maybeID == 0) {
             printTypeResult(REMOVE_POSITIVE_CAN_MASK_HEADER, str, OPERATION_FAILURE);
@@ -1838,6 +2016,10 @@ ByteStream *getSoftwareCout(int coutIndex)
 
     void addNegativeCanMaskRequest(const char *str)
     {
+        if (!canInit()) {
+            printSingleResult(ADD_NEGATIVE_CAN_MASK_HEADER, CAN_BUS_NOT_INITIALIZED);
+            return;
+        }
         uint32_t maybeID{stringToUInt(str)};
         if (maybeID == 0) {
             printTypeResult(ADD_NEGATIVE_CAN_MASK_HEADER, str, OPERATION_FAILURE);
@@ -1854,6 +2036,10 @@ ByteStream *getSoftwareCout(int coutIndex)
 
     void removeNegativeCanMaskRequest(const char *str)
     {
+        if (!canInit()) {
+            printSingleResult(REMOVE_NEGATIVE_CAN_MASK_HEADER, CAN_BUS_NOT_INITIALIZED);
+            return;
+        }
         uint32_t maybeID{stringToUInt(str)};
         if (maybeID == 0) {
             printTypeResult(REMOVE_NEGATIVE_CAN_MASK_HEADER, str, OPERATION_FAILURE);
@@ -1868,6 +2054,10 @@ ByteStream *getSoftwareCout(int coutIndex)
 
     void canLiveUpdateRequest(const char *str)
     {
+        if (!canInit()) {
+            printSingleResult(CAN_LIVE_UPDATE_HEADER, CAN_BUS_NOT_INITIALIZED);
+            return;
+        }
         int canState{parseToDigitalState(str)};
         if (canState == OPERATION_FAILURE) {
             printTypeResult(CAN_LIVE_UPDATE_HEADER, str, OPERATION_FAILURE);
@@ -1879,25 +2069,29 @@ ByteStream *getSoftwareCout(int coutIndex)
 
     void currentCachedCanMessageByIdRequest(const char *str)
     {
+        if (!canInit()) {
+            printSingleResult(CURRENT_CAN_MESSAGE_BY_ID_HEADER, CAN_BUS_NOT_INITIALIZED);
+            return;
+        }
         uint32_t maybeID{stringToUInt(str)};
         if (maybeID == 0) {
             printTypeResult(CURRENT_CAN_MESSAGE_BY_ID_HEADER, str, OPERATION_FAILURE);
         }
-        int8_t foundPosition{-1};
         for (uint8_t i = 0; i < MAX_LAST_CAN_MESSAGES; i++) {
             if (lastCanMessages[i].id() == maybeID) {
-                foundPosition = i;
+                printCanResult(CURRENT_CAN_MESSAGE_BY_ID_HEADER, lastCanMessages[i], OPERATION_SUCCESS, NO_BROADCAST);
+                return;
             }
         }
-        if (foundPosition != -1) {
-            printCanResult(CURRENT_CAN_MESSAGE_BY_ID_HEADER, lastCanMessages[foundPosition], OPERATION_SUCCESS, NO_BROADCAST);
-        } else {
-            printBlankCanResult(CURRENT_CAN_MESSAGE_BY_ID_HEADER, OPERATION_SUCCESS);
-        }
+        printBlankCanResult(CURRENT_CAN_MESSAGE_BY_ID_HEADER, OPERATION_FAILURE);
     }
 
     void clearCurrentMessageByIdRequest(const char *str)
     {
+        if (!canInit()) {
+            printSingleResult(CLEAR_CAN_MESSAGE_BY_ID_HEADER, CAN_BUS_NOT_INITIALIZED);
+            return;
+        }
         uint32_t maybeID{stringToUInt(str)};
         if (maybeID == 0) {
             printTypeResult(CLEAR_CAN_MESSAGE_BY_ID_HEADER, str, OPERATION_FAILURE);
@@ -1912,6 +2106,10 @@ ByteStream *getSoftwareCout(int coutIndex)
 
     void currentCachedCanMessagesRequest()
     {
+        if (!canInit()) {
+            printSingleResult(CURRENT_CAN_MESSAGES_HEADER, CAN_BUS_NOT_INITIALIZED);
+            return;
+        }
         for (uint8_t i = 0; i < MAX_LAST_CAN_MESSAGES; i++) {
             printCanResult(CURRENT_CAN_MESSAGES_HEADER, lastCanMessages[i], OPERATION_SUCCESS, NO_BROADCAST);
         }
@@ -1919,6 +2117,10 @@ ByteStream *getSoftwareCout(int coutIndex)
         
     void clearCanMessagesRequest()
     {
+        if (!canInit()) {
+            printSingleResult(CLEAR_CAN_MESSAGES_HEADER, CAN_BUS_NOT_INITIALIZED);
+            return;
+        }
         for (uint8_t i = 0; i < MAX_LAST_CAN_MESSAGES; i++) {
             lastCanMessages[i] = CanMessage{};
         }
@@ -1927,6 +2129,10 @@ ByteStream *getSoftwareCout(int coutIndex)
 
     void currentPositiveCanMasksRequest()
     {
+        if (!canInit()) {
+            printSingleResult(CURRENT_POSITIVE_CAN_MASKS_HEADER, CAN_BUS_NOT_INITIALIZED);
+            return;
+        }
         for (uint8_t i = 0; i < MAX_POSITIVE_CAN_MASKS; i++) {
             printTypeResult(CURRENT_POSITIVE_CAN_MASKS_HEADER, positiveCanMasks[i], OPERATION_SUCCESS);
         }
@@ -1934,6 +2140,10 @@ ByteStream *getSoftwareCout(int coutIndex)
 
     void currentNegativeCanMasksRequest()
     {
+        if (!canInit()) {
+            printSingleResult(CURRENT_NEGATIVE_CAN_MASKS_HEADER, CAN_BUS_NOT_INITIALIZED);
+            return;
+        }
         for (uint8_t i = 0; i < MAX_NEGATIVE_CAN_MASKS; i++) {
             printTypeResult(CURRENT_POSITIVE_CAN_MASKS_HEADER, negativeCanMasks[i], OPERATION_SUCCESS);
         }
@@ -1941,12 +2151,20 @@ ByteStream *getSoftwareCout(int coutIndex)
 
     void allCurrentCanMasksRequest()
     {
+        if (!canInit()) {
+            printSingleResult(ALL_CURRENT_CAN_MASKS_HEADER, CAN_BUS_NOT_INITIALIZED);
+            return;
+        }
         currentPositiveCanMasksRequest();
         currentNegativeCanMasksRequest();
     }
 
     void clearPositiveCanMasksRequest()
     {
+        if (!canInit()) {
+            printSingleResult(CLEAR_POSITIVE_CAN_MASKS_HEADER, CAN_BUS_NOT_INITIALIZED);
+            return;
+        }
         for (uint8_t i = 0; i < MAX_POSITIVE_CAN_MASKS; i++) {
             positiveCanMasks[i] = EMPTY_CAN_MASK_SLOT;
         }
@@ -1955,6 +2173,10 @@ ByteStream *getSoftwareCout(int coutIndex)
 
     void clearNegativeCanMasksRequest()
     {
+        if (!canInit()) {
+            printSingleResult(CLEAR_NEGATIVE_CAN_MASKS_HEADER, CAN_BUS_NOT_INITIALIZED);
+            return;
+        }
         for (uint8_t i = 0; i < MAX_NEGATIVE_CAN_MASKS; i++) {
             negativeCanMasks[i] = EMPTY_CAN_MASK_SLOT;
         }
@@ -1963,6 +2185,10 @@ ByteStream *getSoftwareCout(int coutIndex)
 
     void clearAllCanMasksRequest()
     {
+        if (!canInit()) {
+            printSingleResult(CLEAR_ALL_CAN_MASKS_HEADER, CAN_BUS_NOT_INITIALIZED);
+            return;
+        }
         for (uint8_t i = 0; i < MAX_POSITIVE_CAN_MASKS; i++) {
             positiveCanMasks[i] = EMPTY_CAN_MASK_SLOT;
         }
@@ -1974,6 +2200,10 @@ ByteStream *getSoftwareCout(int coutIndex)
 
     int8_t addPositiveCanMask(uint32_t id)
     {
+        if (!canInit()) {
+            printSingleResult(ADD_POSITIVE_CAN_MASK_HEADER, CAN_BUS_NOT_INITIALIZED);
+            return -1;
+        }
         for (uint8_t i = 0; i < MAX_POSITIVE_CAN_MASKS; i++) {
             if (positiveCanMasks[i] == id) {
                 return 0;
@@ -1990,6 +2220,10 @@ ByteStream *getSoftwareCout(int coutIndex)
 
     int8_t addNegativeCanMask(uint32_t id)
     {
+        if (!canInit()) {
+            printSingleResult(ADD_NEGATIVE_CAN_MASK_HEADER, CAN_BUS_NOT_INITIALIZED);
+            return -1;
+        }
         for (uint8_t i = 0; i < MAX_NEGATIVE_CAN_MASKS; i++) {
             if (negativeCanMasks[i] == id) {
                 return 0;
@@ -2073,6 +2307,4 @@ ByteStream *getSoftwareCout(int coutIndex)
         }
         return false;
     }
-
-
 #endif
