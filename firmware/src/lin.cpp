@@ -272,3 +272,14 @@ uint8_t LIN::receiveFrom(uint8_t targetAddress, uint8_t *message, uint8_t number
       return bytesReceived;
 }
 
+void LIN::add(LinScheduleEntry &entry, uint16_t when)
+{
+    entry.trigger = millis() + when;
+    this->m_scheduler.push(entry);
+}
+
+void LIN::clear()
+{
+    this->m_scheduler.clear();
+}
+    
