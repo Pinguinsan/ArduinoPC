@@ -221,7 +221,6 @@ uint8_t LIN::receiveFrom(uint8_t targetAddress, uint8_t *message, uint8_t number
             _delay_us(LIN_WAIT_INTERVAL); 
             timeoutCount += LIN_WAIT_INTERVAL; 
             if (timeoutCount >= this->m_timeout) {
-                break;
                 goto done;
             } 
         }
