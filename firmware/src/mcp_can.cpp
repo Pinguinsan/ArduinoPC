@@ -46,7 +46,6 @@
 */
 #include "../include/mcp_can.h"
 
-
 #define spi_readwrite SPI.transfer
 #define spi_read() spi_readwrite(0x00)
 #define SPI_BEGIN() SPI.beginTransaction(SPISettings(10000000, MSBFIRST, SPI_MODE0))
