@@ -75,7 +75,8 @@ void broadcastString(const char *str);
 #endif
 
 void handleSerialString(const char *str);
-void digitalReadRequest(const char *str, bool soft);
+void digitalReadRequest(const char *str);
+void softDigitalReadRequest(const char *str);
 void digitalWriteRequest(const char *str);
 void digitalWriteAllRequest(const char *str);
 void analogReadRequest(const char *str);
@@ -390,11 +391,9 @@ void doImAliveBlink()
 
 void handleSerialString(const char *str)
 {
-    if (!str) {
+    if ((!str) || (strlen(str)) == 0) {
         return;
-    } else if (strlen(str) == 0) {
-        return;
-    }
+    } 
     char requestString[SMALL_BUFFER_SIZE];
     int substringResult{0};
     (void)substringResult;
@@ -422,7 +421,7 @@ void handleSerialString(const char *str)
     } else if (startsWith(str, DIGITAL_READ_HEADER)) {
         if (checkValidRequestString(DIGITAL_READ_HEADER, str)) {
             substringResult = makeRequestString(str, DIGITAL_READ_HEADER, requestString, SMALL_BUFFER_SIZE);
-            digitalReadRequest(requestString, false);
+            digitalReadRequest(requestString);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
@@ -457,7 +456,7 @@ void handleSerialString(const char *str)
     } else if (startsWith(str, SOFT_DIGITAL_READ_HEADER)) {
         if (checkValidRequestString(SOFT_DIGITAL_READ_HEADER, str)) {
             substringResult = makeRequestString(str, SOFT_DIGITAL_READ_HEADER, requestString, SMALL_BUFFER_SIZE);
-            digitalReadRequest(requestString, true);
+            softDigitalReadRequest(requestString);
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
@@ -949,25 +948,25 @@ void ioReportRequest()
     *getCurrentValidOutputStream() << ITEM_SEPARATOR << IO_REPORT_END_HEADER << LINE_ENDING;
 }
 
-void digitalReadRequest(const char *str, bool soft)
+void softDigitalReadRequest(const char *str)
 {
     int8_t pinNumber{parsePin(str)};
     if (pinNumber == INVALID_PIN) {
-        printResult((soft ? SOFT_DIGITAL_READ_HEADER : DIGITAL_READ_HEADER), INVALID_PIN, STATE_FAILURE, OPERATION_INVALID_PIN);
+        printResult(SOFT_DIGITAL_READ_HEADER, INVALID_PIN, STATE_FAILURE, OPERATION_INVALID_PIN);
         return;
     }
     char tempPin[5];
     getPrintablePinType(pinNumber, tempPin);
     if (pinInUseBySerialPort(pinNumber)) {
-        printResult((soft ? SOFT_DIGITAL_READ_HEADER : DIGITAL_READ_HEADER), tempPin, STATE_FAILURE, OPERATION_PIN_USED_BY_SERIAL_PORT);
+        printResult(SOFT_DIGITAL_READ_HEADER, tempPin, STATE_FAILURE, OPERATION_PIN_USED_BY_SERIAL_PORT);
         return;
     }
     if (pinHasSecondaryFunction(pinNumber)) {
-        printResult((soft ? SOFT_DIGITAL_READ_HEADER : DIGITAL_READ_HEADER), tempPin, STATE_FAILURE, OPERATION_PIN_HAS_SECONDARY_FUNCTION);
+        printResult(SOFT_DIGITAL_READ_HEADER, tempPin, STATE_FAILURE, OPERATION_PIN_HAS_SECONDARY_FUNCTION);
         return;
     }
     if (!isValidDigitalInputPin(pinNumber)) {
-        printResult((soft ? SOFT_DIGITAL_READ_HEADER : DIGITAL_READ_HEADER), tempPin, STATE_FAILURE, OPERATION_PIN_TYPE_MISMATCH);
+        printResult(SOFT_DIGITAL_READ_HEADER, tempPin, STATE_FAILURE, OPERATION_PIN_TYPE_MISMATCH);
         return;
     }
     bool state{false};
@@ -977,7 +976,38 @@ void digitalReadRequest(const char *str, bool soft)
     } else {
         state = gpioHandle->g_digitalRead();
     }
-    printResult((soft ? SOFT_DIGITAL_READ_HEADER : DIGITAL_READ_HEADER), static_cast<int16_t>(pinNumber), state, OPERATION_SUCCESS);
+    printResult(SOFT_DIGITAL_READ_HEADER, static_cast<int16_t>(pinNumber), state, OPERATION_SUCCESS);
+}
+
+void digitalReadRequest(const char *str, bool soft)
+{
+    int8_t pinNumber{parsePin(str)};
+    if (pinNumber == INVALID_PIN) {
+        printResult(DIGITAL_READ_HEADER, INVALID_PIN, STATE_FAILURE, OPERATION_INVALID_PIN);
+        return;
+    }
+    char tempPin[5];
+    getPrintablePinType(pinNumber, tempPin);
+    if (pinInUseBySerialPort(pinNumber)) {
+        printResult(DIGITAL_READ_HEADER, tempPin, STATE_FAILURE, OPERATION_PIN_USED_BY_SERIAL_PORT);
+        return;
+    }
+    if (pinHasSecondaryFunction(pinNumber)) {
+        printResult(DIGITAL_READ_HEADER, tempPin, STATE_FAILURE, OPERATION_PIN_HAS_SECONDARY_FUNCTION);
+        return;
+    }
+    if (!isValidDigitalInputPin(pinNumber)) {
+        printResult(DIGITAL_READ_HEADER, tempPin, STATE_FAILURE, OPERATION_PIN_TYPE_MISMATCH);
+        return;
+    }
+    bool state{false};
+    GPIO *gpioHandle{gpioPinByPinNumber(pinNumber)};
+    if (gpioHandle->ioType() == IOType::DIGITAL_OUTPUT) {
+        state = gpioHandle->g_softDigitalRead();
+    } else {
+        state = gpioHandle->g_digitalRead();
+    }
+    printResult(DIGITAL_READ_HEADER, static_cast<int16_t>(pinNumber), state, OPERATION_SUCCESS);
 }
 
 void digitalWriteRequest(const char *str)
