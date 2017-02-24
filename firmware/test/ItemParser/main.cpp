@@ -102,6 +102,7 @@ bool isAllZeroes(const char *str)
             return false;
         }
     }
+    return true;
 }
 
 bool isAllZeroesOrDecimal(const char *str)
@@ -111,6 +112,7 @@ bool isAllZeroesOrDecimal(const char *str)
             return false;
         }
     }
+    return true;
 }
 
 template<typename T>

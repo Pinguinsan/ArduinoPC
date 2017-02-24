@@ -317,4 +317,66 @@ namespace Utilities
     {
         return (isprint(byteToCheck) || (byteToCheck == '\r') || (byteToCheck == '\n'));
     }
+
+    bool isAllZeroes(const char *str)
+    {
+        for (size_t i = 0; i < strlen(str); i++) {
+            if (str[i] != '0') {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    bool isAllZeroesOrDecimal(const char *str)
+    {
+        for (size_t i = 0; i < strlen(str); i++) {
+            if ((str[i] != '0') && (str[i] != '.')) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    void genericSplitCast(const char *str, const char *delimiter)
+    {
+        (void)str;
+        (void)delimiter;
+        return;
+    }
+
+    void genericSplitCast(const char *str, const char delimiter)
+    {
+        (void)str;
+        (void)delimiter;
+        return;
+    }
+
+    size_t stripNonDigits(char *out)
+    {
+        char *temp{new char[strlen(out) + 1]};
+        size_t stringIndex{0};
+        for (size_t i = 0; i < strlen(out); i++) {
+            if (isDigit(out[i])) {
+                temp[stringIndex++] = out[i];
+            }
+        }
+        temp[stringIndex] = '\0';
+        strcpy(out, temp);
+        delete temp;
+    }
+
+    size_t stripNonFloatingPointDigits(char *out)
+    {
+        char *temp{new char[strlen(out) + 1]};
+        size_t stringIndex{0};
+        for (size_t i = 0; i < strlen(out); i++) {
+            if ((isDigit(out[i])) || (out[i] == '.')) {
+                temp[stringIndex++] = out[i];
+            }
+        }
+        temp[stringIndex] = '\0';
+        strcpy(out, temp);
+        delete temp;
+    }
 }

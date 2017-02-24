@@ -7,6 +7,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <limits.h>
+#include <float.h>
+#include <Arduino.h>
 //#include <avr/interrupt.h>
 //#include <Arduino.h>
 
@@ -83,6 +86,243 @@ namespace Utilities
     int toHexString(T number, char *out, size_t maximumLength)
     {
         return (snprintf(out, maximumLength, "%02X", static_cast<unsigned int>(number))); 
+    }
+
+    bool isAllZeroes(const char *str);
+    bool isAllZeroesOrDecimal(const char *str);
+    
+    template<typename T>
+    struct is_c_str { static bool const value{false}; };
+    template<>
+    struct is_c_str<char *> { static bool const value{true}; };
+    template<>
+    struct is_c_str<const char *> { static bool const value{true}; };
+
+    template <typename T>
+    struct is_unsigned_integral { static bool const value{false}; };
+    template<>
+    struct is_unsigned_integral<uint8_t> { static bool const value{true}; };
+    template<>
+    struct is_unsigned_integral<uint16_t> { static bool const value{true}; };
+    template<>
+    struct is_unsigned_integral<uint32_t> { static bool const value{true}; };
+    template<>
+    struct is_unsigned_integral<uint64_t> { static bool const value{true}; };
+    /*
+    template<>
+    struct is_unsigned_integral<unsigned char> { static bool const value{true}; };
+    template<>
+    struct is_unsigned_integral<unsigned short> { static bool const value{true}; };
+    template<>
+    struct is_unsigned_integral<unsigned int> { static bool const value{true}; };
+    template<>
+    struct is_unsigned_integral<unsigned long> { static bool const value{true}; };
+    template<>
+    struct is_unsigned_integral<unsigned long long> { static bool const value{true}; };
+    */
+    
+    
+    template<typename T>
+    struct is_integral  { static bool const value{false}; };
+    template<>
+    struct  is_integral<uint8_t>  { static bool const value{true}; };
+    template<>
+    struct  is_integral<int8_t>  { static bool const value{true}; };
+    template<>
+    struct  is_integral<uint16_t>  { static bool const value{true}; };
+    template<>
+    struct  is_integral<int16_t>  { static bool const value{true}; };
+    template<>
+    struct  is_integral<uint32_t>  { static bool const value{true}; };
+    template<>
+    struct  is_integral<int32_t>  { static bool const value{true}; };
+    template<>
+    struct  is_integral<uint64_t>  { static bool const value{true}; };
+    template<>
+    struct  is_integral<int64_t>  { static bool const value{true}; };
+    template<>
+    struct is_integral<bool> { static bool const value{true}; };
+
+    template<typename T>
+    struct is_floating_point { static bool const value{false}; };
+    template<>
+    struct is_floating_point<float> { static bool const value{true}; };
+    template<>
+    struct is_floating_point<double> { static bool const value{true}; };
+    template<>
+    struct is_floating_point<long double> { static bool const value{true}; };
+
+    void genericSplitCast(const char *str, const char delimiter);
+    void genericSplitCast(const char *str, const char *delimiter);
+    size_t stripNonDigits(char *str); 
+    size_t stripNonFloatingPointDigits(char *out);
+
+    template <typename T>
+    struct numeric_limits
+    {
+        static const T maximumValue{0};
+        static const T minimumValue{0};
+    };
+
+    template<>
+    struct numeric_limits<uint8_t>
+    {
+        static const uint8_t maximumValue{UINT8_MAX};
+        static const uint8_t minimumValue{0};
+    };
+
+    template<>
+    struct numeric_limits<uint16_t>
+    {
+        static const uint16_t maximumValue{UINT16_MAX};
+        static const uint16_t minimumValue{0};
+    };
+
+    template<>
+    struct numeric_limits<uint32_t>
+    {
+        static const uint32_t maximumValue{UINT32_MAX};
+        static const uint32_t minimumValue{0};
+    };
+
+    template<>
+    struct numeric_limits<uint64_t>
+    {
+        static const uint64_t maximumValue{UINT64_MAX};
+        static const uint64_t minimumValue{0};
+    };
+
+    template<>
+    struct numeric_limits<int8_t>
+    {
+        static const int8_t maximumValue{INT8_MAX};
+        static const int8_t minimumValue{INT8_MIN};
+    };
+
+    template<>
+    struct numeric_limits<int16_t>
+    {
+        static const int16_t maximumValue{INT16_MAX};
+        static const int16_t minimumValue{INT16_MIN};
+    };
+
+    template<>
+    struct numeric_limits<int32_t>
+    {
+        static const int32_t maximumValue{INT32_MAX};
+        static const int32_t minimumValue{INT32_MIN};
+    };
+
+    template<>
+    struct numeric_limits<int64_t>
+    {
+        static const int64_t maximumValue{INT64_MAX};
+        static const int64_t minimumValue{INT64_MIN};
+    };
+
+    template<>
+    struct numeric_limits<float>
+    {
+        static const float constexpr maximumValue{FLT_MAX};
+        static const float constexpr minimumValue{FLT_MIN};
+    };
+
+    template<>
+    struct numeric_limits<double>
+    {
+        static const double constexpr maximumValue{DBL_MAX};
+        static const double constexpr minimumValue{DBL_MIN};
+    };
+
+    template<>
+    struct numeric_limits<long double>
+    {
+        static const long double constexpr maximumValue{LDBL_MAX};
+        static const long double constexpr minimumValue{LDBL_MIN};
+    };
+
+    template <typename First, typename ... Args>
+    void genericSplitCast(const char *str, const char *delimiter, First *first, Args* ... arguments)
+    {
+        if ((!str) || (!delimiter)) {
+            return;
+        }
+        char *temp{new char[strlen(str) + 1]};
+        char *passOn{new char [strlen(str) + 1]};
+        strcpy(passOn, str);
+        strcpy(temp, str);
+        int foundPosition{positionOfSubstring(temp, delimiter)};
+        if (foundPosition != -1) {
+            substring(str, foundPosition + strlen(delimiter), passOn, strlen(str) + 1);
+            substring(str, 0, foundPosition, temp, strlen(str) + 1);
+        }
+        if (strlen(temp) == 0) {
+            first = nullptr;
+            return;
+        }
+        if (is_integral<First>::value) {
+            (void)stripNonDigits(temp);
+            if (strlen(temp) == 0) {
+                first = nullptr;
+                return;
+            }
+            Serial.print("First was interpreted as an integer (first = ");
+            Serial.print(temp);
+            Serial.println(")");
+            long long tempValue{atol(temp)};
+            if (isAllZeroes(temp)) {
+                *first = 0;
+            } else if (tempValue == 0) {
+                first = nullptr;
+            } else if (tempValue < numeric_limits<First>::minimumValue) {
+                first = nullptr;
+            } else if (tempValue > numeric_limits<First>::maximumValue) {
+                first = nullptr;
+            } else {
+                *first = static_cast<First>(tempValue);
+            }
+        } else if (is_floating_point<First>::value) {
+            Serial.println("First was interpreted as a floating point");
+            (void)stripNonFloatingPointDigits(temp);
+            if (strlen(temp) == 0) {
+                first = nullptr;
+                return;
+            }
+            long double tempValue{atof(temp)};
+            if (isAllZeroesOrDecimal(temp)) {
+                *first = 0;
+            } else if (tempValue == 0) {
+                first = nullptr;
+            } else if (tempValue < numeric_limits<First>::minimumValue) {
+                first = nullptr;
+            } else if (tempValue > numeric_limits<First>::maximumValue) {
+                first = nullptr;
+            } else {
+                *first = static_cast<First>(tempValue);
+            }
+        } else if (is_c_str<First>::value) {
+            Serial.println("First was interpreted as a c string");
+            for (size_t i = 0; i < strlen(temp); i++) {
+                first[i] = temp[i];
+            }
+            first[strlen(temp)] = '\0';
+        } else {
+            Serial.println("First was not interpreted");
+            first = nullptr;
+        }
+        genericSplitCast(passOn, delimiter, arguments...);
+        delete passOn;
+        delete temp;
+    }
+
+    template <typename First, typename ... Args>
+    void genericSplitCast(const char *str, const char delimiter, First *first, Args* ... arguments)
+    {
+        if (!str) {
+            return;
+        }
+        char temp[2]{delimiter, '\0'};
+        return genericSplitCast(str, temp, first, arguments...);
     }
 }
 
