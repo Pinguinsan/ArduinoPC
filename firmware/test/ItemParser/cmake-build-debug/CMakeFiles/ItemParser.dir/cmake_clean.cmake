@@ -1,5 +1,6 @@
 file(REMOVE_RECURSE
   "CMakeFiles/ItemParser.dir/main.cpp.o"
+  "CMakeFiles/ItemParser.dir/utilities.cpp.o"
   "ItemParser.pdb"
   "ItemParser"
 )

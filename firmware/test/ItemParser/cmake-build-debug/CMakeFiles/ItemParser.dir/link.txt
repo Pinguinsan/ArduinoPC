@@ -1,1 +1,1 @@
-/usr/bin/c++   -g   CMakeFiles/ItemParser.dir/main.cpp.o  -o ItemParser 
+/usr/bin/c++   -g   CMakeFiles/ItemParser.dir/main.cpp.o CMakeFiles/ItemParser.dir/utilities.cpp.o  -o ItemParser 

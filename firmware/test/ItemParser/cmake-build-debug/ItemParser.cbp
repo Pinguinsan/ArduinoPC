@@ -85,6 +85,12 @@
 		<Unit filename="/home/pinguinsan/CLionProjects/ItemParser/main.cpp">
 			<Option target="ItemParser"/>
 		</Unit>
+		<Unit filename="/home/pinguinsan/CLionProjects/ItemParser/utilities.cpp">
+			<Option target="ItemParser"/>
+		</Unit>
+		<Unit filename="/home/pinguinsan/CLionProjects/ItemParser/utilities.h">
+			<Option target="ItemParser"/>
+		</Unit>
 		<Unit filename="/home/pinguinsan/CLionProjects/ItemParser/CMakeLists.txt">
 			<Option virtualFolder="CMake Files\"/>
 		</Unit>

@@ -3,5 +3,5 @@ project(ItemParser)
 
 set(CMAKE_CXX_STANDARD 11)
 
-set(SOURCE_FILES main.cpp)
+set(SOURCE_FILES main.cpp utilities.cpp)
 add_executable(ItemParser ${SOURCE_FILES})
