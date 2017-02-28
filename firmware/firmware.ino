@@ -6,7 +6,6 @@
 #include <softwareserialport.h>
 #include "include/gpio.h"
 #include "utilities.h"
-#include "include/arduinopcdefs.h"
 #include "include/arduinopcstrings.h"
 
 #define ARRAY_SIZE(x) (sizeof(x)/sizeof(x[0]))
@@ -390,31 +389,6 @@ void doImAliveBlink()
     }
 }
 
-void testFunction(int *first, double *second, char *third)
-{
-
-    Serial.print("first = ");
-    if (first) {
-        Serial.println(*first);
-    } else {
-        Serial.println("nullptr");
-    }
-
-    Serial.print("second = ");
-    if (second) {
-        Serial.println(*second);
-    } else {
-        Serial.println("nullptr");
-    }
-
-    Serial.print("third = ");
-    if (third) {
-        Serial.println(*third);
-    } else {
-        Serial.println("nullptr");
-    }
-}
-
 void handleSerialString(const char *str)
 {
     if ((!str) || (strlen(str)) == 0) {
@@ -423,15 +397,6 @@ void handleSerialString(const char *str)
     char requestString[SMALL_BUFFER_SIZE];
     int substringResult{0};
     (void)substringResult;
-    int *first{new int};
-    double *second{new double};
-    char *third{new char[SMALL_BUFFER_SIZE]};
-    genericSplitCast(str, ITEM_SEPARATOR, first, second, third);
-    testFunction(first, second, third);
-    delete first;
-    delete second;
-    delete third;
-    return;
     if (startsWith(str, ANALOG_READ_HEADER)) {
         if (checkValidRequestString(ANALOG_READ_HEADER, str)) {
             substringResult = makeRequestString(str, ANALOG_READ_HEADER, requestString, SMALL_BUFFER_SIZE);
@@ -1014,7 +979,7 @@ void softDigitalReadRequest(const char *str)
     printResult(SOFT_DIGITAL_READ_HEADER, static_cast<int16_t>(pinNumber), state, OPERATION_SUCCESS);
 }
 
-void digitalReadRequest(const char *str)
+void digitalReadRequest(const char *str, bool soft)
 {
     int8_t pinNumber{parsePin(str)};
     if (pinNumber == INVALID_PIN) {
