@@ -5,7 +5,8 @@
 #include "utilities.h"
 
 #define MAXIMUM_LINE_ENDING_STRING 5
-#define MAXIMUM_STRING_COUNT 1
+#define MAXIMUM_STRING_COUNT 2
+#define SERIAL_PORT_BUFFER_MAX 255
 
 class ByteStream
 {

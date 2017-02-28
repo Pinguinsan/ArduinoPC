@@ -10,10 +10,7 @@
 #include <limits.h>
 #include <float.h>
 #include <Arduino.h>
-//#include <avr/interrupt.h>
-//#include <Arduino.h>
 
-#define SERIAL_PORT_BUFFER_MAX 255
 #define SMALL_BUFFER_SIZE 255
 #define ARRAY_SIZE(x) (sizeof(x)/sizeof(x[0]))
 

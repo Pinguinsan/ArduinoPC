@@ -394,6 +394,8 @@ void handleSerialString(const char *str)
     if ((!str) || (strlen(str)) == 0) {
         return;
     } 
+    Serial.print("str = ");
+    Serial.println(str);
     char requestString[SMALL_BUFFER_SIZE];
     int substringResult{0};
     (void)substringResult;
@@ -979,7 +981,7 @@ void softDigitalReadRequest(const char *str)
     printResult(SOFT_DIGITAL_READ_HEADER, static_cast<int16_t>(pinNumber), state, OPERATION_SUCCESS);
 }
 
-void digitalReadRequest(const char *str, bool soft)
+void digitalReadRequest(const char *str)
 {
     int8_t pinNumber{parsePin(str)};
     if (pinNumber == INVALID_PIN) {

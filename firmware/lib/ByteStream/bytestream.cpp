@@ -37,8 +37,11 @@ ByteStream::~ByteStream()
 void ByteStream::syncStringListener()
 {
     using namespace Utilities;
-    long long int startTime = millis();
-    long long int endTime = millis();
+    if (this->m_serialPort->available() == 0) {
+        return;
+    }
+    unsigned long startTime{millis()};
+    unsigned long endTime{millis()};
     do {
         char byteRead{static_cast<char>(this->m_serialPort->read())};
         if (isValidByte(byteRead)) {
@@ -57,6 +60,9 @@ void ByteStream::addToStringBuilderQueue(char byte)
     if (strlen(this->m_stringBuilderQueue) >= SERIAL_PORT_BUFFER_MAX) {
         (void)substring(this->m_stringBuilderQueue, 1, this->m_stringBuilderQueue, SERIAL_PORT_BUFFER_MAX);
     }
+    Serial.print("Adding char ");
+    Serial.print(byte);
+    Serial.println(" to string builder queue");
     size_t stringLength{strlen(this->m_stringBuilderQueue)};
     this->m_stringBuilderQueue[stringLength] = byte;
     this->m_stringBuilderQueue[stringLength+1] = '\0';
@@ -108,7 +114,7 @@ int ByteStream::readLine(char *out, size_t maximumReadSize)
         for (unsigned int i = 0; i < MAXIMUM_STRING_COUNT-1; i++){   
             strcpy(this->m_stringQueue[i], this->m_stringQueue[i+1]);
         }
-        //memset(this->m_stringQueue[MAXIMUM_STRING_COUNT - 1], 0, SMALL_BUFFER_SIZE);
+        strcpy(this->m_stringQueue[MAXIMUM_STRING_COUNT-1], "");
         return strlen(out);
     }
     return 0;

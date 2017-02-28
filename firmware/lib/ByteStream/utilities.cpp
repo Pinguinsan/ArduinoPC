@@ -364,6 +364,7 @@ namespace Utilities
         temp[stringIndex] = '\0';
         strcpy(out, temp);
         delete temp;
+        return stringIndex;
     }
 
     size_t stripNonFloatingPointDigits(char *out)
@@ -378,5 +379,6 @@ namespace Utilities
         temp[stringIndex] = '\0';
         strcpy(out, temp);
         delete temp;
+        return stringIndex;
     }
 }
