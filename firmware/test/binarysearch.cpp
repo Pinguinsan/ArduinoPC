@@ -2,11 +2,11 @@
 #include <string>
 #include <cstring>
 
-class TableEntry 
+class FunctionRequestEntry
 {
     using CallbackFunction = void (*)(const char *);
 public:
-    TableEntry(const char *header, CallbackFunction callback) :
+    FunctionRequestEntry(const char *header, CallbackFunction callback) :
         m_header{header},
         m_callback{callback}
     {
@@ -59,24 +59,34 @@ public:
         return !(lhs < rhs);
     }
 
+    unsigned long getHash() const
+    {
+        unsigned long returnHash{5381};
+        int currentChar{0};
+
+        while (currentChar = *str++) {
+            returnHash = ((returnHash << 5) + returnHash) + currentChar; /* hash * 33 + c */
+        }
+        return returnHash;
+    }
+
 
 private:
     const char *m_header;
     CallbackFunction m_callback;
 };
 
-class SortedSet
+template <typename TKey, typename TValue>
+class HashMap
 {
 public:
-    void insert(TableEntry *entry)
-    {
-
-    }
-    void emplace(const char *header, CallbackFunction function)
+    void add(TKey tkey, TValue value)
     {
         
     }
-
+private:
+    TKey *
+    
 };
 
 const char * const ARDUINO_TYPE_HEADER{"ardtype"};
@@ -134,7 +144,5 @@ int main()
 {
     TableEntry tableEntry{ARDUINO_TYPE, [](const char *arg){ std::cout << arg << std::endl; }};
     tableEntry.call();
-    std::cout << "sizeof(tableEntry) = " << sizeof(tableEntry) << std::endl;
-    std::cout << "sizeof(ARDUINO_TYPE) = " << sizeof(ARDUINO_TYPE) << std::endl;
     return 0;
 }
