@@ -59,20 +59,12 @@ public:
 
 };
 
-/*
-class LinSeFullFrame:public LinScheduleEntry
-{
-public:
-  uint8_t  dontUse[7];  // Code will actually write this by overwriting the "data" buffer in the base class.
-};
-*/
-
 
 class LIN
 {
 public:
     LIN(LIN_SERIAL &serial, uint8_t txPin);
-    LIN(LIN_SERIAL& serial, uint8_t txPin, int baudRate);
+    LIN(LIN_SERIAL &serial, uint8_t txPin, int baudRate);
     
     void setTxPin(uint8_t txPin);
     void setBaudRate(int baudRate);
@@ -92,8 +84,8 @@ public:
 
     // Receive a message right now, returns 0xff if good checksum, # bytes received (including checksum) if checksum is bad.
     uint8_t receiveFrom(uint8_t targetAddress, uint8_t *message, uint8_t numberOfBytes, uint8_t linVersion);
-    LinMessage receiveFrom(uint8_t targetAddress, uint8_t numberOfBytes, LinVersion linVersion, int &status);
-    LinMessage receiveFrom(uint8_t targetAddress, uint8_t numberOfBytes, uint8_t version, int &status);
+    LinMessage receiveFrom(uint8_t targetAddress, uint8_t numberOfBytes, LinVersion linVersion, uint8_t &status);
+    LinMessage receiveFrom(uint8_t targetAddress, uint8_t numberOfBytes, uint8_t version, uint8_t &status);
 
 
     // Add an element to the schedule.  To remove, either clear the whole thing, or remove it when it next plays

@@ -35,6 +35,7 @@ public:
     void setAddress(uint8_t address);
     void setLength(uint8_t length);
     void setVersion(LinVersion version);
+    void setVersion(uint8_t version);
     void setMessage(uint8_t *message, uint8_t length);
     void setMessage(uint8_t *message);
     bool setMessageNthByte(uint8_t index, uint8_t nth);
@@ -44,7 +45,7 @@ public:
     static uint8_t parseLinByte(const char *str);
     static LinMessage parse(const char *str, char delimiter, uint8_t messageLength);
     static LinMessage parse(const char *str, const char *delimiter, uint8_t messageLength);
-    uint8_t operator[](int index);
+    uint8_t operator[](int index) const;
     LinMessage &operator=(const LinMessage &rhs);
     friend bool operator==(const LinMessage &lhs, const LinMessage &rhs) 
     {

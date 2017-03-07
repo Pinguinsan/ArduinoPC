@@ -116,6 +116,12 @@ void LinMessage::setVersion(LinVersion version)
     this->m_version = version;
 }
 
+void LinMessage::setVersion(uint8_t version)
+{
+    this->m_version = LinMessage::toLinVersion(version);
+}
+
+
 void LinMessage::setMessage(uint8_t *message, uint8_t length)
 {
     if (this->m_length != length) {
@@ -152,7 +158,7 @@ bool LinMessage::setMessageNthByte(uint8_t index, uint8_t nth)
     }
 }
 
-uint8_t LinMessage::operator[](int index)
+uint8_t LinMessage::operator[](int index) const
 {
     if (index < 0) {
         return 0;
@@ -304,6 +310,5 @@ LinVersion LinMessage::toLinVersion(uint8_t version)
     } else {
         return LinMessage::DEFAULT_LIN_VERSION;
     }
-
 }
     

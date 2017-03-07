@@ -169,8 +169,9 @@ void LIN::sendTo(const LinMessage &linMessage)
     LIN::sendTo(linMessage.address(), linMessage.message(), linMessage.length(), linMessage.version());
 }
 
-LinMessage LIN::receiveFrom(uint8_t targetAddress, uint8_t numberOfBytes, LinVersion linVersion, int &status)
+LinMessage LIN::receiveFrom(uint8_t targetAddress, uint8_t numberOfBytes, LinVersion linVersion, uint8_t &status)
 {
+    
     uint8_t *tempBuffer{(uint8_t *)calloc(numberOfBytes, sizeof(uint8_t))};
     uint8_t receivedSize{this->receiveFrom(targetAddress, tempBuffer, numberOfBytes, linVersion)};
     LinMessage linMessage{numberOfBytes};
@@ -186,7 +187,7 @@ LinMessage LIN::receiveFrom(uint8_t targetAddress, uint8_t numberOfBytes, LinVer
     return linMessage;
 }
 
-LinMessage LIN::receiveFrom(uint8_t targetAddress, uint8_t numberOfBytes, uint8_t version, int &status)
+LinMessage LIN::receiveFrom(uint8_t targetAddress, uint8_t numberOfBytes, uint8_t version, uint8_t &status)
 {
     LinVersion linVersion{LinMessage::toLinVersion(version)};
     uint8_t *tempBuffer{(uint8_t *)calloc(numberOfBytes, sizeof(uint8_t))};
@@ -208,7 +209,7 @@ LinMessage LIN::receiveFrom(uint8_t targetAddress, uint8_t numberOfBytes, uint8_
 uint8_t LIN::receiveFrom(uint8_t targetAddress, uint8_t *message, uint8_t numberOfBytes, uint8_t linVersion)
 {
     uint8_t bytesReceived{0};
-    unsigned int timeoutCount{0};
+    uint32_t timeoutCount{0};
     generateSerialBreak();       // Generate the low signal that exceeds 1 char.
     this->m_serial.flush();
     this->m_serial.write(SYNC_BYTE);  // Sync byte
@@ -221,10 +222,10 @@ uint8_t LIN::receiveFrom(uint8_t targetAddress, uint8_t *message, uint8_t number
             _delay_us(LIN_WAIT_INTERVAL); 
             timeoutCount += LIN_WAIT_INTERVAL; 
             if (timeoutCount >= this->m_timeout) {
-                break;
                 goto done;
             } 
         }
+
     } while(this->m_serial.read() != SYNC_BYTE);
     do {
         while(!this->m_serial.available()) { 
@@ -235,10 +236,9 @@ uint8_t LIN::receiveFrom(uint8_t targetAddress, uint8_t *message, uint8_t number
             }
         }
     } while(this->m_serial.read() != idByte);
-
-
     for (uint8_t i = 0; i < numberOfBytes; i++) {
-        // This while loop strategy does not take into account the added time for the logic.  So the actual this->m_timeout will be slightly longer then written here.
+        // This while loop strategy does not take into account the added time for the logic.  
+        // So the actual this->m_timeout will be slightly longer then written here.
         while(!this->m_serial.available()) { 
             _delay_us(LIN_WAIT_INTERVAL); 
             timeoutCount += LIN_WAIT_INTERVAL; 
