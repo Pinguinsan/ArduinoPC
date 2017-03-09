@@ -1,4 +1,4 @@
-#include "lin.h"
+#include "linmaster.h"
 #include "bitset.h"
 
 #define CS_PIN 10
@@ -13,7 +13,7 @@
 #define DATA_DELIMITER ':'
 #define CHANGE_TIMEOUT 1000
 
-LIN *linController;
+LinMaster<HardwareSerial> *linController;
 
 static const uint8_t sendIDs[]{0x28, 0x3C, 0x29};
 static const uint8_t receiveIDs[]{0x2B, 0x3D}; 
@@ -25,12 +25,12 @@ LinMessage firstMessage{sendIDs[0], LIN_REVISION};
 LinMessage secondMessage{sendIDs[1], LIN_REVISION};
 LinMessage thirdMessage{sendIDs[2], LIN_REVISION};
 
-void messageScan(LIN *controller, const uint8_t *receiveIDs, uint8_t receiveIDLength, Stream *stream);
-void messageScan(LIN *controller, Stream *stream);
+void messageScan(LinMaster<HardwareSerial> *controller, const uint8_t *receiveIDs, uint8_t receiveIDLength, Stream *stream);
+void messageScan(LinMaster<HardwareSerial> *controller, Stream *stream);
 void doImAliveBlink();
 
 void setup() {
-    linController = new LIN{Serial1, LIN_SERIAL_TX_PIN};
+    linController = new LinMaster<HardwareSerial>{Serial1, LIN_SERIAL_TX_PIN};
     linController->begin(LIN_BAUD);
 
     Serial.begin(115200L);
@@ -43,35 +43,6 @@ void setup() {
     digitalWrite(UNLOCK_LED_PIN, HIGH);
 
     pinMode(FAULT_TXE_PIN, INPUT_PULLUP);
-
-/*
-    int8_t *messageData{static_cast<uint8_t *>(calloc(MESSAGE_LENGTH, sizeof(uint8_t)))};
-    messageData[0] = 0xEC;
-    messageData[1] = 0x01;
-    messageData[2] = 0xD9;
-    messageData[3] = 0b01100000;
-    messageData[4] = 0b01110000;
-    messageData[5] = 0x00;
-    messageData[6] = 0x00;
-    messageData[7] = 0x00;
-    firstMessage = LinMessage{sendIDs[0], LIN_REVISION, MESSAGE_LENGTH, messageData};
-    thirdMessage = LinMessage{sendIDs[1], LIN_REVISION, MESSAGE_LENGTH, messageData};
-    secondMessage = LinMessage{sendIDs[2], LIN_REVISION, MESSAGE_LENGTH, messageData};
-*/
-
-/*
-    messageData[0] = 0x00;
-    messageData[1] = 0x00;
-    messageData[2] = 0x00;
-    messageData[3] = 0x00;
-    messageData[4] = 0x00;
-    messageData[5] = 0x00;
-    messageData[6] = 0x00;
-    messageData[7] = 0x00;
-    secondMessage = LinMessage{sendIDs[0], LIN_REVISION, MESSAGE_LENGTH, messageData};
-
-    free(messageData);
-*/
     Serial.print("initial faultTxePin state: ");
     digitalRead(FAULT_TXE_PIN) ? Serial.println("HIGH") : Serial.println("LOW");
 
@@ -149,7 +120,7 @@ void doImAliveBlink()
     }
 }
 
-void messageScan(LIN *controller, Stream *stream)
+void messageScan(LinMaster<HardwareSerial> *controller, Stream *stream)
 {
     if ((!controller) || (!stream)) {
         return;
@@ -183,7 +154,7 @@ void messageScan(LIN *controller, Stream *stream)
     delay(500);
 }
 
-void messageScan(LIN *controller, const uint8_t *receiveIDs, uint8_t receiveIDLength, Stream *stream)
+void messageScan(LinMaster<HardwareSerial> *controller, const uint8_t *receiveIDs, uint8_t receiveIDLength, Stream *stream)
 {
     if ((!controller) || (!stream) || (!receiveIDs)) {
         return;

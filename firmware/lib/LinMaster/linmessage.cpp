@@ -2,87 +2,124 @@
 
 const uint8_t LinMessage::DEFAULT_MESSAGE_LENGTH{8};
 const LinVersion LinMessage::DEFAULT_LIN_VERSION{LinVersion::RevisionOne};
+const FrameType LinMessage::DEFAULT_FRAME_TYPE{FrameType::ReadFrame};
 
 LinMessage::LinMessage(uint8_t address, LinVersion version, uint8_t length, uint8_t *message) :
     m_address{address},
     m_version{version},
     m_length{length},
-    m_message{static_cast<uint8_t *>(calloc(this->m_length, sizeof(uint8_t)))}
+    m_message{static_cast<uint8_t *>(calloc(this->m_length, sizeof(uint8_t)))},
+    m_triggerTime{0},
+    m_frameType{DEFAULT_FRAME_TYPE},
+    m_callback{nullptr}
 {
     this->setMessage(message, length);
+    this->zeroOutSkewChildren();
 }
 
 LinMessage::LinMessage(uint8_t address, uint8_t version, uint8_t length, uint8_t *message) :
     m_address{address},
     m_version{LinMessage::toLinVersion(version)},
     m_length{length},
-    m_message{static_cast<uint8_t *>(calloc(this->m_length, sizeof(uint8_t)))}
+    m_message{static_cast<uint8_t *>(calloc(this->m_length, sizeof(uint8_t)))},
+    m_triggerTime{0},
+    m_frameType{DEFAULT_FRAME_TYPE},
+    m_callback{nullptr}
 {
     this->setMessage(message, length);
+    this->zeroOutSkewChildren();
 }
 
 LinMessage::LinMessage(uint8_t address, LinVersion version) :
     m_address{address},
     m_version{version},
     m_length{DEFAULT_MESSAGE_LENGTH},
-    m_message{static_cast<uint8_t *>(calloc(this->m_length, sizeof(uint8_t)))}
+    m_message{static_cast<uint8_t *>(calloc(this->m_length, sizeof(uint8_t)))},
+    m_triggerTime{0},
+    m_frameType{DEFAULT_FRAME_TYPE},
+    m_callback{nullptr}
 {
     this->setZeroedMessage();
+    this->zeroOutSkewChildren();
 }
 
 LinMessage::LinMessage(uint8_t address, uint8_t version) :
     m_address{address},
     m_version{LinMessage::toLinVersion(version)},
     m_length{DEFAULT_MESSAGE_LENGTH},
-    m_message{static_cast<uint8_t *>(calloc(this->m_length, sizeof(uint8_t)))}
+    m_message{static_cast<uint8_t *>(calloc(this->m_length, sizeof(uint8_t)))},
+    m_triggerTime{0},
+    m_frameType{DEFAULT_FRAME_TYPE},
+    m_callback{nullptr}
 {
     this->setZeroedMessage();
+    this->zeroOutSkewChildren();
 }
 
 LinMessage::LinMessage(uint8_t address, LinVersion version, uint8_t length) :
     m_address{address},
     m_version{version},
     m_length{length},
-    m_message{static_cast<uint8_t *>(calloc(this->m_length, sizeof(uint8_t)))}
+    m_message{static_cast<uint8_t *>(calloc(this->m_length, sizeof(uint8_t)))},
+    m_triggerTime{0},
+    m_frameType{DEFAULT_FRAME_TYPE},
+    m_callback{nullptr}
 {
     this->setZeroedMessage();
+    this->zeroOutSkewChildren();
 }
 
 LinMessage::LinMessage(uint8_t address, uint8_t version, uint8_t length) :
     m_address{address},
     m_version{LinMessage::toLinVersion(version)},
     m_length{length},
-    m_message{static_cast<uint8_t *>(calloc(this->m_length, sizeof(uint8_t)))}
+    m_message{static_cast<uint8_t *>(calloc(this->m_length, sizeof(uint8_t)))},
+    m_triggerTime{0},
+    m_frameType{DEFAULT_FRAME_TYPE},
+    m_callback{nullptr}
 {
     this->setZeroedMessage();
+    this->zeroOutSkewChildren();
 }
 
 LinMessage::LinMessage(const LinMessage &other) :
     m_address{other.address()},
     m_version{other.version()},
     m_length{other.length()},
-    m_message{static_cast<uint8_t *>(calloc(this->m_length, sizeof(uint8_t)))}
+    m_message{static_cast<uint8_t *>(calloc(this->m_length, sizeof(uint8_t)))},
+    m_triggerTime{other.triggerTime()},
+    m_frameType{other.frameType()},
+    m_callback{other.callback()}
 {
     this->setMessage(other.message(), this->m_length);
+    this->m_skewChildren.left = other.skewChildren().left;
+    this->m_skewChildren.right = other.skewChildren().right;
 }
 
 LinMessage::LinMessage(uint8_t length) :
     m_address{0},
     m_version{DEFAULT_LIN_VERSION},
     m_length{length},
-    m_message{static_cast<uint8_t *>(calloc(this->m_length, sizeof(uint8_t)))}
+    m_message{static_cast<uint8_t *>(calloc(this->m_length, sizeof(uint8_t)))},
+    m_triggerTime{0},
+    m_frameType{DEFAULT_FRAME_TYPE},
+    m_callback{nullptr}
 {
     this->setZeroedMessage();
+    this->zeroOutSkewChildren();
 }
-
 
 LinMessage::LinMessage() :
     m_address{0},
     m_version{LinVersion::RevisionOne},
     m_length{LinMessage::DEFAULT_MESSAGE_LENGTH},
-    m_message{static_cast<uint8_t *>(calloc(this->m_length, sizeof(uint8_t)))}
+    m_message{static_cast<uint8_t *>(calloc(this->m_length, sizeof(uint8_t)))},
+    m_triggerTime{0},
+    m_frameType{DEFAULT_FRAME_TYPE},
+    m_callback{nullptr}
 {
     this->setZeroedMessage();
+    this->zeroOutSkewChildren();
 }
 
 LinMessage::~LinMessage()
@@ -301,6 +338,52 @@ LinMessage LinMessage::parse(const char *str, const char *delimiter, uint8_t mes
     return returnMessage;
 }
 
+FrameType LinMessage::frameType() const
+{
+    return this->m_frameType;
+}
+
+unsigned long LinMessage::triggerTime() const
+{
+    return this->m_triggerTime;
+}
+
+callback_ptr_t LinMessage::callback() const
+{
+    return this->m_callback;
+}
+
+heap_skew_element_t LinMessage::skewChildren() const
+{
+    return this->m_skewChildren;
+}
+
+void LinMessage::setCallback(callback_ptr_t callback)
+{
+    this->m_callback = callback;
+}
+
+void LinMessage::setFrameType(uint8_t frameType)
+{
+    this->m_frameType = LinMessage::toFrameType(frameType);
+}
+
+void LinMessage::setFrameType(FrameType frameType)
+{
+    this->m_frameType = frameType;
+}
+
+void LinMessage::setTriggerTime(unsigned long triggerTime)
+{
+    this->m_triggerTime = triggerTime;
+}
+
+void LinMessage::zeroOutSkewChildren()
+{
+    m_skewChildren.left = nullptr;
+    m_skewChildren.right = nullptr;
+}
+
 LinVersion LinMessage::toLinVersion(uint8_t version)
 {
     if (version == static_cast<uint8_t>(LinVersion::RevisionOne)) {
@@ -312,3 +395,13 @@ LinVersion LinMessage::toLinVersion(uint8_t version)
     }
 }
     
+FrameType LinMessage::toFrameType(uint8_t frameType)
+{
+    if (frameType == static_cast<uint8_t>(FrameType::ReadFrame)) {
+        return FrameType::ReadFrame;
+    } else if (frameType == static_cast<uint8_t>(FrameType::WriteFrame)) {
+        return FrameType::WriteFrame;
+    } else {
+        return LinMessage::DEFAULT_FRAME_TYPE;
+    }
+}

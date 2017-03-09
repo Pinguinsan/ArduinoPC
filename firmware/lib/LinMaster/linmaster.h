@@ -1,5 +1,5 @@
-#ifndef ARDUINOPC_LIN_H
-#define ARDUINOPC_LIN_H
+#ifndef ARDUINOPC_LINMASTER_H
+#define ARDUINOPC_LINMASTER_H
 
 #include <Arduino.h>
 #include <HardwareSerial.h>
@@ -18,50 +18,13 @@
 #include "heapskew.h"
 #include "linmessage.h"
 
-// This code allows you to derive from the LINFrame class to define messages of different lengths and therefore save a few bytes of RAM.  But it relies on the compiler laying out the class memory in RAM so that the derived class data directly follows the base class.
-// If this is not the case in your system, the easiest way to get something working is to only allow full frames, as shown in the #else clause.
-// Also, you can over-malloc the LINFrame class to create an extended data buffer.  Of course this method has its own memory management overhead.
-
-enum
-{
-    Lin1Frame = 0,
-    Lin2Frame = 1,
-    LinWriteFrame  = 0,
-    LinReadFrame   = 2,
-};
-
-struct LinScheduleEntry
-{
-public:
-    LinScheduleEntry()
-    {
-        skewChildren.left = 0; 
-        skewChildren.right = 0;
-        trigger = 0;
-        callback = 0;
-        targetAddress = 0;
-        messageLength  = 0;
-    }
-    unsigned long int trigger;  // When to execute (if it is scheduled)
-    HeapSkew<LinScheduleEntry>::HeapSkewElement skewChildren;
-    uint16_t (*callback)(LinScheduleEntry* me);  // Called after this frame is processed.  Return 1 or greater to reschedule the frame that many milliseconds from now, 0 to drop it.  if callback is NULL, frame is considered a one-shot.
-    uint8_t flags;  
-    uint8_t targetAddress;
-    uint8_t messageLength;
-    uint8_t message[1];
-    // The data bytes must follow the len field in RAM
-
-    // So that the skew heap orders the elements by when they should be executed
-    int operator > (LinScheduleEntry& ee)
-    {
-        return trigger > ee.trigger;
-    }
-
-};
+#define BIT(data,shift) ((data&(1<<shift))>>shift)
 
 template <typename StreamType>
 class LinMaster
 {
+    using SchedulerType = HeapSkew<LinMessage>;
+
 public:
     LinMaster<StreamType>(StreamType &serial, uint8_t txPin) : 
         m_serial{serial}, 
@@ -105,7 +68,7 @@ public:
         return this->m_txPin;
     }
 
-    int baudRate() const
+    unsigned long baudRate() const
     {
         return this->m_baudRate;
     }
@@ -120,7 +83,7 @@ public:
         return this->m_serialPortIsActive;
     }
 
-    void begin(int baudRate)
+    void begin(unsigned long baudRate)
     {
         if (this->m_baudRate != baudRate) {
             this->m_baudRate = baudRate;
@@ -143,7 +106,7 @@ public:
     {
         uint8_t addressByte{(targetAddress & ADDRESS_PARITY_BYTE) | addressParity(targetAddress)};
         uint8_t checksum{dataChecksum(message, numberOfBytes,(linVersion  == 1) ? 0 : addressByte)};
-        generateSerialBreak();       // Generate the low signal that exceeds 1 char.
+        this->generateSerialBreak();       // Generate the low signal that exceeds 1 char.
         this->m_serial.write(SYNC_BYTE);  // Sync byte
         this->m_serial.write(addressByte);  // ID byte
         this->m_serial.write(message, numberOfBytes);  // data bytes
@@ -152,12 +115,13 @@ public:
     
     void sendTo(const LinMessage &linMessage)
     {
-        LIN::sendTo(linMessage.address(), linMessage.message(), linMessage.length(), linMessage.version());
+        LinMaster<StreamType>::sendTo(linMessage.address(), linMessage.message(), linMessage.length(), linMessage.version());
     }
 
     // Receive a message right now, returns 0xff if good checksum, # bytes received (including checksum) if checksum is bad.
     LinMessage receiveFrom(uint8_t targetAddress, uint8_t numberOfBytes, uint8_t version, uint8_t &status)
     {
+        LinVersion linVersion{LinMessage::toLinVersion(version)};
         uint8_t *tempBuffer{(uint8_t *)calloc(numberOfBytes, sizeof(uint8_t))};
         uint8_t receivedSize{this->receiveFrom(targetAddress, tempBuffer, numberOfBytes, linVersion)};
         LinMessage linMessage{numberOfBytes};
@@ -173,10 +137,8 @@ public:
         return linMessage;
     }
 
-
     LinMessage receiveFrom(uint8_t targetAddress, uint8_t numberOfBytes, LinVersion linVersion, uint8_t &status)
     {
-        LinVersion linVersion{LinMessage::toLinVersion(version)};
         uint8_t *tempBuffer{(uint8_t *)calloc(numberOfBytes, sizeof(uint8_t))};
         uint8_t receivedSize{this->receiveFrom(targetAddress, tempBuffer, numberOfBytes, linVersion)};
         LinMessage linMessage{numberOfBytes};
@@ -260,9 +222,9 @@ public:
 
 
     // Add an element to the schedule.  To remove, either clear the whole thing, or remove it when it next plays
-    void addToScheduleTable(LinScheduleEntry& entry, uint16_t when = 0)
+    void addToScheduleTable(LinMessage& entry, uint16_t when = 0)
     {
-         entry.trigger = millis() + when;
+         entry.setTriggerTime(millis() + when);
          this->m_scheduler.push(entry); 
     }
 
@@ -273,31 +235,30 @@ public:
 
     void loop()
     {
-        LinScheduleEntry& e = this->m_scheduler.front();
-        if (e.trigger < millis()) {
+        LinMessage &e = this->m_scheduler.front();
+        if (e.triggerTime() < millis()) {
             // remove this frame from the top of the heap.
             this->m_scheduler.pop();
-            uint8_t linVersion{(e.flags & Lin2Frame) ? static_cast<uint8_t>(2) : static_cast<uint8_t>(1)}; 
-
+            
             // Do the correct LIN operation
-            if (e.flags & LinReadFrame) {
-                this->receiveFrom(e.targetAddress, e.message, e.messageLength, linVersion);
+            if (e.frameType() == FrameType::ReadFrame) {
+                this->receiveFrom(e);
             } else {
-                sendTo(e.targetAddress, e.message, e.messageLength, linVersion);
+                this->sendTo(e);
             }
 
-            // If there is a callback function, call it.
-            if (e.callback) {
-                uint16_t reschedule{e.callback(&e)};
+            //If there is a callback function, call it.
+            if (e.callback()) {
+                uint16_t reschedule{e.callback()(&e)};
                 if (reschedule) {
-                    add(e,reschedule);  // Put the frame back on if the caller wants to repeat.
+                    this->add(e,reschedule);  // Put the frame back on if the caller wants to repeat.
                 }
             }
         }  
     }
 
 protected:
-    HeapSkew<LinScheduleEntry> m_scheduler;
+    SchedulerType m_scheduler;
     StreamType &m_serial;
     uint8_t m_txPin;
     unsigned long m_baudRate;
@@ -334,7 +295,7 @@ protected:
     }
     
     // For LIN 1.X "start" should = 0, for LIN 2.X "start" should be the addr byte. 
-    static uint8_t dataChecksum(const uint8_t* message, uint8_t numberOfBytes, uint16_t start=0)
+    uint8_t dataChecksum(const uint8_t* message, uint8_t numberOfBytes, uint16_t sum = 0)
     {
         uint16_t returnSum{sum};
         while (numberOfBytes-- > 0) {
@@ -347,8 +308,9 @@ protected:
         return (~returnSum);
     }
 
-    static uint8_t LIN::addressParity(uint8_t targetAddress)
+    uint8_t addressParity(uint8_t targetAddress)
     {
+        (void)targetAddress;
         uint8_t p0{BIT(targetAddress, 0) ^ BIT(targetAddress, 1) ^ BIT(targetAddress, 2) ^ BIT(targetAddress, 4)};
         uint8_t p1{~(BIT(targetAddress, 1) ^ BIT(targetAddress, 3) ^ BIT(targetAddress, 4) ^ BIT(targetAddress, 5))};
         return (p0 | (p1 << 1)) << 6;
@@ -356,4 +318,4 @@ protected:
 
 };
 
-#endif //ARDUINOPC_LIN_H
+#endif //ARDUINOPC_LINMASTER_H
