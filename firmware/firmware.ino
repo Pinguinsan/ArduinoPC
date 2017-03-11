@@ -1,11 +1,10 @@
 #include <string.h>
 #include <stdlib.h>
 #include <avr/pgmspace.h>
-#include <bytestream.h>
-#include <hardwareserialport.h>
-#include <softwareserialport.h>
+#include <HardwareSerial.h>
+#include <SoftwareSerial.h>
+#include <utilities.h>
 #include "include/gpio.h"
-#include "utilities.h"
 #include "include/arduinopcstrings.h"
 
 #define ARRAY_SIZE(x) (sizeof(x)/sizeof(x[0]))
@@ -29,7 +28,7 @@ using namespace Utilities;
 #define PIN_OFFSET 2
 #define NEXT_SERIAL_PORT_UNAVAILABLE -1
 #define SERIAL_BAUD 115200L
-#define SERIAL_TIMEOUT 0
+#define SERIAL_TIMEOUT 1000
 
 #define ANALOG_WRITE_PARAMETER_COUNT 2
 #define DIGITAL_WRITE_PARAMETER_COUNT 2
@@ -55,7 +54,7 @@ using namespace Utilities;
 static const bool NO_BROADCAST{false};
 static const bool BROADCAST{true};
 
-static const char *LINE_ENDING{"\n"};
+static const char LINE_ENDING{'\n'};
 static const char ITEM_SEPARATOR{':'}; 
 static const char DIGITAL_STATE_LOW_IDENTIFIER{'0'};
 static const char DIGITAL_STATE_HIGH_IDENTIFIER{'1'};
@@ -100,7 +99,7 @@ void linBusEnabledRequest();
 void ioReportRequest();
 void getPrintablePinType(int8_t pinNumber, char *out);
 
-ByteStream *getCurrentValidOutputStream();
+Stream *getCurrentValidOutputStream();
 
 bool isValidAnalogPinIdentifier(const char *str);
 bool isValidPinIdentifier(const char *str);
@@ -228,14 +227,14 @@ uint8_t pwmPinArraySize();
     #define NUMBER_OF_HARDWARE_SERIAL_PORTS 4
     #define MAXIMUM_SOFTWARE_SERIAL_PORTS 4
 
-    static ByteStream *hardwareSerialPorts[NUMBER_OF_HARDWARE_SERIAL_PORTS] {
-        new HardwareSerialPort{&Serial,   0,   1,  SERIAL_BAUD, SERIAL_TIMEOUT, true, LINE_ENDING},
-        new HardwareSerialPort{&Serial1,  19,  18, SERIAL_BAUD, SERIAL_TIMEOUT, true, LINE_ENDING},
-        new HardwareSerialPort{&Serial2,  17,  16, SERIAL_BAUD, SERIAL_TIMEOUT, true, LINE_ENDING},
-        new HardwareSerialPort{&Serial3,  15,  14, SERIAL_BAUD, SERIAL_TIMEOUT, true, LINE_ENDING}
+    static Stream *hardwareSerialPorts[NUMBER_OF_HARDWARE_SERIAL_PORTS] {
+        &Serial,
+        &Serial1,
+        &Serial2,
+        &Serial3
     };
     
-    static ByteStream *softwareSerialPorts[MAXIMUM_SOFTWARE_SERIAL_PORTS] {
+    static Stream *softwareSerialPorts[MAXIMUM_SOFTWARE_SERIAL_PORTS] {
         nullptr,
         nullptr,
         nullptr,
@@ -247,11 +246,12 @@ uint8_t pwmPinArraySize();
     #define NUMBER_OF_HARDWARE_SERIAL_PORTS 1
     #define MAXIMUM_SOFTWARE_SERIAL_PORTS 1
 
-    static ByteStream *hardwareSerialPorts[NUMBER_OF_HARDWARE_SERIAL_PORTS] {
-        new HardwareSerialPort{&Serial, 0,  1, SERIAL_BAUD, SERIAL_TIMEOUT, true, LINE_ENDING}
+    static Stream *hardwareSerialPorts[NUMBER_OF_HARDWARE_SERIAL_PORTS] {
+        &Serial
     };
+
     
-    static ByteStream *softwareSerialPorts[MAXIMUM_SOFTWARE_SERIAL_PORTS] {
+    static Stream *softwareSerialPorts[MAXIMUM_SOFTWARE_SERIAL_PORTS] {
         nullptr
     };
 
@@ -262,12 +262,18 @@ static GPIO *gpioPins[NUMBER_OF_PINS];
 void initializeSerialPorts();
 void announceStartup();
 void doImAliveBlink();
-ByteStream *getHardwareCout(int coutIndex);
-ByteStream *getSoftwareCout(int coutIndex);
-static ByteStream *currentSerialStream{hardwareSerialPorts[0]};
-ByteStream *defaultNativePort{hardwareSerialPorts[0]};
+Stream *getHardwareCout(int coutIndex);
+Stream *getSoftwareCout(int coutIndex);
+static Stream *currentSerialStream{hardwareSerialPorts[0]};
+Stream *defaultNativePort{hardwareSerialPorts[0]};
 bool isValidSoftwareSerialAddition(int8_t rxPinNumber, int8_t txPinNumber);
 bool isValidHardwareSerialAddition(int8_t rxPinNumber, int8_t txPinNumber);
+
+template <typename Parameter> Stream &operator<<(Stream &lhs, const Parameter &parameter)
+{
+    lhs.print(parameter);
+    return lhs;
+}
 
 template <typename Header, typename PinNumber, typename State, typename ResultCode> inline void printResult(const Header &header, PinNumber pinNumber, State state, ResultCode resultCode)
 {    
@@ -300,7 +306,7 @@ void setup() {
 
 void loop() {
     for (unsigned int i = 0; i < ARRAY_SIZE(hardwareSerialPorts); i++) {
-        ByteStream *it{nullptr};
+        Stream *it{nullptr};
         if (hardwareSerialPorts + i) {
             if (hardwareSerialPorts[i]) {
                 it = hardwareSerialPorts[i];
@@ -309,9 +315,9 @@ void loop() {
         if (!it) {
             continue;
         }
-        if ((it->isEnabled()) && (it->available() != 0)) {
+        if (it->available()) {
             char buffer[MAXIMUM_SERIAL_READ_SIZE];
-            int serialRead{it->readLine(buffer, MAXIMUM_SERIAL_READ_SIZE)};
+            int serialRead{it->readBytesUntil(LINE_ENDING, buffer, MAXIMUM_SERIAL_READ_SIZE)};
             if (serialRead > 0) {
                 currentSerialStream = it;
                 handleSerialString(buffer);
@@ -319,7 +325,7 @@ void loop() {
         }
     }
     for (unsigned int i = 0; i < ARRAY_SIZE(softwareSerialPorts); i++) {
-        ByteStream *it{nullptr};
+        Stream *it{nullptr};
         if (softwareSerialPorts + i) {
             if (softwareSerialPorts[i]) {
                 it = softwareSerialPorts[i];
@@ -328,9 +334,9 @@ void loop() {
         if (!it) {
             continue;
         }
-        if ((it->isEnabled()) && (it->available() != 0)) {
-            char buffer[MAXIMUM_SERIAL_READ_SIZE];
-            int serialRead{it->readLine(buffer, MAXIMUM_SERIAL_READ_SIZE)};
+        if (it->available()) {
+            char buffer[MAXIMUM_SERIAL_READ_SIZE]; 
+            int serialRead{it->readBytesUntil(LINE_ENDING, buffer, MAXIMUM_SERIAL_READ_SIZE)};
             if (serialRead > 0) {
                 currentSerialStream = it;
                 handleSerialString(buffer);
@@ -662,7 +668,7 @@ void addSoftwareSerialRequest(const char *str)
         if (softwareSerialPorts + i) {
             if (softwareSerialPorts[i]) {
                 if ((rxPinNumber == softwareSerialPorts[i]->rxPin()) && (txPinNumber == softwareSerialPorts[i]->txPin())) {
-                    softwareSerialPorts[i]->setEnabled(true);
+                    //softwareSerialPorts[i]->setEnabled(true);
                     printResult(ADD_SOFTWARE_SERIAL_HEADER, maybeRxPin, maybeTxPin, OPERATION_KIND_OF_SUCCESS);
                 }
             }
@@ -722,7 +728,7 @@ void addHardwareSerialRequest(const char *str)
         if (hardwareSerialPorts + i) {
             if (hardwareSerialPorts[i]) {
                 if ((rxPinNumber == hardwareSerialPorts[i]->rxPin()) && (txPinNumber == hardwareSerialPorts[i]->txPin())) {
-                    hardwareSerialPorts[i]->setEnabled(true);
+                    //hardwareSerialPorts[i]->setEnabled(true);
                     printResult(ADD_HARDWARE_SERIAL_HEADER, maybeRxPin, maybeTxPin, OPERATION_KIND_OF_SUCCESS);
                 }
             }
@@ -773,7 +779,7 @@ void removeSoftwareSerialRequest(const char *str)
         if (softwareSerialPorts + i) {
             if (softwareSerialPorts[i]) {
                 if ((rxPinNumber == softwareSerialPorts[i]->rxPin()) && (txPinNumber == softwareSerialPorts[i]->txPin())) {
-                    softwareSerialPorts[i]->setEnabled(false);
+                    //softwareSerialPorts[i]->setEnabled(false);
                     printResult(REMOVE_SOFTWARE_SERIAL_HEADER, maybeRxPin, maybeTxPin, OPERATION_SUCCESS);
                 }
             }
@@ -820,7 +826,7 @@ void removeHardwareSerialRequest(const char *str)
         if (hardwareSerialPorts + i) {
             if (hardwareSerialPorts[i]) {
                 if ((rxPinNumber == hardwareSerialPorts[i]->rxPin()) && (txPinNumber == hardwareSerialPorts[i]->txPin())) {
-                    hardwareSerialPorts[i]->setEnabled(false);
+                    //hardwareSerialPorts[i]->setEnabled(false);
                     printResult(REMOVE_HARDWARE_SERIAL_HEADER, maybeRxPin, maybeTxPin, OPERATION_SUCCESS);
                 }
             }
@@ -1613,9 +1619,8 @@ void initializeSerialPorts()
     for (unsigned int i = 0; i < ARRAY_SIZE(hardwareSerialPorts); i++) {
         if (hardwareSerialPorts + i) {
             if (hardwareSerialPorts[i]) {
-                if (hardwareSerialPorts[i]->isEnabled()) {
-                    (void)hardwareSerialPorts[i]->initialize();
-                }
+                hardwareSerialPorts[i]->begin(SERIAL_BAUD);
+                hardwareSerialPorts[i]->setTimeout(SERIAL_TIMEOUT);
             }
         }
     }
@@ -1626,18 +1631,14 @@ void broadcastString(const char *str)
     for (unsigned int i = 0; i < ARRAY_SIZE(hardwareSerialPorts); i++) {
         if (hardwareSerialPorts + i) {
             if (hardwareSerialPorts[i]) {
-                if (hardwareSerialPorts[i]->isEnabled()) {
-                    *(hardwareSerialPorts[i]) << str << LINE_ENDING;
-                }
+                *(hardwareSerialPorts[i]) << str << LINE_ENDING;
             }
         }
     }
     for (unsigned int i = 0; i < ARRAY_SIZE(softwareSerialPorts); i++) {
         if (softwareSerialPorts + i) {
             if (softwareSerialPorts[i]) {
-                if (softwareSerialPorts[i]->isEnabled()) {
-                    *(softwareSerialPorts[i]) << str << LINE_ENDING;
-                }
+                *(softwareSerialPorts[i]) << str << LINE_ENDING;   
             }
         }
     }
@@ -1774,12 +1775,10 @@ bool pinInUseBySerialPort(int8_t pinNumber)
     for (unsigned int i = 0; i < ARRAY_SIZE(hardwareSerialPorts); i++) {
         if (hardwareSerialPorts + i) {
             if (hardwareSerialPorts[i]) {
-                if (hardwareSerialPorts[i]->isEnabled()) {
-                    if (pinNumber == hardwareSerialPorts[i]->rxPin()) {
-                        return true;
-                    } else if (pinNumber == hardwareSerialPorts[i]->txPin()) {
-                        return true;
-                    }
+                if (pinNumber == hardwareSerialPorts[i]->rxPin()) {
+                    return true;
+                } else if (pinNumber == hardwareSerialPorts[i]->txPin()) {
+                    return true;
                 }
             }
         }
@@ -1787,12 +1786,10 @@ bool pinInUseBySerialPort(int8_t pinNumber)
     for (unsigned int i = 0; i < ARRAY_SIZE(softwareSerialPorts); i++) {
         if (softwareSerialPorts + i) {
             if (softwareSerialPorts[i]) {
-                if (softwareSerialPorts[i]->isEnabled()) {
-                    if (pinNumber == softwareSerialPorts[i]->rxPin()) {
-                        return true;
-                    } else if (pinNumber == softwareSerialPorts[i]->txPin()) {
-                        return true;
-                    }
+                if (pinNumber == softwareSerialPorts[i]->rxPin()) {
+                    return true;
+                } else if (pinNumber == softwareSerialPorts[i]->txPin()) {
+                    return true;
                 }
             }
         }
@@ -1805,14 +1802,12 @@ int8_t getSerialPinIOTypeString(int8_t pinNumber, char *out, size_t maximumSize)
     for (unsigned int i = 0; i < ARRAY_SIZE(hardwareSerialPorts); i++) {
         if (hardwareSerialPorts + i) {
             if (hardwareSerialPorts[i]) {
-                if (hardwareSerialPorts[i]->isEnabled()) {
-                    if (pinNumber == hardwareSerialPorts[i]->rxPin()) {
-                        strncpy(out, HARDWARE_SERIAL_RX_PIN_TYPE, maximumSize);
-                        return strlen(out);
-                    } else if (pinNumber == hardwareSerialPorts[i]->txPin()) {
-                        strncpy(out, HARDWARE_SERIAL_TX_PIN_TYPE, maximumSize);
-                        return strlen(out);
-                    }
+                if (pinNumber == hardwareSerialPorts[i]->rxPin()) {
+                    strncpy(out, HARDWARE_SERIAL_RX_PIN_TYPE, maximumSize);
+                    return strlen(out);
+                } else if (pinNumber == hardwareSerialPorts[i]->txPin()) {
+                    strncpy(out, HARDWARE_SERIAL_TX_PIN_TYPE, maximumSize);
+                    return strlen(out);
                 }
             }
         }
@@ -1820,14 +1815,12 @@ int8_t getSerialPinIOTypeString(int8_t pinNumber, char *out, size_t maximumSize)
     for (int i = 0; i < MAXIMUM_SOFTWARE_SERIAL_PORTS - 1; i++) {
         if (softwareSerialPorts + i) {
             if (softwareSerialPorts[i]) {
-                if (softwareSerialPorts[i]->isEnabled()) {
-                    if (pinNumber == softwareSerialPorts[i]->rxPin()) {
-                        strncpy(out, SOFTWARE_SERIAL_RX_PIN_TYPE, maximumSize);
-                        return strlen(out);
-                    } else if (pinNumber == softwareSerialPorts[i]->txPin()) {
-                        strncpy(out, SOFTWARE_SERIAL_TX_PIN_TYPE, maximumSize);
-                        return strlen(out);
-                    }
+                if (pinNumber == softwareSerialPorts[i]->rxPin()) {
+                    strncpy(out, SOFTWARE_SERIAL_RX_PIN_TYPE, maximumSize);
+                    return strlen(out);
+                } else if (pinNumber == softwareSerialPorts[i]->txPin()) {
+                    strncpy(out, SOFTWARE_SERIAL_TX_PIN_TYPE, maximumSize);
+                    return strlen(out);
                 }
             }
         }
@@ -1835,12 +1828,12 @@ int8_t getSerialPinIOTypeString(int8_t pinNumber, char *out, size_t maximumSize)
     return -1;
 }
 
-ByteStream *getCurrentValidOutputStream()
+Stream *getCurrentValidOutputStream()
 {
     return (currentSerialStream != nullptr ? currentSerialStream : defaultNativePort);
 }
 
-ByteStream *getHardwareCout(int coutIndex)
+Stream *getHardwareCout(int coutIndex)
 {
     if (coutIndex < 0) {
         return nullptr;
@@ -1848,15 +1841,11 @@ ByteStream *getHardwareCout(int coutIndex)
     if (static_cast<unsigned int>(coutIndex) > ARRAY_SIZE(hardwareSerialPorts)) {
         return nullptr;
     } else {
-        if (hardwareSerialPorts[coutIndex]->isEnabled()) {
-            return hardwareSerialPorts[coutIndex];
-        } else {
-            return nullptr;
-        }
+        return hardwareSerialPorts[coutIndex];
     }
 }
 
-ByteStream *getSoftwareCout(int coutIndex)
+Stream *getSoftwareCout(int coutIndex)
 {
     if (coutIndex < 0) {
         return nullptr;
@@ -1864,11 +1853,7 @@ ByteStream *getSoftwareCout(int coutIndex)
     if (static_cast<unsigned int>(coutIndex) > ARRAY_SIZE(softwareSerialPorts)) {
         return nullptr;
     } else {
-        if (softwareSerialPorts[coutIndex]->isEnabled()) {
-            return softwareSerialPorts[coutIndex];
-        } else {
-            return nullptr;
-        }
+        return softwareSerialPorts[coutIndex];
     }
     return nullptr;
 }
