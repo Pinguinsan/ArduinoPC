@@ -249,7 +249,6 @@ uint8_t pwmPinArraySize();
     static Stream *hardwareSerialPorts[NUMBER_OF_HARDWARE_SERIAL_PORTS] {
         &Serial
     };
-
     
     static Stream *softwareSerialPorts[MAXIMUM_SOFTWARE_SERIAL_PORTS] {
         nullptr
