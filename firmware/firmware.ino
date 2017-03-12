@@ -50,6 +50,7 @@ using namespace Utilities;
 #define STATE_FAILURE -1
 #define PIN_PLACEHOLDER 1
 #define SOFT 1
+#define SERIAL_PIN_NOT_IN_USE -1
 
 static const bool NO_BROADCAST{false};
 static const bool BROADCAST{true};
@@ -82,9 +83,7 @@ void analogReadRequest(const char *str);
 void analogWriteRequest(const char *str);
 void softAnalogReadRequest(const char *str);
 void addSoftwareSerialRequest(const char *str);
-void addHardwareSerialRequest(const char *str);
 void removeSoftwareSerialRequest(const char *str);
-void removeHardwareSerialRequest(const char *str);
 
 void pinTypeRequest(const char *str);
 void pinTypeChangeRequest(const char *str);
@@ -233,6 +232,11 @@ uint8_t pwmPinArraySize();
         &Serial2,
         &Serial3
     };
+    static hardwareSerialRxPins[MAXIMUM_SOFTWARE_SERIAL_PORTS]{0, 15, 17, 19};
+    static hardwareSerialTxPins[NUMBER_OF_HARDWARE_SERIAL_PORTS]{1, 14, 16, 18};
+
+        static uint8_t softwareSerialRxPins[MAXIMUM_SOFTWARE_SERIAL_PORTS];
+    static uint8_t softwareSerialTxPins[MAXIMUM_SOFTWARE_SERIAL_PORTS];
     
     static Stream *softwareSerialPorts[MAXIMUM_SOFTWARE_SERIAL_PORTS] {
         nullptr,
@@ -249,10 +253,15 @@ uint8_t pwmPinArraySize();
     static Stream *hardwareSerialPorts[NUMBER_OF_HARDWARE_SERIAL_PORTS] {
         &Serial
     };
+    static uint8_t hardwareSerialRxPins[NUMBER_OF_HARDWARE_SERIAL_PORTS] { 0 };
+    static uint8_t hardwareSerialTxPins[NUMBER_OF_HARDWARE_SERIAL_PORTS] { 1 };
     
     static Stream *softwareSerialPorts[MAXIMUM_SOFTWARE_SERIAL_PORTS] {
         nullptr
     };
+
+    static uint8_t softwareSerialRxPins[MAXIMUM_SOFTWARE_SERIAL_PORTS];
+    static uint8_t softwareSerialTxPins[MAXIMUM_SOFTWARE_SERIAL_PORTS];
 
 #endif
 static uint8_t softwareSerialPortIndex{0};
@@ -474,8 +483,6 @@ void handleSerialString(const char *str)
         } else {
             printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
         }
-    } else if (startsWith(str, HEARTBEAT_HEADER)) {
-        heartbeatRequest();
     } else if (startsWith(str, FIRMWARE_VERSION_HEADER)) {
         firmwareVersionRequest();
     } else if (startsWith(str, IO_REPORT_HEADER)) {
@@ -487,23 +494,7 @@ void handleSerialString(const char *str)
     } else if (startsWith(str, CAN_BUS_ENABLED_HEADER)) {
         canBusEnabledRequest();
     } else if (startsWith(str, LIN_BUS_ENABLED_HEADER)) {
-        linBusEnabledRequest();
-#if (defined(ARDUINO_AVR_MEGA2560) || defined(ARDUINO_AVR_MEGA1280))
-    } else if (startsWith(str, ADD_HARDWARE_SERIAL_HEADER)) {
-        if (checkValidRequestString(ADD_HARDWARE_SERIAL_HEADER, str)) {
-            substringResult = makeRequestString(str, ADD_HARDWARE_SERIAL_HEADER, requestString, SMALL_BUFFER_SIZE);
-            addHardwareSerialRequest(requestString);
-        } else {
-            printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
-        }  
-    } else if (startsWith(str, REMOVE_HARDWARE_SERIAL_HEADER)) {
-        if (checkValidRequestString(REMOVE_HARDWARE_SERIAL_HEADER, str)) {
-            substringResult = makeRequestString(str, REMOVE_HARDWARE_SERIAL_HEADER, requestString, SMALL_BUFFER_SIZE);
-            removeHardwareSerialRequest(requestString);
-        } else {
-            printTypeResult(INVALID_HEADER, str, OPERATION_FAILURE);
-        }   
-#endif
+        linBusEnabledRequest();   
 #if defined(__HAVE_CAN_BUS__)
     } else if (startsWith(str, CAN_INIT_HEADER)) {
         canInitRequest();
@@ -663,77 +654,25 @@ void addSoftwareSerialRequest(const char *str)
         return;
     }
 
-    for (unsigned int i = 0; i < ARRAY_SIZE(softwareSerialPorts); i++) {
+    for (unsigned int i = 0; i < ARRAY_SIZE(softwareSerialRxPins); i++) {
         if (softwareSerialPorts + i) {
             if (softwareSerialPorts[i]) {
-                if ((rxPinNumber == softwareSerialPorts[i]->rxPin()) && (txPinNumber == softwareSerialPorts[i]->txPin())) {
-                    //softwareSerialPorts[i]->setEnabled(true);
+                if ((rxPinNumber == softwareSerialRxPins[i]) && (txPinNumber == softwareSerialTxPins[i])) {
                     printResult(ADD_SOFTWARE_SERIAL_HEADER, maybeRxPin, maybeTxPin, OPERATION_KIND_OF_SUCCESS);
                 }
             }
         }
     }
     if (isValidSoftwareSerialAddition(rxPinNumber, txPinNumber)) {
-        softwareSerialPorts[softwareSerialPortIndex++] = new SoftwareSerialPort{new SoftwareSerial{static_cast<uint8_t>(rxPinNumber), static_cast<uint8_t>(txPinNumber)},
-                                                                                static_cast<uint8_t>(rxPinNumber), 
-                                                                                static_cast<uint8_t>(txPinNumber), 
-                                                                                SERIAL_BAUD, 
-                                                                                SERIAL_TIMEOUT, 
-                                                                                true, 
-                                                                                LINE_ENDING};
+        softwareSerialPorts[softwareSerialPortIndex] = new SoftwareSerial{static_cast<uint8_t>(rxPinNumber), static_cast<uint8_t>(txPinNumber)};
+        softwareSerialPorts[softwareSerialPortIndex]->begin(SERIAL_BAUD);
+        softwareSerialRxPins[softwareSerialPortIndex] = rxPinNumber;
+        softwareSerialTxPins[softwareSerialPortIndex] = txPinNumber;
+        softwareSerialPortIndex++;
         printResult(ADD_SOFTWARE_SERIAL_HEADER, maybeRxPin, maybeTxPin, OPERATION_SUCCESS);
     } else {
         printResult(ADD_SOFTWARE_SERIAL_HEADER, maybeRxPin, maybeTxPin, OPERATION_FAILURE);
     }
-}
-
-void addHardwareSerialRequest(const char *str)
-{
-    int foundPosition{positionOfSubstring(str, ITEM_SEPARATOR)};
-    char maybeRxPin[SMALL_BUFFER_SIZE];
-    int result{substring(str, 0, foundPosition, maybeRxPin, SMALL_BUFFER_SIZE)};
-    (void)result;
-    
-    int8_t rxPinNumber{parsePin(maybeRxPin)};
-    if (rxPinNumber == INVALID_PIN) {
-        printResult(ADD_HARDWARE_SERIAL_HEADER, maybeRxPin, STATE_FAILURE, OPERATION_INVALID_PIN);
-        return;
-    }
-    if (pinHasSecondaryFunction(rxPinNumber)) {
-        printResult(ADD_HARDWARE_SERIAL_HEADER, maybeRxPin, STATE_FAILURE, OPERATION_PIN_HAS_SECONDARY_FUNCTION);
-        return;
-    }
-    if (pinHasSecondaryFunction(rxPinNumber)) {
-        printResult(ADD_HARDWARE_SERIAL_HEADER, maybeRxPin, STATE_FAILURE, OPERATION_PIN_HAS_SECONDARY_FUNCTION);
-        return;
-    }
-    char maybeTxPin[SMALL_BUFFER_SIZE];
-    result = substring(str, foundPosition+1, maybeTxPin, SMALL_BUFFER_SIZE);
-
-    int8_t txPinNumber{parsePin(maybeTxPin)};
-    if (txPinNumber == INVALID_PIN) {
-        printResult(ADD_HARDWARE_SERIAL_HEADER, maybeRxPin, maybeTxPin, OPERATION_INVALID_PIN);
-        return;
-    }
-    if (pinHasSecondaryFunction(txPinNumber)) {
-        printResult(ADD_HARDWARE_SERIAL_HEADER, maybeRxPin, maybeTxPin, OPERATION_PIN_HAS_SECONDARY_FUNCTION);
-        return;
-    }
-    if (pinHasSecondaryFunction(txPinNumber)) {
-        printResult(ADD_HARDWARE_SERIAL_HEADER, maybeRxPin, maybeTxPin, OPERATION_PIN_HAS_SECONDARY_FUNCTION);
-        return;
-    }
-    for (unsigned int i = 0; i < ARRAY_SIZE(hardwareSerialPorts); i++) {
-        if (hardwareSerialPorts + i) {
-            if (hardwareSerialPorts[i]) {
-                if ((rxPinNumber == hardwareSerialPorts[i]->rxPin()) && (txPinNumber == hardwareSerialPorts[i]->txPin())) {
-                    //hardwareSerialPorts[i]->setEnabled(true);
-                    printResult(ADD_HARDWARE_SERIAL_HEADER, maybeRxPin, maybeTxPin, OPERATION_KIND_OF_SUCCESS);
-                }
-            }
-        }
-    }
-    printResult(ADD_HARDWARE_SERIAL_HEADER, maybeRxPin, maybeTxPin, OPERATION_FAILURE);
 }
 
 void removeSoftwareSerialRequest(const char *str)
@@ -777,61 +716,18 @@ void removeSoftwareSerialRequest(const char *str)
     for (unsigned int i = 0; i < ARRAY_SIZE(softwareSerialPorts); i++) {
         if (softwareSerialPorts + i) {
             if (softwareSerialPorts[i]) {
-                if ((rxPinNumber == softwareSerialPorts[i]->rxPin()) && (txPinNumber == softwareSerialPorts[i]->txPin())) {
+                if ((rxPinNumber == softwareSerialRxPins[i]) && (txPinNumber == hardwareSerialRxPins[i])) {
                     //softwareSerialPorts[i]->setEnabled(false);
+                    delete softwareSerialPorts[i];
+                    softwareSerialPorts[i] = nullptr;
+                    softwareSerialRxPins[i] = SERIAL_PIN_NOT_IN_USE;
+                    softwareSerialTxPins[i] = SERIAL_PIN_NOT_IN_USE;
                     printResult(REMOVE_SOFTWARE_SERIAL_HEADER, maybeRxPin, maybeTxPin, OPERATION_SUCCESS);
                 }
             }
         }
     }
     printResult(REMOVE_SOFTWARE_SERIAL_HEADER, maybeRxPin, maybeTxPin, OPERATION_FAILURE);
-}
-
-void removeHardwareSerialRequest(const char *str)
-{
-    int foundPosition{positionOfSubstring(str, ITEM_SEPARATOR)};
-    char maybeRxPin[SMALL_BUFFER_SIZE];
-    int result{substring(str, 0, foundPosition, maybeRxPin, SMALL_BUFFER_SIZE)};
-    (void)result;
- 
-    int8_t rxPinNumber{parsePin(maybeRxPin)};
-    if (rxPinNumber == INVALID_PIN) {
-        printResult(REMOVE_HARDWARE_SERIAL_HEADER, maybeRxPin, STATE_FAILURE, OPERATION_INVALID_PIN);
-        return;
-    }
-    if (pinInUseBySerialPort(rxPinNumber)) {
-        printResult(REMOVE_HARDWARE_SERIAL_HEADER, maybeRxPin, STATE_FAILURE, OPERATION_PIN_USED_BY_SERIAL_PORT);
-        return;
-    }
-    char maybeTxPin[SMALL_BUFFER_SIZE];
-    result = substring(str, foundPosition+1, maybeTxPin, SMALL_BUFFER_SIZE);
-
-    int8_t txPinNumber{parsePin(maybeTxPin)};
-    if (txPinNumber == INVALID_PIN) {
-        printResult(REMOVE_HARDWARE_SERIAL_HEADER, maybeRxPin, maybeTxPin, OPERATION_INVALID_PIN);
-        return;
-    }
-
-    if (pinInUseBySerialPort(txPinNumber)) {
-        printResult(REMOVE_HARDWARE_SERIAL_HEADER, maybeRxPin, maybeTxPin, OPERATION_PIN_USED_BY_SERIAL_PORT);
-        return;
-    }
-    if (pinHasSecondaryFunction(txPinNumber)) {
-        printResult(REMOVE_HARDWARE_SERIAL_HEADER, maybeRxPin, maybeTxPin, OPERATION_PIN_HAS_SECONDARY_FUNCTION);
-        return;
-    }
-
-    for (unsigned int i = 0; i < ARRAY_SIZE(hardwareSerialPorts); i++) {
-        if (hardwareSerialPorts + i) {
-            if (hardwareSerialPorts[i]) {
-                if ((rxPinNumber == hardwareSerialPorts[i]->rxPin()) && (txPinNumber == hardwareSerialPorts[i]->txPin())) {
-                    //hardwareSerialPorts[i]->setEnabled(false);
-                    printResult(REMOVE_HARDWARE_SERIAL_HEADER, maybeRxPin, maybeTxPin, OPERATION_SUCCESS);
-                }
-            }
-        }
-    }
-    printResult(REMOVE_HARDWARE_SERIAL_HEADER, maybeRxPin, maybeTxPin, OPERATION_FAILURE);
 }
 
 bool isValidSoftwareSerialAddition(int8_t rxPinNumber, int8_t txPinNumber)
@@ -1261,15 +1157,6 @@ void softAnalogReadRequest(const char *str)
     }
     int state{gpioPinByPinNumber(pinNumber)->g_softAnalogRead()};
     printResult(SOFT_ANALOG_READ_HEADER, tempPin, state, OPERATION_SUCCESS);
-}
-
-void heartbeatRequest()
-{
-    char *stringToPrint = (char *)calloc(strlen(HEARTBEAT_HEADER) + 1, sizeof(char));
-    strncpy(stringToPrint, HEARTBEAT_HEADER, strlen(HEARTBEAT_HEADER) + 1);
-    stringToPrint[strlen(stringToPrint)] = '\0';
-    printString(stringToPrint);
-    free(stringToPrint);
 }
 
 void arduinoTypeRequest()
@@ -1774,9 +1661,9 @@ bool pinInUseBySerialPort(int8_t pinNumber)
     for (unsigned int i = 0; i < ARRAY_SIZE(hardwareSerialPorts); i++) {
         if (hardwareSerialPorts + i) {
             if (hardwareSerialPorts[i]) {
-                if (pinNumber == hardwareSerialPorts[i]->rxPin()) {
+                if (pinNumber == hardwareSerialRxPins[i]) {
                     return true;
-                } else if (pinNumber == hardwareSerialPorts[i]->txPin()) {
+                } else if (pinNumber == hardwareSerialTxPins[i]) {
                     return true;
                 }
             }
@@ -1785,9 +1672,9 @@ bool pinInUseBySerialPort(int8_t pinNumber)
     for (unsigned int i = 0; i < ARRAY_SIZE(softwareSerialPorts); i++) {
         if (softwareSerialPorts + i) {
             if (softwareSerialPorts[i]) {
-                if (pinNumber == softwareSerialPorts[i]->rxPin()) {
+                if (pinNumber == softwareSerialRxPins[i]) {
                     return true;
-                } else if (pinNumber == softwareSerialPorts[i]->txPin()) {
+                } else if (pinNumber == hardwareSerialTxPins[i]) {
                     return true;
                 }
             }
@@ -1801,10 +1688,10 @@ int8_t getSerialPinIOTypeString(int8_t pinNumber, char *out, size_t maximumSize)
     for (unsigned int i = 0; i < ARRAY_SIZE(hardwareSerialPorts); i++) {
         if (hardwareSerialPorts + i) {
             if (hardwareSerialPorts[i]) {
-                if (pinNumber == hardwareSerialPorts[i]->rxPin()) {
+                if (pinNumber == hardwareSerialRxPins[i]) {
                     strncpy(out, HARDWARE_SERIAL_RX_PIN_TYPE, maximumSize);
                     return strlen(out);
-                } else if (pinNumber == hardwareSerialPorts[i]->txPin()) {
+                } else if (pinNumber == softwareSerialTxPins[i]) {
                     strncpy(out, HARDWARE_SERIAL_TX_PIN_TYPE, maximumSize);
                     return strlen(out);
                 }
@@ -1814,10 +1701,10 @@ int8_t getSerialPinIOTypeString(int8_t pinNumber, char *out, size_t maximumSize)
     for (int i = 0; i < MAXIMUM_SOFTWARE_SERIAL_PORTS - 1; i++) {
         if (softwareSerialPorts + i) {
             if (softwareSerialPorts[i]) {
-                if (pinNumber == softwareSerialPorts[i]->rxPin()) {
+                if (pinNumber == softwareSerialRxPins[i]) {
                     strncpy(out, SOFTWARE_SERIAL_RX_PIN_TYPE, maximumSize);
                     return strlen(out);
-                } else if (pinNumber == softwareSerialPorts[i]->txPin()) {
+                } else if (pinNumber == softwareSerialTxPins[i]) {
                     strncpy(out, SOFTWARE_SERIAL_TX_PIN_TYPE, maximumSize);
                     return strlen(out);
                 }

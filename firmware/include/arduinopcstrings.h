@@ -41,8 +41,6 @@ namespace ArduinoPCStrings
 
 #endif
 
-    const char * const HEARTBEAT_HEADER{"heartbeat"};
-
     const char * const HARDWARE_SERIAL_RX_PIN_TYPE{"hardserialrx"};
     const char * const HARDWARE_SERIAL_TX_PIN_TYPE{"hardserialtx"};
     const char * const SOFTWARE_SERIAL_RX_PIN_TYPE{"softserialrx"};
@@ -57,8 +55,6 @@ namespace ArduinoPCStrings
     const char * const CURRENT_A_TO_D_THRESHOLD_HEADER{"atodthresh"};
     const char * const ADD_SOFTWARE_SERIAL_HEADER{"addsoftserial"};
     const char * const REMOVE_SOFTWARE_SERIAL_HEADER{"remsoftserial"};
-    const char * const ADD_HARDWARE_SERIAL_HEADER{"addhardserial"};
-    const char * const REMOVE_HARDWARE_SERIAL_HEADER{"remhardserial"};
     
     const char * const CAN_BUS_ENABLED_HEADER{"canbus"};
     const char * const LIN_BUS_ENABLED_HEADER{"linbus"};
