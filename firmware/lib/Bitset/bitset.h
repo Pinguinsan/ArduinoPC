@@ -1,5 +1,5 @@
-#ifndef ARDUINOPC_BITSET_H
-#define ARDUINOPC_BITSET_H
+#ifndef TJLDATASTRUCTURES_BITSET_H
+#define TJLDATASTRUCTURES_BITSET_H
 
 #include <stdint.h>
 #include <string.h>
@@ -27,8 +27,12 @@ public:
         m_endian{endian}
     {
         for (size_t i = 0; i < strlen(str); i++) {
-            if (str[i] == '1') {
-                this->set(i);
+            if ((str[i] != '0') && (str[i] != '1')) {
+                str[i] = '0';
+            } else {
+                if (str[i] == '1') {
+                    this->set(i);
+                }
             }
         }
     }
@@ -76,7 +80,7 @@ public:
     bitset<N> &setMultiple(size_t whatByte)
     {
         //TODO: Mask out unused bits
-        for (size_t i = 0; i < this->m_numberOfBits; i++) {
+        for (int i = 0; i < this->m_numberOfBits; i++) {
             ((whatByte >> i) & 1) ? this->set(i) : this->reset(i);
         }
         return *this;
@@ -157,7 +161,7 @@ public:
     bool test(size_t whichOne) const
     {
         if (whichOne > this->m_numberOfBits) {
-            return *this;
+            return false;
         } else if (this->m_endian == Endian::LittleEndian) {
             return static_cast<bool>((this->m_underlyingValue >> (this->m_numberOfBits - whichOne - 1)) & 1);
         } else {
@@ -197,6 +201,12 @@ public:
     Endian endian() const
     {
         return this->m_endian;
+    }
+
+    //Retrieve underlying value of bitset
+    size_t underlyingValue() const
+    {
+        return this->m_underlyingValue;
     }
 
     //String representation
@@ -240,7 +250,7 @@ public:
         }
         return strlen(out);
     }
-    
+
     //&= operator overload
     bitset<N> &operator&= (const bitset<N> &rhs)
     {
