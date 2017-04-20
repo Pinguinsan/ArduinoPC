@@ -233,7 +233,7 @@ public:
         this->m_scheduler.clear();
     }
 
-    void loop()
+    void runScheduleTable()
     {
         LinMessage &e = this->m_scheduler.front();
         if (e.triggerTime() < millis()) {
