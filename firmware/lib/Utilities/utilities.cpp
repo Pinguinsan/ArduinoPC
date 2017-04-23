@@ -157,7 +157,7 @@ namespace Utilities
         if (!str) {
             return 0;
         }
-        return (uint32_t)strtol(str, NULL, 16);
+        return (uint32_t)strtol(str, nullptr, 16);
     }
 
     uint8_t hexStringToUChar(const char *str)
@@ -171,7 +171,7 @@ namespace Utilities
         if (!str) {
             return 0;
         }
-        return (uint32_t)strtol(str, NULL, 10);
+        return (uint32_t)strtol(str, nullptr, 10);
     }
 
     uint8_t decStringToUChar(const char *str)
@@ -184,12 +184,12 @@ namespace Utilities
         if (!str) {
             return 0;
         }
-        return (uint32_t)strtol(str, NULL, 0);
+        return (uint32_t)strtol(str, nullptr, 0);
     }
 
     uint8_t stringToUChar(const char *str)
     {
-        return (uint8_t)strtol(str, NULL, 0);
+        return (uint8_t)strtol(str, nullptr, 0);
     }
 
     int intExp(int base, int super)
@@ -224,7 +224,7 @@ namespace Utilities
         if ((!first) || (!second)) {
             return false;
         }
-        return (strstr(first, second) != NULL);
+        return (strstr(first, second) != nullptr);
     }
 
     bool substringExists(const char *first, char second)

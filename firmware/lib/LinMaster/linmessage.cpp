@@ -197,11 +197,7 @@ bool LinMessage::setMessageNthByte(uint8_t index, uint8_t nth)
 
 uint8_t LinMessage::operator[](uint8_t index) const
 {
-    if (index < 0) {
-        return 0;
-    } else {
-        return this->nthByte(index);
-    }
+    return this->nthByte(index);
 }
 
 uint8_t LinMessage::nthByte(uint8_t index) const
@@ -286,15 +282,15 @@ LinMessage LinMessage::parse(const char *str, char delimiter)
 
 LinMessage LinMessage::parse(const char *str, const char *delimiter)
 {
-    char **result{calloc2D<char>(CAN_MESSAGE_PARSE_BUFFER_SPACE, 4)};
-    size_t resultSize{split(str, result, delimiter, CAN_MESSAGE_PARSE_BUFFER_SPACE, 4)};
-    if (resultSize < CAN_MESSAGE_PARSE_BUFFER_SPACE) {
-        free2D(result, CAN_MESSAGE_PARSE_BUFFER_SPACE);
+    char **result{calloc2D<char>(LIN_MESSAGE_PARSE_BUFFER_SPACE, 4)};
+    size_t resultSize{split(str, result, delimiter, LIN_MESSAGE_PARSE_BUFFER_SPACE, 4)};
+    if (resultSize < LIN_MESSAGE_PARSE_BUFFER_SPACE) {
+        free2D(result, LIN_MESSAGE_PARSE_BUFFER_SPACE);
         return LinMessage{};
     }
     uint8_t tempVersion{static_cast<uint8_t>strtol(result[0], nullptr, 0)};
     if ((tempVersion != LinVersion::RevisionOne) && (tempVersion != LinVersion::RevisionTwo)) {
-        free2D(result, CAN_MESSAGE_PARSE_BUFFER_SPACE);
+        free2D(result, LIN_MESSAGE_PARSE_BUFFER_SPACE);
         return LinMessage{};
     } 
     LinMessage returnMessage{static_cast<uint8_t>strtol(result[1], nullptr, 0),
@@ -303,7 +299,7 @@ LinMessage LinMessage::parse(const char *str, const char *delimiter)
     for (uint8_t i = 0; i < returnMessage.length(); i++) {
         returnMessage.setMessageNthByte(i, static_cast<uint8_t>(strtol(result[i + 2], nullptr, 0)));
     }
-    free2D(result, CAN_MESSAGE_PARSE_BUFFER_SPACE);
+    free2D(result, LIN_MESSAGE_PARSE_BUFFER_SPACE);
     return returnMessage;
 }
 
@@ -373,6 +369,20 @@ FrameType LinMessage::toFrameType(uint8_t frameType)
     } else {
         return LinMessage::DEFAULT_FRAME_TYPE;
     }
+}
+
+bool LinMessage::substringExists(const char *first, const char *second)
+{
+    if ((!first) || (!second)) {
+        return false;
+    }
+    return (strstr(first, second) != nullptr);
+}
+
+bool LinMessage::substringExists(const char *first, char second)
+{
+    char temp[2]{second, '\0'};
+    return (substringExists(first, temp));
 }
 
 size_t LinMessage::positionOfSubstring(const char *first, const char *second)

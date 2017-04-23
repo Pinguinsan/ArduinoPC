@@ -153,6 +153,8 @@ private:
         return out;
     }
 
+    static bool substringExists(const char *first, const char *second);
+    static bool substringExists(const char *first, char second);
     static size_t positionOfSubstring(const char *first, const char *second);
     static size_t positionOfSubstring(const char *first, char second);
     static size_t substring(const char *str, size_t startPosition, char *out, size_t maximumLength);

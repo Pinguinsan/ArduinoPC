@@ -127,13 +127,9 @@ bool CanMessage::setMessageNthByte(uint8_t index, uint8_t nth)
     }
 }
 
-uint8_t CanMessage::operator[](int index)
+uint8_t CanMessage::operator[](uint8_t index)
 {
-    if (index < 0) {
-        return 0;
-    } else {
-        return this->nthByte(index);
-    }
+    return this->nthByte(index);
 }
 
 uint8_t CanMessage::nthByte(uint8_t index) const
@@ -190,11 +186,6 @@ size_t CanMessage::toString(char *out, size_t maximumLength) const
     if (maximumLength == 0) {
         return -1;
     }
-    char tempFrameType[2];
-    snprintf(tempFrameType, 2, "%i", static_cast<int>(this->m_frameType));
-    strncpy(out, tempFrameType, maximumLength);
-    strncat(out, " : ", maximumLength);
-
     char tempHexString[SMALL_BUFFER_SIZE];
     toFixedWidthHex(tempHexString, SMALL_BUFFER_SIZE, this->m_id, 3, true);
     strncat(out, tempHexString, maximumLength);
@@ -224,7 +215,7 @@ CanMessage CanMessage::parse(const char *str, const char *delimiter)
         free2D(result, CAN_MESSAGE_PARSE_BUFFER_SPACE);
         return CanMessage{};
     }
-    uint8_t tempFrameType{static_cast<uint8_t>(strtol(result[0], nullptr, 0)};
+    uint8_t tempFrameType{static_cast<uint8_t>(strtol(result[0], nullptr, 0))};
     if (tempFrameType > 1) {
         free2D(result, CAN_MESSAGE_PARSE_BUFFER_SPACE);
         return CanMessage{};
@@ -233,10 +224,24 @@ CanMessage CanMessage::parse(const char *str, const char *delimiter)
                              tempFrameType, 
                              static_cast<uint8_t>(resultSize - 2)};
     for (uint8_t i = 0; i < returnMessage.length(); i++) {
-        returnMessage.setMessageNthByte(i, static_cast<uint8_t>(strtol(result[i + 2]), nullptr, 0));
+        returnMessage.setMessageNthByte(i, static_cast<uint8_t>(strtol(result[i + 2], nullptr, 0)));
     }
     free2D(result, CAN_MESSAGE_PARSE_BUFFER_SPACE);
     return returnMessage;
+}
+
+bool CanMessage::substringExists(const char *first, const char *second)
+{
+    if ((!first) || (!second)) {
+        return false;
+    }
+    return (strstr(first, second) != nullptr);
+}
+
+bool CanMessage::substringExists(const char *first, char second)
+{
+    char temp[2]{second, '\0'};
+    return (substringExists(first, temp));
 }
 
 size_t CanMessage::positionOfSubstring(const char *first, const char *second)
