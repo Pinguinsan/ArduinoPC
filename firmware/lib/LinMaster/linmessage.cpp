@@ -284,10 +284,10 @@ LinMessage LinMessage::parse(const char *str, const char *delimiter)
 {
     char **result{calloc2D<char>(LIN_MESSAGE_PARSE_BUFFER_SPACE, 4)};
     size_t resultSize{split(str, result, delimiter, LIN_MESSAGE_PARSE_BUFFER_SPACE, 4)};
-    if (resultSize < LIN_MESSAGE_PARSE_BUFFER_SPACE) {
+    if (resultSize < 2) {
         free2D(result, LIN_MESSAGE_PARSE_BUFFER_SPACE);
         return LinMessage{};
-    }
+    }    
     uint8_t tempVersion{static_cast<uint8_t>(strtol(result[0], nullptr, 0))};
     if ((tempVersion != LinVersion::RevisionOne) && (tempVersion != LinVersion::RevisionTwo)) {
         free2D(result, LIN_MESSAGE_PARSE_BUFFER_SPACE);
@@ -436,7 +436,7 @@ int LinMessage::substring(const char *str, size_t startPosition, size_t length, 
 
 size_t LinMessage::split(const char *str, char **out, const char *delimiter, size_t maximumElements, size_t maximumLength)
 {
-    char *copyString = (char *)calloc(strlen(str) + 1, sizeof(char));
+    char *copyString = static_cast<char *>(calloc(strlen(str) + 1, sizeof(char)));
     strncpy(copyString, str, strlen(str) + 1);
     size_t outLength{0};
     size_t copyStringMaxLength{strlen(str) + 1};

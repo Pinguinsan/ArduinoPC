@@ -211,20 +211,15 @@ CanMessage CanMessage::parse(const char *str, const char *delimiter)
 {
     char **result{calloc2D<char>(CAN_MESSAGE_PARSE_BUFFER_SPACE, 10)};
     size_t resultSize{split(str, result, delimiter, CAN_MESSAGE_PARSE_BUFFER_SPACE, 10)};
-    if (resultSize < CAN_MESSAGE_PARSE_BUFFER_SPACE) {
+    if (resultSize < 1) {
         free2D(result, CAN_MESSAGE_PARSE_BUFFER_SPACE);
         return CanMessage{};
     }
-    uint8_t tempFrameType{static_cast<uint8_t>(strtol(result[0], nullptr, 0))};
-    if (tempFrameType > 1) {
-        free2D(result, CAN_MESSAGE_PARSE_BUFFER_SPACE);
-        return CanMessage{};
-    } 
-    CanMessage returnMessage{static_cast<uint32_t>(strtol(result[1], nullptr, 0)),
-                             tempFrameType, 
-                             static_cast<uint8_t>(resultSize - 2)};
+    CanMessage returnMessage{static_cast<uint32_t>(strtol(result[0], nullptr, 0)),
+                             CanMessage::DEFAULT_FRAME_TYPE, 
+                             static_cast<uint8_t>(resultSize - 1)};
     for (uint8_t i = 0; i < returnMessage.length(); i++) {
-        returnMessage.setMessageNthByte(i, static_cast<uint8_t>(strtol(result[i + 2], nullptr, 0)));
+        returnMessage.setMessageNthByte(i, static_cast<uint8_t>(strtol(result[i + 1], nullptr, 0)));
     }
     free2D(result, CAN_MESSAGE_PARSE_BUFFER_SPACE);
     return returnMessage;
@@ -295,7 +290,7 @@ int CanMessage::substring(const char *str, size_t startPosition, size_t length, 
 
 size_t CanMessage::split(const char *str, char **out, const char *delimiter, size_t maximumElements, size_t maximumLength)
 {
-    char *copyString = (char *)calloc(strlen(str) + 1, sizeof(char));
+    char *copyString = static_cast<char *>(calloc(strlen(str) + 1, sizeof(char)));
     strncpy(copyString, str, strlen(str) + 1);
     size_t outLength{0};
     size_t copyStringMaxLength{strlen(str) + 1};
