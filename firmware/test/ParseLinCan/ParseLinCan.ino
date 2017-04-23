@@ -1,3 +1,5 @@
+#include <Arduino.h>
+
 #include "linmessage.h"
 #include "canmessage.h"
 
