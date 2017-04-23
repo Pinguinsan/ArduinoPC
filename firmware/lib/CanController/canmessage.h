@@ -10,8 +10,8 @@
 #endif
 
 enum FrameType {
-    Normal,
-    Extended
+    Normal = 0x00,
+    Extended = 0x01
 };
 
 class CanMessage

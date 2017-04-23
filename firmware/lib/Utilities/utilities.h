@@ -11,8 +11,12 @@
 #include <float.h>
 #include <Arduino.h>
 
-#define SMALL_BUFFER_SIZE 255
-#define ARRAY_SIZE(x) (sizeof(x)/sizeof(x[0]))
+#ifndef 
+#    define SMALL_BUFFER_SIZE 255
+#endif
+#ifndef 
+#    define ARRAY_SIZE(x) (sizeof(x)/sizeof(x[0]))
+#endif
 
 namespace Utilities
 {
@@ -31,6 +35,7 @@ namespace Utilities
     char intToChar (int intToConvert);
     bool isDigit(char charToCheck);
     int toFixedWidth(const char *input, char *out, size_t fixedWidth);
+    
     int leftPad(const char *input, char *out, size_t fixedWidth, char padChar = '0');
 
     uint32_t hexStringToUInt(const char *str);
@@ -321,6 +326,24 @@ namespace Utilities
         char temp[2]{delimiter, '\0'};
         return genericSplitCast(str, temp, first, arguments...);
     }
+
+    template <typename InputType>
+    size_t toFixedWidthHex(char *out, size_t bufferLength, size_t fixedWidth, InputType input, bool includeZeroX = true)
+    {
+        char duplicateChar[4];
+        char formatMessage[10];
+        if (includeZeroX) {
+            strcpy(formatMessage, "0x%0");
+        } else {
+            strcpy(formatMessage, "%0");
+        }
+        snprintf(duplicateChar, 4, "%li", static_cast<long>(fixedWidth));
+        strcat(formatMessage, duplicateChar);
+        strcat(formatMessage, "x");
+        snprintf(out, bufferLength, formatMessage, input);
+        return strlen(out);
+    }
+
 }
 
 #endif //ARDUINOPC_UTILITIES_H

@@ -852,6 +852,15 @@ INT8U MCP_CAN::sendMsgBuf(INT32U id, INT8U ext, INT8U len, INT8U *buf)
     return sendMsg();
 }
 
+/*********************************************************************************************************
+** Function name:           sendMsg
+** Descriptions:            send CanMessage
+*********************************************************************************************************/
+INT8U MCP_CAN::sendMsgBuf(const CanMessage &message)
+{
+    setMsg(message.id(), message.frameType(), message.length(), message.message());
+    return sendMsg();
+}
 
 /*********************************************************************************************************
 ** Function name:           readMsg
@@ -934,6 +943,38 @@ INT8U MCP_CAN::readMsgBufID(INT32U *ID, INT8U *len, INT8U buf[])
         *len = 0;
     }
     return rc;
+}
+
+/*********************************************************************************************************
+** Function name:           readMsg
+** Descriptions:            read CanMessage
+*********************************************************************************************************/
+CanMessage MCP_CAN::readMsg(INT8U *readStatus)
+{
+    INT32U id{0};
+    INT8U messageLength{0};
+    INT8U messageBuffer[MAX_CHAR_IN_MESSAGE];
+    INT8U rc{readMsg()};
+    if (rc == CAN_OK) {
+        messageLength = m_nDlc;
+        id = m_nID;
+        #if DEBUG_MODE
+            Serial.println("rc == CAN_OK");
+        #endif
+        for(int i = 0; i < m_nDlc && i < MAX_CHAR_IN_MESSAGE; i++) {
+            messageBuffer[i] = m_nDta[i];
+        }
+
+    } else {
+        #if DEBUG_MODE
+            Serial.println("rc != CAN_OK!");
+        #endif
+        messageLength = 0;
+    }
+    if (readStatus) {
+        *readStatus = rc;
+    }
+    return CanMessage{id, FrameType::Normal, messageLength, messageBuffer);
 }
 
 /*********************************************************************************************************

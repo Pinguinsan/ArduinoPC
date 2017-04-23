@@ -129,7 +129,6 @@ namespace Utilities
 
     int toFixedWidth(const char *inputString, char *out, size_t fixedWidth)
     {
-
         size_t ssize{strlen(inputString)};
         size_t bits{fixedWidth * 8};
         out = (char *) malloc(bits + 1);
