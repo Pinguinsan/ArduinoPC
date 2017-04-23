@@ -75,7 +75,7 @@ private:
     void setZeroedMessage();
 
     template <typename InputType>
-    static size_t toFixedWidthHex(char *out, size_t bufferLength, size_t fixedWidth, InputType input, bool includeZeroX = true)
+    static size_t toFixedWidthHex(char *out, size_t bufferLength, InputType input, size_t fixedWidth, bool includeZeroX = true)
     {
         char duplicateChar[4];
         char formatMessage[10];
