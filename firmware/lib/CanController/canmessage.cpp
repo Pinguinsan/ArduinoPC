@@ -181,7 +181,7 @@ uint8_t CanMessage::length() const
     return this->m_length;
 }
 
-size_t CanMessage::toString(char *out, size_t maximumLength) const
+int CanMessage::toString(char *out, size_t maximumLength) const
 {
     if (maximumLength == 0) {
         return -1;
@@ -244,7 +244,7 @@ bool CanMessage::substringExists(const char *first, char second)
     return (substringExists(first, temp));
 }
 
-size_t CanMessage::positionOfSubstring(const char *first, const char *second)
+int CanMessage::positionOfSubstring(const char *first, const char *second)
 {
     if ((!first) || (!second)) {
         return -1;
@@ -256,13 +256,13 @@ size_t CanMessage::positionOfSubstring(const char *first, const char *second)
     return (pos - first);
 }
 
-size_t CanMessage::positionOfSubstring(const char *first, char second)
+int CanMessage::positionOfSubstring(const char *first, char second)
 {
     char temp[2]{second, '\0'};
     return positionOfSubstring(first, temp);
 }
 
-size_t CanMessage::substring(const char *str, size_t startPosition, char *out, size_t maximumLength)
+int CanMessage::substring(const char *str, size_t startPosition, char *out, size_t maximumLength)
 {
     if ((!str) || (!out)) {
         return -1;
@@ -277,7 +277,7 @@ size_t CanMessage::substring(const char *str, size_t startPosition, char *out, s
     return numberToCopy;
 }
 
-size_t CanMessage::substring(const char *str, size_t startPosition, size_t length, char *out, size_t maximumLength)
+int CanMessage::substring(const char *str, size_t startPosition, size_t length, char *out, size_t maximumLength)
 {
     if ((!str) || (!out)) {
         return -1;

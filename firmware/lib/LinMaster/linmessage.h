@@ -67,7 +67,7 @@ public:
     void setMessage(uint8_t *message);
     bool setMessageNthByte(uint8_t index, uint8_t nth);
     
-    size_t toString(char *out, size_t maximumLength) const;
+    int toString(char *out, size_t maximumLength) const;
     static LinMessage parse(const char *str, char delimiter);
     static LinMessage parse(const char *str, const char *delimiter);
     uint8_t operator[](uint8_t index) const;
@@ -155,10 +155,10 @@ private:
 
     static bool substringExists(const char *first, const char *second);
     static bool substringExists(const char *first, char second);
-    static size_t positionOfSubstring(const char *first, const char *second);
-    static size_t positionOfSubstring(const char *first, char second);
-    static size_t substring(const char *str, size_t startPosition, char *out, size_t maximumLength);
-    static size_t substring(const char *str, size_t startPosition, size_t length, char *out, size_t maximumLength);
+    static int positionOfSubstring(const char *first, const char *second);
+    static int positionOfSubstring(const char *first, char second);
+    static int substring(const char *str, size_t startPosition, char *out, size_t maximumLength);
+    static int substring(const char *str, size_t startPosition, size_t length, char *out, size_t maximumLength);
     static size_t split(const char *str, char **out, const char *delimiter, size_t maximumElements, size_t maximumLength);
     static size_t split(const char *str, char **out, const char delimiter, size_t maximumElements, size_t maximumLength);
 

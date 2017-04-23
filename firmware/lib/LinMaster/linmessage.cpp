@@ -249,7 +249,7 @@ uint8_t LinMessage::length() const
     return this->m_length;
 }
 
-size_t LinMessage::toString(char *out, size_t maximumLength) const
+int LinMessage::toString(char *out, size_t maximumLength) const
 {
     if (maximumLength == 0) {
         return -1;
@@ -385,7 +385,7 @@ bool LinMessage::substringExists(const char *first, char second)
     return (substringExists(first, temp));
 }
 
-size_t LinMessage::positionOfSubstring(const char *first, const char *second)
+int LinMessage::positionOfSubstring(const char *first, const char *second)
 {
     if ((!first) || (!second)) {
         return -1;
@@ -397,13 +397,13 @@ size_t LinMessage::positionOfSubstring(const char *first, const char *second)
     return (pos - first);
 }
 
-size_t LinMessage::positionOfSubstring(const char *first, char second)
+int LinMessage::positionOfSubstring(const char *first, char second)
 {
     char temp[2]{second, '\0'};
     return positionOfSubstring(first, temp);
 }
 
-size_t LinMessage::substring(const char *str, size_t startPosition, char *out, size_t maximumLength)
+int LinMessage::substring(const char *str, size_t startPosition, char *out, size_t maximumLength)
 {
     if ((!str) || (!out)) {
         return -1;
@@ -418,7 +418,7 @@ size_t LinMessage::substring(const char *str, size_t startPosition, char *out, s
     return numberToCopy;
 }
 
-size_t LinMessage::substring(const char *str, size_t startPosition, size_t length, char *out, size_t maximumLength)
+int LinMessage::substring(const char *str, size_t startPosition, size_t length, char *out, size_t maximumLength)
 {
     if ((!str) || (!out)) {
         return -1;
