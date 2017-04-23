@@ -158,19 +158,20 @@ public:
     {
         uint8_t bytesReceived{0};
         uint32_t timeoutCount{0};
-        generateSerialBreak();       // Generate the low signal that exceeds 1 char.
+        generateSerialBreak();
         this->m_serial.flush();
-        this->m_serial.write(SYNC_BYTE);  // Sync byte
+        this->m_serial.write(SYNC_BYTE);
         uint8_t idByte{(targetAddress & ADDRESS_PARITY_BYTE) | addressParity(targetAddress)};
-        this->m_serial.write(idByte);  // ID byte
+        this->m_serial.write(idByte);
         pinMode(this->m_txPin, INPUT);
-        digitalWrite(this->m_txPin, LOW);  // don't pull up
+        digitalWrite(this->m_txPin, LOW);
         do {
             while(!this->m_serial.available()) {
                 _delay_us(LIN_WAIT_INTERVAL); 
                 timeoutCount += LIN_WAIT_INTERVAL; 
                 if (timeoutCount >= this->m_timeout) {
-                    goto done;
+                    resetSerialPortIOStatus();
+                    return bytesReceived;
                 } 
             }
 
@@ -180,18 +181,18 @@ public:
                 _delay_us(LIN_WAIT_INTERVAL); 
                 timeoutCount += LIN_WAIT_INTERVAL; 
                 if (timeoutCount >= this->m_timeout) {
-                    goto done; 
+                    resetSerialPortIOStatus();
+                    return bytesReceived;
                 }
             }
         } while(this->m_serial.read() != idByte);
         for (uint8_t i = 0; i < numberOfBytes; i++) {
-            // This while loop strategy does not take into account the added time for the logic.  
-            // So the actual this->m_timeout will be slightly longer then written here.
             while(!this->m_serial.available()) { 
                 _delay_us(LIN_WAIT_INTERVAL); 
                 timeoutCount += LIN_WAIT_INTERVAL; 
                 if (timeoutCount >= this->m_timeout) {
-                goto done; 
+                    resetSerialPortIOStatus();
+                    return bytesReceived;
                 }
             } 
             message[i] = this->m_serial.read();
@@ -201,7 +202,8 @@ public:
             _delay_us(LIN_WAIT_INTERVAL); 
             timeoutCount += LIN_WAIT_INTERVAL; 
             if (timeoutCount >= this->m_timeout) {
-                goto done; 
+                resetSerialPortIOStatus();
+                return bytesReceived;
             }
         }
         if (this->m_serial.available()) {
@@ -214,14 +216,10 @@ public:
                 bytesReceived = LIN_RECEIVE_SUCCESS;
             }
         }
-
-        done:
-        pinMode(this->m_txPin, OUTPUT);
+        resetSerialPortIOStatus();
         return bytesReceived;
     }
 
-
-    // Add an element to the schedule.  To remove, either clear the whole thing, or remove it when it next plays
     void addToScheduleTable(LinMessage& entry, uint16_t when = 0)
     {
          entry.setTriggerTime(millis() + when);
@@ -290,8 +288,13 @@ protected:
         }
 
         this->m_serial.begin(this->m_baudRate);
-        this->m_serialPortIsActive = 1;
+        this->m_serialPortIsActive = true;
 
+    }
+
+    void resetSerialPortIOStatus()
+    {
+        pinMode(this->m_txPin, OUTPUT);
     }
     
     // For LIN 1.X "start" should = 0, for LIN 2.X "start" should be the addr byte. 
