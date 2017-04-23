@@ -288,22 +288,22 @@ LinMessage LinMessage::parse(const char *str, const char *delimiter)
 {
     char **result{calloc2D<char>(CAN_MESSAGE_PARSE_BUFFER_SPACE, 4)};
     size_t resultSize{split(str, result, delimiter, CAN_MESSAGE_PARSE_BUFFER_SPACE, 4)};
-    if (resultSize < bufferSpace) {
-        free2D(result, bufferSpace);
+    if (resultSize < CAN_MESSAGE_PARSE_BUFFER_SPACE) {
+        free2D(result, CAN_MESSAGE_PARSE_BUFFER_SPACE);
         return LinMessage{};
     }
-    uint8_t tempVersion{static_cast<uint8_t>strtol(result[0], NULL)};
+    uint8_t tempVersion{static_cast<uint8_t>strtol(result[0], nullptr, 0)};
     if ((tempVersion != LinVersion::RevisionOne) && (tempVersion != LinVersion::RevisionTwo)) {
-        free2D(result, bufferSpace);
+        free2D(result, CAN_MESSAGE_PARSE_BUFFER_SPACE);
         return LinMessage{};
     } 
-    LinMessage returnMessage{static_cast<uint8_t>strtol(result[1], NULL),
+    LinMessage returnMessage{static_cast<uint8_t>strtol(result[1], nullptr, 0),
                              tempVersion == LinVersion::RevisionOne ? LinVersion::RevisionOne : LinVersion::RevisionTwo,
-                             resultSize - 2};
+                             static_cast<uint8_t>(resultSize - 2)};
     for (uint8_t i = 0; i < returnMessage.length(); i++) {
-        returnMessage.setMessageNthByte(i, static_cast<uint8_t>(strtol(result[i + 2], NULL)));
+        returnMessage.setMessageNthByte(i, static_cast<uint8_t>(strtol(result[i + 2], nullptr, 0)));
     }
-    free2D(result, bufferSpace);
+    free2D(result, CAN_MESSAGE_PARSE_BUFFER_SPACE);
     return returnMessage;
 }
 

@@ -2,6 +2,9 @@
 #define ARDUINOPC_CANMESSAGE_H
 
 #include <cstdio>
+#include <cstring>
+#include <cstdint>
+#include <cstdlib>
 
 #ifndef SMALL_BUFFER_SIZE
 #    define SMALL_BUFFER_SIZE 255
@@ -72,7 +75,7 @@ private:
     void setZeroedMessage();
 
     template <typename InputType>
-    size_t toFixedWidthHex(char *out, size_t bufferLength, size_t fixedWidth, InputType input, bool includeZeroX = true)
+    static size_t toFixedWidthHex(char *out, size_t bufferLength, size_t fixedWidth, InputType input, bool includeZeroX = true)
     {
         char duplicateChar[4];
         char formatMessage[10];
@@ -89,7 +92,7 @@ private:
     }
 
     template <typename Ptr>
-    void free2D(Ptr **out, size_t elements)
+    static void free2D(Ptr **out, size_t elements)
     {
         for (size_t i = 0; i < elements; i++) {
             free(out[i]);
@@ -98,7 +101,7 @@ private:
     }
 
     template <typename Ptr>
-    Ptr **calloc2D(size_t elements, size_t maximumLength)
+    static Ptr **calloc2D(size_t elements, size_t maximumLength)
     {
         Ptr **out = (Ptr **)calloc(elements, sizeof(Ptr *) * maximumLength);
         for (size_t i = 0; i < elements; i++) {
@@ -107,12 +110,12 @@ private:
         return out;
     }
 
-    size_t positionOfSubstring(const char *first, const char *second);
-    size_t positionOfSubstring(const char *first, char second);
-    size_t substring(const char *str, size_t startPosition, char *out, size_t maximumLength);
-    size_t substring(const char *str, size_t startPosition, size_t length, char *out, size_t maximumLength);
-    size_t split(const char *str, char **out, const char *delimiter, size_t maximumElements, size_t maximumLength);
-    size_t split(const char *str, char **out, const char delimiter, size_t maximumElements, size_t maximumLength);
+    static size_t positionOfSubstring(const char *first, const char *second);
+    static size_t positionOfSubstring(const char *first, char second);
+    static size_t substring(const char *str, size_t startPosition, char *out, size_t maximumLength);
+    static size_t substring(const char *str, size_t startPosition, size_t length, char *out, size_t maximumLength);
+    static size_t split(const char *str, char **out, const char *delimiter, size_t maximumElements, size_t maximumLength);
+    static size_t split(const char *str, char **out, const char delimiter, size_t maximumElements, size_t maximumLength);
 
 
 };

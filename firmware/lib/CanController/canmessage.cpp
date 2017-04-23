@@ -224,14 +224,16 @@ CanMessage CanMessage::parse(const char *str, const char *delimiter)
         free2D(result, CAN_MESSAGE_PARSE_BUFFER_SPACE);
         return CanMessage{};
     }
-    uint8_t tempFrameType{static_cast<uint8_t>(strtol(result[0], NULL)};
+    uint8_t tempFrameType{static_cast<uint8_t>(strtol(result[0], nullptr, 0)};
     if (tempFrameType > 1) {
-        free2D(result, bufferSpace);
+        free2D(result, CAN_MESSAGE_PARSE_BUFFER_SPACE);
         return CanMessage{};
     } 
-    CanMessage returnMessage{static_cast<uint32_t>(strtol(result[1], NULL)), tempFrameType, resultSize - 2};
+    CanMessage returnMessage{static_cast<uint32_t>(strtol(result[1], nullptr, 0)),
+                             tempFrameType, 
+                             static_cast<uint8_t>(resultSize - 2)};
     for (uint8_t i = 0; i < returnMessage.length(); i++) {
-        returnMessage.setMessageNthByte(i, static_cast<uint8_t>(strtol(result[i + 2]), NULL));
+        returnMessage.setMessageNthByte(i, static_cast<uint8_t>(strtol(result[i + 2]), nullptr, 0));
     }
     free2D(result, CAN_MESSAGE_PARSE_BUFFER_SPACE);
     return returnMessage;
