@@ -278,46 +278,6 @@ size_t LinMessage::toString(char *out, size_t maximumLength) const
     return strlen(out);
 }
 
-    uint32_t hexStringToUInt(const char *str)
-    {
-        if (!str) {
-            return 0;
-        }
-        return (uint32_t)strtol(str, NULL, 16);
-    }
-
-    uint8_t hexStringToUChar(const char *str)
-    {
-        return (uint8_t)hexStringToUInt(str);
-    }
-
-
-    uint32_t decStringToUInt(const char *str)
-    {
-        if (!str) {
-            return 0;
-        }
-        return (uint32_t)strtol(str, NULL, 10);
-    }
-
-    uint8_t decStringToUChar(const char *str)
-    {
-        return (uint8_t)decStringToUInt(str);
-    }
-    
-    uint32_t stringToUInt(const char *str)
-    {
-        if (!str) {
-            return 0;
-        }
-        return (uint32_t)strtol(str, NULL, 0);
-    }
-
-    uint8_t stringToUChar(const char *str)
-    {
-        return (uint8_t)strtol(str, NULL, 0);
-    }
-
 uint8_t LinMessage::parseLinAddress(const char *str)
 {
     return static_cast<uint32_t>(strtol(str, NULL, 16));
@@ -328,32 +288,30 @@ uint8_t LinMessage::parseLinByte(const char *str)
     return static_cast<uint32_t>(strtol(str, NULL, 16));
 }
 
-LinMessage LinMessage::parse(const char *str, char delimiter, uint8_t messageLength)
+LinMessage LinMessage::parse(const char *str, char delimiter)
 {
     const char temp[2]{delimiter, '\0'};
-    return LinMessage::parse(str, temp, messageLength);
+    return LinMessage::parse(str, temp);
 }
 
-LinMessage LinMessage::parse(const char *str, const char *delimiter, uint8_t messageLength)
+LinMessage LinMessage::parse(const char *str, const char *delimiter)
 {
-    LinMessage returnMessage{};
-    using namespace Utilities;
-    int bufferSpace{messageLength + 2};
-    char **result{calloc2D<char>(bufferSpace, 4)};
-    int resultSize{split(str, result, delimiter, bufferSpace, 4)};
-    if (resultSize < (bufferSpace)) {
+    char **result{calloc2D<char>(CAN_MESSAGE_PARSE_BUFFER_SPACE, 4)};
+    size_t resultSize{split(str, result, delimiter, CAN_MESSAGE_PARSE_BUFFER_SPACE, 4)};
+    if (resultSize < bufferSpace) {
         free2D(result, bufferSpace);
         return LinMessage{};
     }
-    uint8_t tempVersion{stringToUChar(result[0])};
+    uint8_t tempVersion{static_cast<uint8_t>strtol(result[0], NULL)};
     if ((tempVersion != LinVersion::RevisionOne) && (tempVersion != LinVersion::RevisionTwo)) {
         free2D(result, bufferSpace);
-        return returnMessage;
+        return LinMessage{};
     } 
-    returnMessage.setVersion(tempVersion == LinVersion::RevisionOne ? LinVersion::RevisionOne : LinVersion::RevisionTwo);
-    returnMessage.setAddress(stringToUChar(result[1]));
-    for (uint8_t i = 0; i < messageLength; i++) {
-        returnMessage.setMessageNthByte(i, stringToUChar(result[i + 2]));
+    LinMessage returnMessage{static_cast<uint8_t>strtol(result[1], NULL),
+                             tempVersion == LinVersion::RevisionOne ? LinVersion::RevisionOne : LinVersion::RevisionTwo,
+                             resultSize - 2};
+    for (uint8_t i = 0; i < returnMessage.length(); i++) {
+        returnMessage.setMessageNthByte(i, static_cast<uint8_t>(strtol(result[i + 2], NULL)));
     }
     free2D(result, bufferSpace);
     return returnMessage;

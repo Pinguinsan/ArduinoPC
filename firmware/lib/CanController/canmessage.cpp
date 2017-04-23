@@ -1,4 +1,4 @@
-#include "../include/canmessage.h"
+#include "canmessage.h"
 
 const uint8_t CanMessage::CAN_BYTE_WIDTH{2};
 const uint8_t CanMessage::CAN_ID_WIDTH{3};
@@ -216,31 +216,26 @@ CanMessage CanMessage::parse(const char *str, char delimiter, uint8_t messageLen
     return CanMessage::parse(str, temp, messageLength);
 }
 
-CanMessage CanMessage::parse(const char *str, const char *delimiter, uint8_t messageLength)
+CanMessage CanMessage::parse(const char *str, const char *delimiter)
 {
-    CanMessage returnMessage{};
-    using namespace Utilities;
-    int bufferSpace{messageLength + 2};
-    char **result{calloc2D<char>(bufferSpace, 10)};
-    int resultSize{split(str, result, delimiter, bufferSpace, 10)};
-    if (resultSize < (bufferSpace)) {
-        free2D(result, bufferSpace);
+    char **result{calloc2D<char>(CAN_MESSAGE_PARSE_BUFFER_SPACE, 10)};
+    size_t resultSize{split(str, result, delimiter, CAN_MESSAGE_PARSE_BUFFER_SPACE, 10)};
+    if (resultSize < CAN_MESSAGE_PARSE_BUFFER_SPACE) {
+        free2D(result, CAN_MESSAGE_PARSE_BUFFER_SPACE);
         return CanMessage{};
     }
-    uint8_t tempFrameType{stringToUChar(result[0])};
+    uint8_t tempFrameType{static_cast<uint8_t>(strtol(result[0], NULL)};
     if (tempFrameType > 1) {
         free2D(result, bufferSpace);
-        return returnMessage;
+        return CanMessage{};
     } 
-    returnMessage.setFrameType(tempFrameType);
-    returnMessage.setID(stringToUInt(result[1]));
-    for (uint8_t i = 0; i < messageLength; i++) {
-        returnMessage.setMessageNthByte(i, stringToUChar(result[i + 2]));
+    CanMessage returnMessage{static_cast<uint32_t>(strtol(result[1], NULL)), tempFrameType, resultSize - 2};
+    for (uint8_t i = 0; i < returnMessage.length(); i++) {
+        returnMessage.setMessageNthByte(i, static_cast<uint8_t>(strtol(result[i + 2]), NULL));
     }
-    free2D(result, bufferSpace);
+    free2D(result, CAN_MESSAGE_PARSE_BUFFER_SPACE);
     return returnMessage;
 }
-
 
 size_t CanMessage::positionOfSubstring(const char *first, const char *second)
 {

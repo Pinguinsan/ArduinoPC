@@ -5,7 +5,11 @@
 #include <cstdio>
 
 #ifndef SMALL_BUFFER_SIZE
-    #define SMALL_BUFFER_SIZE 255
+#    define SMALL_BUFFER_SIZE 255
+#endif
+
+#ifndef LIN_MESSAGE_PARSE_BUFFER_SPACE
+#    define LIN_MESSAGE_PARSE_BUFFER_SPACE 15
 #endif
 
 enum LinVersion {

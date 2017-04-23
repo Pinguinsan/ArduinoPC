@@ -1,11 +1,14 @@
 #ifndef ARDUINOPC_CANMESSAGE_H
 #define ARDUINOPC_CANMESSAGE_H
 
-//#include "utilities.h"
 #include <cstdio>
 
 #ifndef SMALL_BUFFER_SIZE
-    #define SMALL_BUFFER_SIZE 255
+#    define SMALL_BUFFER_SIZE 255
+#endif
+
+#ifndef CAN_MESSAGE_PARSE_BUFFER_SPACE
+#    define CAN_MESSAGE_PARSE_BUFFER_SPACE 15
 #endif
 
 enum FrameType {
