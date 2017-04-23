@@ -65,10 +65,8 @@ public:
     bool setMessageNthByte(uint8_t index, uint8_t nth);
     
     size_t toString(char *out, size_t maximumLength) const;
-    static uint8_t parseLinAddress(const char *str);
-    static uint8_t parseLinByte(const char *str);
-    static LinMessage parse(const char *str, char delimiter, uint8_t messageLength);
-    static LinMessage parse(const char *str, const char *delimiter, uint8_t messageLength);
+    static LinMessage parse(const char *str, char delimiter);
+    static LinMessage parse(const char *str, const char *delimiter);
     uint8_t operator[](uint8_t index) const;
     LinMessage &operator=(const LinMessage &rhs);
     friend bool operator==(const LinMessage &lhs, const LinMessage &rhs) 

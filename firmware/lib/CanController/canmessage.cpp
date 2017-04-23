@@ -210,10 +210,10 @@ size_t CanMessage::toString(char *out, size_t maximumLength) const
     return strlen(out);
 }
 
-CanMessage CanMessage::parse(const char *str, char delimiter, uint8_t messageLength)
+CanMessage CanMessage::parse(const char *str, char delimiter)
 {
     const char temp[2]{delimiter, '\0'};
-    return CanMessage::parse(str, temp, messageLength);
+    return CanMessage::parse(str, temp);
 }
 
 CanMessage CanMessage::parse(const char *str, const char *delimiter)

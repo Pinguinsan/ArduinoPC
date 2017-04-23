@@ -278,16 +278,6 @@ size_t LinMessage::toString(char *out, size_t maximumLength) const
     return strlen(out);
 }
 
-uint8_t LinMessage::parseLinAddress(const char *str)
-{
-    return static_cast<uint32_t>(strtol(str, NULL, 16));
-}
-
-uint8_t LinMessage::parseLinByte(const char *str)
-{
-    return static_cast<uint32_t>(strtol(str, NULL, 16));
-}
-
 LinMessage LinMessage::parse(const char *str, char delimiter)
 {
     const char temp[2]{delimiter, '\0'};
