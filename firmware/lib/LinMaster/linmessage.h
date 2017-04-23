@@ -20,7 +20,7 @@ enum LinVersion {
     RevisionTwo = 2
 };
 
-enum FrameType {
+enum LinFrameType {
     ReadFrame = 0,
     WriteFrame = 1,
 };
@@ -50,14 +50,14 @@ public:
     LinVersion version() const;
     uint8_t length() const;
     uint8_t *message() const;
-    FrameType frameType() const;
+    LinFrameType frameType() const;
     unsigned long triggerTime() const;
     callback_ptr_t callback() const;
     heap_skew_element_t skewChildren() const;
 
     void setCallback(callback_ptr_t callback);
     void setFrameType(uint8_t frameType);
-    void setFrameType(FrameType frameType); 
+    void setFrameType(LinFrameType frameType); 
     void setTriggerTime(unsigned long triggerTime);
     void setAddress(uint8_t address);
     void setLength(uint8_t length);
@@ -86,7 +86,7 @@ public:
     }
 
     static LinVersion toLinVersion(uint8_t version);
-    static FrameType toFrameType(uint8_t frameType);
+    static LinFrameType toFrameType(uint8_t frameType);
 
     // So that the skew heap orders the elements by when they should be executed
     friend bool operator>(LinMessage &lhs, LinMessage &rhs)
@@ -106,13 +106,13 @@ private:
     uint8_t m_length;
     uint8_t *m_message;
     unsigned long m_triggerTime;
-    FrameType m_frameType;
+    LinFrameType m_frameType;
     heap_skew_element_t m_skewChildren;
     callback_ptr_t m_callback;
     
     static const uint8_t DEFAULT_MESSAGE_LENGTH;
     static const LinVersion DEFAULT_LIN_VERSION;
-    static const FrameType DEFAULT_FRAME_TYPE;
+    static const LinFrameType DEFAULT_FRAME_TYPE;
 
     void setZeroedMessage();
     void zeroOutSkewChildren();

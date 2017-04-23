@@ -2,7 +2,7 @@
 
 const uint8_t LinMessage::DEFAULT_MESSAGE_LENGTH{8};
 const LinVersion LinMessage::DEFAULT_LIN_VERSION{LinVersion::RevisionOne};
-const FrameType LinMessage::DEFAULT_FRAME_TYPE{FrameType::ReadFrame};
+const LinFrameType LinMessage::DEFAULT_FRAME_TYPE{LinFrameType::ReadFrame};
 
 LinMessage::LinMessage(uint8_t address, LinVersion version, uint8_t length, uint8_t *message) :
     m_address{address},
@@ -288,12 +288,12 @@ LinMessage LinMessage::parse(const char *str, const char *delimiter)
         free2D(result, LIN_MESSAGE_PARSE_BUFFER_SPACE);
         return LinMessage{};
     }
-    uint8_t tempVersion{static_cast<uint8_t>strtol(result[0], nullptr, 0)};
+    uint8_t tempVersion{static_cast<uint8_t>(strtol(result[0], nullptr, 0))};
     if ((tempVersion != LinVersion::RevisionOne) && (tempVersion != LinVersion::RevisionTwo)) {
         free2D(result, LIN_MESSAGE_PARSE_BUFFER_SPACE);
         return LinMessage{};
     } 
-    LinMessage returnMessage{static_cast<uint8_t>strtol(result[1], nullptr, 0),
+    LinMessage returnMessage{static_cast<uint8_t>(strtol(result[1], nullptr, 0)),
                              tempVersion == LinVersion::RevisionOne ? LinVersion::RevisionOne : LinVersion::RevisionTwo,
                              static_cast<uint8_t>(resultSize - 2)};
     for (uint8_t i = 0; i < returnMessage.length(); i++) {
@@ -303,7 +303,7 @@ LinMessage LinMessage::parse(const char *str, const char *delimiter)
     return returnMessage;
 }
 
-FrameType LinMessage::frameType() const
+LinFrameType LinMessage::frameType() const
 {
     return this->m_frameType;
 }
@@ -333,7 +333,7 @@ void LinMessage::setFrameType(uint8_t frameType)
     this->m_frameType = LinMessage::toFrameType(frameType);
 }
 
-void LinMessage::setFrameType(FrameType frameType)
+void LinMessage::setFrameType(LinFrameType frameType)
 {
     this->m_frameType = frameType;
 }
@@ -360,12 +360,12 @@ LinVersion LinMessage::toLinVersion(uint8_t version)
     }
 }
     
-FrameType LinMessage::toFrameType(uint8_t frameType)
+LinFrameType LinMessage::toFrameType(uint8_t frameType)
 {
-    if (frameType == static_cast<uint8_t>(FrameType::ReadFrame)) {
-        return FrameType::ReadFrame;
-    } else if (frameType == static_cast<uint8_t>(FrameType::WriteFrame)) {
-        return FrameType::WriteFrame;
+    if (frameType == static_cast<uint8_t>(LinFrameType::ReadFrame)) {
+        return LinFrameType::ReadFrame;
+    } else if (frameType == static_cast<uint8_t>(LinFrameType::WriteFrame)) {
+        return LinFrameType::WriteFrame;
     } else {
         return LinMessage::DEFAULT_FRAME_TYPE;
     }

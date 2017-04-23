@@ -14,7 +14,7 @@
 #    define CAN_MESSAGE_PARSE_BUFFER_SPACE 15
 #endif
 
-enum FrameType {
+enum CanFrameType {
     Normal = 0x00,
     Extended = 0x01
 };

@@ -27,6 +27,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef ARDUINOPC_HEAPSKEW_H
 #define ARDUINOPC_HEAPSKEW_H
 
+#include <cstdint>
+
 // T must have a > comparison operator.
 // T must have a HeapSkewElement class with the variable name skewChildren; i.e. "HeapSkew<T>::HeapSkewElement  skewChildren;"
 template<typename T> 
@@ -94,7 +96,7 @@ void HeapSkew<T>::push(T& t)
     //assert(&t);
     t.skewChildren.left = 0; 
     t.skewChildren.right = 0;
-    this->m_root = merge(&t, this->m_root);
+    this->m_root = this->merge(&t, this->m_root);
 }
 
 template<typename T> 
@@ -102,7 +104,7 @@ T& HeapSkew<T>::pop()
 {
     T& ret = *this->m_root;
     if (this->m_root) {
-        this->m_root = merge(this->m_root->skewChildren.left, this->m_root->skewChildren.right);
+        this->m_root = this->merge(this->m_root->skewChildren.left, this->m_root->skewChildren.right);
     }
     ret.skewChildren.left = 0;
     ret.skewChildren.right = 0;
@@ -127,14 +129,14 @@ T& HeapSkew<T>::clear()
 template<typename T> 
 void HeapSkew<T>::merge (HeapSkew& h)
 {
-    merge(h.m_root);
+    this->merge(h.m_root);
     h.m_root = 0;
 }
 
 
 template<typename T> T* HeapSkew<T>::merge (T* a, T* b)
 {
-    byte sizeCounter{0};
+    uint8_t sizeCounter{0};
     T *returnNode{nullptr};
     lastOperationDepth = 0;
     if (a == 0) {
