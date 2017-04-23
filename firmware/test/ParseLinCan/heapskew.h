@@ -27,7 +27,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef ARDUINOPC_HEAPSKEW_H
 #define ARDUINOPC_HEAPSKEW_H
 
-#include <cstdint>
+#include <stdint.h>
 
 // T must have a > comparison operator.
 // T must have a HeapSkewElement class with the variable name skewChildren; i.e. "HeapSkew<T>::HeapSkewElement  skewChildren;"

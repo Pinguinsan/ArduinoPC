@@ -1,10 +1,10 @@
 #ifndef ARDUINOPC_CANMESSAGE_H
 #define ARDUINOPC_CANMESSAGE_H
 
-#include <cstdio>
-#include <cstring>
-#include <cstdint>
-#include <cstdlib>
+#include <stdio.h>
+#include <string.h>
+#include <stdint.h>
+#include <stdlib.h>
 
 #ifndef SMALL_BUFFER_SIZE
 #    define SMALL_BUFFER_SIZE 255

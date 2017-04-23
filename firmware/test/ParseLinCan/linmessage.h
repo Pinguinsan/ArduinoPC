@@ -1,11 +1,12 @@
 #ifndef ARDUINOPC_LINMESSAGE_H
 #define ARDUINOPC_LINMESSAGE_H
 
+#include <stdio.h>
+#include <string.h>
+#include <stdint.h>
+#include <stdlib.h>
+
 #include "heapskew.h"
-#include <cstdio>
-#include <cstring>
-#include <cstdint>
-#include <cstdlib>
 
 #ifndef SMALL_BUFFER_SIZE
 #    define SMALL_BUFFER_SIZE 255

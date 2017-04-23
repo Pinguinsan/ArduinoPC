@@ -14,10 +14,10 @@ CanMessage::CanMessage(uint32_t id, uint8_t frameType, uint8_t length, uint8_t *
     this->setMessage(message, length);
 }
 
-CanMessage::CanMessage(uint32_t id, uint8_t frameType) :
+CanMessage::CanMessage(uint32_t id, uint8_t length) :
     m_id{id},
-    m_frameType{frameType},
-    m_length{DEFAULT_MESSAGE_LENGTH},
+    m_frameType{DEFAULT_FRAME_TYPE},
+    m_length{length},
     m_message{static_cast<uint8_t *>(calloc(this->m_length, sizeof(uint8_t)))}
 {
     this->setZeroedMessage();

@@ -2,21 +2,20 @@
 #define ARDUINOPC_LINMASTER_H
 
 #include <Arduino.h>
-#include <HardwareSerial.h>
 #include <inttypes.h>
 #include <util/delay.h>
 
-#define LIN_BREAK_DURATION 15    // Number of bits in the break.
-#define LIN_TIMEOUT_IN_FRAMES 2     // Wait this many max frame times before declaring a read timeout.
+#include "heapskew.h"
+#include "linmessage.h"
+
+#define LIN_BREAK_DURATION 15
+#define LIN_TIMEOUT_IN_FRAMES 2
 #define SYNC_BYTE 0x55
 #define ADDRESS_PARITY_BYTE 0x3F
 #define LIN_RECEIVE_SUCCESS 0xFF
 #define LIN_WAIT_INTERVAL 100
 #define MAXIMUM_DELAY_MICROSECONDS 16383
 #define MICROSECONDS_PER_MILLISECOND 1000
-
-#include "heapskew.h"
-#include "linmessage.h"
 
 #define BIT(data,shift) ((data&(1<<shift))>>shift)
 
