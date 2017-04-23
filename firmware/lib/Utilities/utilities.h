@@ -50,13 +50,13 @@ namespace Utilities
     int tMin(int lhs, int rhs);
     bool substringExists(const char *first, const char *second);
     bool substringExists(const char *first, char second);
-    int positionOfSubstring(const char *first, const char *second);
-    int positionOfSubstring(const char *first, char second);
-    int substring(const char *str, size_t startPosition, char *out, size_t maximumLength);
-    int substring(const char *str, size_t startPosition, size_t length, char *out, size_t maximumLength);
+    size_t positionOfSubstring(const char *first, const char *second);
+    size_t positionOfSubstring(const char *first, char second);
+    size_t substring(const char *str, size_t startPosition, char *out, size_t maximumLength);
+    size_t substring(const char *str, size_t startPosition, size_t length, char *out, size_t maximumLength);
     bool isValidByte(char byteToCheck);
-    int split(const char *str, char **out, const char *delimiter, size_t maximumElements, size_t maximumLength);
-    int split(const char *str, char **out, const char delimiter, size_t maximumElements, size_t maximumLength);
+    size_t split(const char *str, char **out, const char *delimiter, size_t maximumElements, size_t maximumLength);
+    size_t split(const char *str, char **out, const char delimiter, size_t maximumElements, size_t maximumLength);
     unsigned long tMillis();
 
     template <typename Ptr>

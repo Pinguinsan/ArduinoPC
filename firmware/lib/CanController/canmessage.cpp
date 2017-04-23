@@ -185,44 +185,26 @@ uint8_t CanMessage::length() const
     return this->m_length;
 }
 
-int CanMessage::toString(char *out, size_t maximumLength) const
+size_t CanMessage::toString(char *out, size_t maximumLength) const
 {
-    using namespace Utilities;
-    if ((this->m_id == 0) &&
-        (this->m_frameType == DEFAULT_FRAME_TYPE) &&
-        (this->m_length == 0)) {
-        strncpy(out, "", maximumLength);
+    if (maximumLength == 0) {
         return -1;
     }
     char tempFrameType[2];
-    toDecString(this->m_frameType, tempFrameType, 2);
-    strcpy(out, tempFrameType);
-    strncat(out, ":", maximumLength);
+    snprintf(tempFrameType, 2, "%i", static_cast<int>(this->m_frameType));
+    strncpy(out, tempFrameType, maximumLength);
+    strncat(out, " : ", maximumLength);
 
     char tempHexString[SMALL_BUFFER_SIZE];
-    char tempFixedWidthString[SMALL_BUFFER_SIZE];
-    toHexString(this->m_id, tempHexString, SMALL_BUFFER_SIZE);
-    leftPad(tempHexString, tempFixedWidthString, 2, '0'); 
-    strncat(out, "0x", maximumLength);
-    strncat(out, tempFixedWidthString, maximumLength);
-    strncat(out, ":", maximumLength);
-    if (strlen(out) >= maximumLength) {
-        return strlen(out);
-    }
+    toFixedWidthHex(tempHexString, SMALL_BUFFER_SIZE, this->m_id, 3, true);
+    strncat(out, tempHexString, maximumLength);
+    strncat(out, " : ", maximumLength);
     for (int i = 0; i < this->m_length; i++) {
-        tempHexString[0] = '\0';
-        tempFixedWidthString[0] = '\0';
-        toHexString(this->m_message[i], tempHexString, SMALL_BUFFER_SIZE);
-        leftPad(tempHexString, tempFixedWidthString, 2, '0');
-
-        strncat(out, "0x", maximumLength);
-        strncat(out, tempFixedWidthString, maximumLength);
-
+        memset(tempHexString, '\0', SMALL_BUFFER_SIZE);
+        toFixedWidthHex(tempHexString, SMALL_BUFFER_SIZE, this->m_message[i], 2, true);
+        strncat(out, tempHexString, maximumLength);
         if (i != (this->m_length - 1)) {
-            strncat(out, ":", maximumLength);
-        }
-        if (strlen(out) > maximumLength) {
-            return strlen(out);
+            strncat(out, " : ", maximumLength);
         }
     }
     return strlen(out);
@@ -258,4 +240,85 @@ CanMessage CanMessage::parse(const char *str, const char *delimiter, uint8_t mes
     free2D(result, bufferSpace);
     return returnMessage;
 }
+
+
+size_t CanMessage::positionOfSubstring(const char *first, const char *second)
+{
+    if ((!first) || (!second)) {
+        return -1;
+    }
+    const char *pos{strstr(first, second)};
+    if (!pos) {
+        return -1;
+    }
+    return (pos - first);
+}
+
+size_t CanMessage::positionOfSubstring(const char *first, char second)
+{
+    char temp[2]{second, '\0'};
+    return positionOfSubstring(first, temp);
+}
+
+size_t CanMessage::substring(const char *str, size_t startPosition, char *out, size_t maximumLength)
+{
+    if ((!str) || (!out)) {
+        return -1;
+    }
+    size_t stringLength{strlen(str)};
+    size_t numberToCopy{stringLength - startPosition};
+    if (numberToCopy > maximumLength) {
+        return -1;
+    }
+    memcpy(out, &(*(str + startPosition)), numberToCopy);
+    *(out + numberToCopy) = '\0';
+    return numberToCopy;
+}
+
+size_t CanMessage::substring(const char *str, size_t startPosition, size_t length, char *out, size_t maximumLength)
+{
+    if ((!str) || (!out)) {
+        return -1;
+    }
+    size_t stringLength{strlen(str)};
+    (void)stringLength;
+    size_t numberToCopy{length};
+    if (numberToCopy > maximumLength) {
+        return -1;
+    }
+    memcpy(out, &(*(str + startPosition)), numberToCopy);
+    *(out + numberToCopy) = '\0';
+    return numberToCopy;
+}
+
+size_t CanMessage::split(const char *str, char **out, const char *delimiter, size_t maximumElements, size_t maximumLength)
+{
+    char *copyString = (char *)calloc(strlen(str) + 1, sizeof(char));
+    strncpy(copyString, str, strlen(str) + 1);
+    size_t outLength{0};
+    size_t copyStringMaxLength{strlen(str) + 1};
+    while (substringExists(copyString, delimiter)) {
+        if (outLength >= maximumElements) {
+            break;
+        }
+        if (positionOfSubstring(copyString, delimiter) == 0) {
+            substring(copyString, strlen(delimiter), copyString, maximumLength);
+        } else {
+            substring(copyString, 0, positionOfSubstring(copyString, delimiter), out[outLength++], maximumLength);
+            substring(copyString, positionOfSubstring(copyString, delimiter) + strlen(delimiter), copyString, copyStringMaxLength);
+        }
+    }
+    if ((strlen(copyString) > 0) && (outLength < maximumElements)) {
+        strncpy(out[outLength++], copyString, maximumLength);
+    }
+    free(copyString);
+    return outLength;
+}
+
+size_t CanMessage::split(const char *str, char **out, const char delimiter, size_t maximumElements, size_t maximumLength)
+{
+    char temp[2]{delimiter, '\0'};
+    return split(str, out, temp, maximumElements, maximumLength);
+}
+
     

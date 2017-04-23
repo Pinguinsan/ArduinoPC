@@ -195,7 +195,7 @@ bool LinMessage::setMessageNthByte(uint8_t index, uint8_t nth)
     }
 }
 
-uint8_t LinMessage::operator[](int index) const
+uint8_t LinMessage::operator[](uint8_t index) const
 {
     if (index < 0) {
         return 0;
@@ -253,58 +253,79 @@ uint8_t LinMessage::length() const
     return this->m_length;
 }
 
-int LinMessage::toString(char *out, size_t maximumLength) const
+size_t LinMessage::toString(char *out, size_t maximumLength) const
 {
-    using namespace Utilities;
-    if ((this->m_address == 0) &&
-        (this->m_version == LinVersion::RevisionOne) &&
-        (this->m_length == 0)) {
+    if (maximumLength == 0) {
         return -1;
     }
     char tempVersion[2];
-    toDecString(this->m_version, tempVersion, 2);
-    strcpy(out, tempVersion);
-    strcat(out, ":");
+    snprintf(tempVersion, 2, "%i", static_cast<int>(this->m_version));
+    strncpy(out, tempVersion, maximumLength);
+    strncat(out, " : ", maximumLength);
 
     char tempHexString[SMALL_BUFFER_SIZE];
-    char tempFixedWidthString[SMALL_BUFFER_SIZE];
-    toHexString(this->m_address, tempHexString, SMALL_BUFFER_SIZE);
-    leftPad(tempHexString, tempFixedWidthString, 2, '0'); 
-    strcat(out, "0x");
-    strcat(out, tempFixedWidthString);
-    strcat(out, ":");
-    if (strlen(out) >= maximumLength) {
-        return strlen(out);
-    }
+    toFixedWidthHex(tempHexString, SMALL_BUFFER_SIZE, this->m_address, 2, true);
+    strncat(out, tempHexString, maximumLength);
+    strncat(out, " : ", maximumLength);
     for (int i = 0; i < this->m_length; i++) {
-        tempHexString[0] = '\0';
-        tempFixedWidthString[0] = '\0';
-        toHexString(this->m_message[i], tempHexString, SMALL_BUFFER_SIZE);
-        leftPad(tempHexString, tempFixedWidthString, 2, '0');
-
-        strcat(out, "0x");
-        strcat(out, tempFixedWidthString);
-
+        memset(tempHexString, '\0', SMALL_BUFFER_SIZE);
+        toFixedWidthHex(tempHexString, SMALL_BUFFER_SIZE, this->m_message[i], 2, true);
+        strncat(out, tempHexString, maximumLength);
         if (i != (this->m_length - 1)) {
-            strcat(out, ":");
-        }
-        if (strlen(out) > maximumLength) {
-            return strlen(out);
+            strncat(out, " : ", maximumLength);
         }
     }
     return strlen(out);
 }
 
+    uint32_t hexStringToUInt(const char *str)
+    {
+        if (!str) {
+            return 0;
+        }
+        return (uint32_t)strtol(str, NULL, 16);
+    }
+
+    uint8_t hexStringToUChar(const char *str)
+    {
+        return (uint8_t)hexStringToUInt(str);
+    }
+
+
+    uint32_t decStringToUInt(const char *str)
+    {
+        if (!str) {
+            return 0;
+        }
+        return (uint32_t)strtol(str, NULL, 10);
+    }
+
+    uint8_t decStringToUChar(const char *str)
+    {
+        return (uint8_t)decStringToUInt(str);
+    }
+    
+    uint32_t stringToUInt(const char *str)
+    {
+        if (!str) {
+            return 0;
+        }
+        return (uint32_t)strtol(str, NULL, 0);
+    }
+
+    uint8_t stringToUChar(const char *str)
+    {
+        return (uint8_t)strtol(str, NULL, 0);
+    }
+
 uint8_t LinMessage::parseLinAddress(const char *str)
 {
-    using namespace Utilities;
-    return hexStringToUChar(str);
+    return static_cast<uint32_t>(strtol(str, NULL, 16));
 }
 
 uint8_t LinMessage::parseLinByte(const char *str)
 {
-    using namespace Utilities;
-    return hexStringToUChar(str);
+    return static_cast<uint32_t>(strtol(str, NULL, 16));
 }
 
 LinMessage LinMessage::parse(const char *str, char delimiter, uint8_t messageLength)
@@ -404,4 +425,83 @@ FrameType LinMessage::toFrameType(uint8_t frameType)
     } else {
         return LinMessage::DEFAULT_FRAME_TYPE;
     }
+}
+
+size_t LinMessage::positionOfSubstring(const char *first, const char *second)
+{
+    if ((!first) || (!second)) {
+        return -1;
+    }
+    const char *pos{strstr(first, second)};
+    if (!pos) {
+        return -1;
+    }
+    return (pos - first);
+}
+
+size_t LinMessage::positionOfSubstring(const char *first, char second)
+{
+    char temp[2]{second, '\0'};
+    return positionOfSubstring(first, temp);
+}
+
+size_t LinMessage::substring(const char *str, size_t startPosition, char *out, size_t maximumLength)
+{
+    if ((!str) || (!out)) {
+        return -1;
+    }
+    size_t stringLength{strlen(str)};
+    size_t numberToCopy{stringLength - startPosition};
+    if (numberToCopy > maximumLength) {
+        return -1;
+    }
+    memcpy(out, &(*(str + startPosition)), numberToCopy);
+    *(out + numberToCopy) = '\0';
+    return numberToCopy;
+}
+
+size_t LinMessage::substring(const char *str, size_t startPosition, size_t length, char *out, size_t maximumLength)
+{
+    if ((!str) || (!out)) {
+        return -1;
+    }
+    size_t stringLength{strlen(str)};
+    (void)stringLength;
+    size_t numberToCopy{length};
+    if (numberToCopy > maximumLength) {
+        return -1;
+    }
+    memcpy(out, &(*(str + startPosition)), numberToCopy);
+    *(out + numberToCopy) = '\0';
+    return numberToCopy;
+}
+
+size_t LinMessage::split(const char *str, char **out, const char *delimiter, size_t maximumElements, size_t maximumLength)
+{
+    char *copyString = (char *)calloc(strlen(str) + 1, sizeof(char));
+    strncpy(copyString, str, strlen(str) + 1);
+    size_t outLength{0};
+    size_t copyStringMaxLength{strlen(str) + 1};
+    while (substringExists(copyString, delimiter)) {
+        if (outLength >= maximumElements) {
+            break;
+        }
+        if (positionOfSubstring(copyString, delimiter) == 0) {
+            substring(copyString, strlen(delimiter), copyString, maximumLength);
+        } else {
+            substring(copyString, 0, positionOfSubstring(copyString, delimiter), out[outLength++], maximumLength);
+            substring(copyString, positionOfSubstring(copyString, delimiter) + strlen(delimiter), copyString, copyStringMaxLength);
+        }
+    }
+    if ((strlen(copyString) > 0) && (outLength < maximumElements)) {
+        strncpy(out[outLength++], copyString, maximumLength);
+    }
+    free(copyString);
+    return outLength;
+}
+
+size_t LinMessage::split(const char *str, char **out, const char delimiter, size_t maximumElements, size_t maximumLength)
+{
+    char temp[2]{delimiter, '\0'};
+    return split(str, out, temp, maximumElements, maximumLength);
 }

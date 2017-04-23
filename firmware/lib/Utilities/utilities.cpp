@@ -233,7 +233,7 @@ namespace Utilities
         return (substringExists(first, temp));
     }
 
-    int positionOfSubstring(const char *first, const char *second)
+    size_t positionOfSubstring(const char *first, const char *second)
     {
         if ((!first) || (!second)) {
             return -1;
@@ -245,13 +245,13 @@ namespace Utilities
         return (pos - first);
     }
 
-    int positionOfSubstring(const char *first, char second)
+    size_t positionOfSubstring(const char *first, char second)
     {
         char temp[2]{second, '\0'};
         return positionOfSubstring(first, temp);
     }
 
-    int substring(const char *str, size_t startPosition, char *out, size_t maximumLength)
+    size_t substring(const char *str, size_t startPosition, char *out, size_t maximumLength)
     {
         if ((!str) || (!out)) {
             return -1;
@@ -266,7 +266,7 @@ namespace Utilities
         return numberToCopy;
     }
 
-    int substring(const char *str, size_t startPosition, size_t length, char *out, size_t maximumLength)
+    size_t substring(const char *str, size_t startPosition, size_t length, char *out, size_t maximumLength)
     {
         if ((!str) || (!out)) {
             return -1;
@@ -282,14 +282,14 @@ namespace Utilities
         return numberToCopy;
     }
 
-    int split(const char *str, char **out, const char *delimiter, size_t maximumElements, size_t maximumLength)
+    size_t split(const char *str, char **out, const char *delimiter, size_t maximumElements, size_t maximumLength)
     {
         char *copyString = (char *)calloc(strlen(str) + 1, sizeof(char));
         strncpy(copyString, str, strlen(str) + 1);
-        int outLength{0};
+        size_t outLength{0};
         size_t copyStringMaxLength{strlen(str) + 1};
-        while (substringExists (copyString, delimiter)) {
-            if ((unsigned)outLength >= maximumElements) {
+        while (substringExists(copyString, delimiter)) {
+            if (outLength >= maximumElements) {
                 break;
             }
             if (positionOfSubstring(copyString, delimiter) == 0) {
@@ -299,14 +299,14 @@ namespace Utilities
                 substring(copyString, positionOfSubstring(copyString, delimiter) + strlen(delimiter), copyString, copyStringMaxLength);
             }
         }
-        if ((strlen(copyString) > 0) && ((unsigned)outLength < maximumElements)) {
+        if ((strlen(copyString) > 0) && (outLength < maximumElements)) {
             strncpy(out[outLength++], copyString, maximumLength);
         }
         free(copyString);
         return outLength;
     }
 
-    int split(const char *str, char **out, const char delimiter, size_t maximumElements, size_t maximumLength)
+    size_t split(const char *str, char **out, const char delimiter, size_t maximumElements, size_t maximumLength)
     {
         char temp[2]{delimiter, '\0'};
         return split(str, out, temp, maximumElements, maximumLength);

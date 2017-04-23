@@ -1,9 +1,8 @@
 #ifndef ARDUINOPC_CANMESSAGE_H
 #define ARDUINOPC_CANMESSAGE_H
 
-#include "utilities.h"
-#include <stdio.h>
-#include <Arduino.h>
+//#include "utilities.h"
+#include <cstdio>
 
 #ifndef SMALL_BUFFER_SIZE
     #define SMALL_BUFFER_SIZE 255
@@ -38,10 +37,10 @@ public:
     void setMessage(uint8_t *message);
     bool setMessageNthByte(uint8_t index, uint8_t nth);
     
-    int toString(char *out, size_t maximumLength) const;
+    size_t toString(char *out, size_t maximumLength) const;
     static CanMessage parse(const char *str, char delimiter, uint8_t messageLength);
     static CanMessage parse(const char *str, const char *delimiter, uint8_t messageLength);
-    uint8_t operator[](int index);
+    uint8_t operator[](uint8_t index);
     CanMessage &operator=(const CanMessage &rhs);
     friend bool operator==(const CanMessage &lhs, const CanMessage &rhs) 
     {
@@ -60,7 +59,6 @@ public:
     static const uint8_t CAN_BYTE_WIDTH;
     static const uint8_t CAN_ID_WIDTH;  
     static const uint8_t DEFAULT_FRAME_TYPE;
-    
 
 private:
     uint32_t m_id;
@@ -70,6 +68,51 @@ private:
     
     void setZeroedMessage();
 
+    template <typename InputType>
+    size_t toFixedWidthHex(char *out, size_t bufferLength, size_t fixedWidth, InputType input, bool includeZeroX = true)
+    {
+        char duplicateChar[4];
+        char formatMessage[10];
+        if (includeZeroX) {
+            strcpy(formatMessage, "0x%0");
+        } else {
+            strcpy(formatMessage, "%0");
+        }
+        snprintf(duplicateChar, 4, "%li", static_cast<long>(fixedWidth));
+        strcat(formatMessage, duplicateChar);
+        strcat(formatMessage, "x");
+        snprintf(out, bufferLength, formatMessage, input);
+        return strlen(out);
+    }
+
+    template <typename Ptr>
+    void free2D(Ptr **out, size_t elements)
+    {
+        for (size_t i = 0; i < elements; i++) {
+            free(out[i]);
+        }
+        free(out);
+    }
+
+    template <typename Ptr>
+    Ptr **calloc2D(size_t elements, size_t maximumLength)
+    {
+        Ptr **out = (Ptr **)calloc(elements, sizeof(Ptr *) * maximumLength);
+        for (size_t i = 0; i < elements; i++) {
+            out[i] = (Ptr *)calloc(maximumLength, sizeof(Ptr));
+        }
+        return out;
+    }
+
+    size_t positionOfSubstring(const char *first, const char *second);
+    size_t positionOfSubstring(const char *first, char second);
+    size_t substring(const char *str, size_t startPosition, char *out, size_t maximumLength);
+    size_t substring(const char *str, size_t startPosition, size_t length, char *out, size_t maximumLength);
+    size_t split(const char *str, char **out, const char *delimiter, size_t maximumElements, size_t maximumLength);
+    size_t split(const char *str, char **out, const char delimiter, size_t maximumElements, size_t maximumLength);
+
+
 };
+
 
 #endif //ARDUINOPC_CANMESSAGE_H
