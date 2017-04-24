@@ -49,6 +49,7 @@
 #include <SPI.h>
 #include <Arduino.h>
 #include <inttypes.h>
+#include "canmessage.h"
 
 #ifndef INT32U
 #define INT32U unsigned long
