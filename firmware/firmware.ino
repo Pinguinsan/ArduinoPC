@@ -4,19 +4,19 @@
 #include <HardwareSerial.h>
 #include <SoftwareSerial.h>
 #include <utilities.h>
-#include "include/gpio.h"
-#include "include/arduinopcstrings.h"
+#include "arduinopcstrings.h"
+#include "../lib/gpio.h"
 
 #define ARRAY_SIZE(x) (sizeof(x)/sizeof(x[0]))
 
 #if defined(__HAVE_CAN_BUS__)
-    #include "include/mcp_can.h"
-    #include "include/canmessage.h"
+    #include "../lib/mcp_can.h"
+    #include "../lib/canmessage.h"
 #endif //__HAVE_CAN_BUS__
 
 #if defined(__HAVE_LIN_BUS__)
-    #include "include/lin.h"
-    #include "include/linmessage.h"
+    #include "../lib/linmaster.h"
+    #include "../lib/linmessage.h"
 #endif //__HAVE_LIN_BUS__
 
 using namespace ArduinoPCStrings;

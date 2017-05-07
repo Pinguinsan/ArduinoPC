@@ -1,1 +1,0 @@
-/usr/bin/c++  -fPIC  -fsanitize=undefined -frecord-gcc-switches -g  -shared -Wl,-soname,libarduinopc.so -o libarduinopc.so CMakeFiles/arduinopc.dir/src/C++/arduino/src/arduino.cpp.o -ltjlutils -lpthread 

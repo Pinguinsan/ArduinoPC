@@ -6,7 +6,7 @@
  * the CAN bus, using the SEEEDStudio CAN Shield
  * https://github.com/Seeed-Studio/CAN_BUS_Shield
  */
-#define __HAVE_CAN_BUS__
+//#define __HAVE_CAN_BUS__
 
 /*
  * Un/comment the below line to enable and disable
